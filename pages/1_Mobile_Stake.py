@@ -1,10 +1,9 @@
-import json
-import math
 import uuid
 from datetime import datetime
 from typing import Any, Dict, Optional
 
 import streamlit as st
+from storage import load_ledger_payload, append_ledger_row, get_storage_backend_label
 
 
 # -----------------------------
@@ -107,11 +106,6 @@ def now_ts() -> str:
     return datetime.now().isoformat(timespec="seconds")
 
 
-def load_ledger(path: str) -> Dict[str, Any]:
-    with open(path, "r") as f:
-        return json.load(f)
-
-
 def realized_bankroll(payload: Dict[str, Any]) -> float:
     start = float(payload.get("starting_bankroll", 0.0))
     bets = payload.get("bets", [])
@@ -166,11 +160,6 @@ def add_open_bet(payload: Dict[str, Any], bet: Dict[str, Any]) -> str:
     return bet_id
 
 
-def save_ledger(path: str, payload: Dict[str, Any]) -> None:
-    with open(path, "w") as f:
-        json.dump(payload, f, indent=2)
-
-
 # -----------------------------
 # UI
 # -----------------------------
@@ -189,13 +178,8 @@ button[kind="primary"] { min-height: 2.8rem; font-size: 1.05rem; }
     unsafe_allow_html=True,
 )
 
-ledger_path = st.text_input("Ledger JSON Path", value="/Users/chrischukwura/Downloads/ev_ledger.json")
-
-try:
-    ledger_payload = load_ledger(ledger_path)
-except Exception as e:
-    st.error(f"Could not load ledger at {ledger_path}: {e}")
-    st.stop()
+ledger_payload = load_ledger_payload()
+st.caption(f"Ledger backend: `{get_storage_backend_label()}`")
 
 unit_size = float(ledger_payload.get("unit_size", 1.0))
 br = realized_bankroll(ledger_payload)
@@ -290,6 +274,7 @@ stake_mode = st.radio(
 )
 manual_stake = st.number_input("Manual stake ($)", min_value=0.0, value=1.0, step=0.25)
 confirm = st.checkbox("Confirm add as OPEN", value=False)
+log_this_bet = st.checkbox("Log this bet", value=True)
 
 if st.button("Add OPEN Bet", type="primary", use_container_width=True, disabled=not confirm):
     try:
@@ -318,30 +303,43 @@ if st.button("Add OPEN Bet", type="primary", use_container_width=True, disabled=
         true_prob = float(true_prob_raw) if true_prob_raw.strip() else None
         ev_pct = (float(reco["ev_per_dollar"]) * 100.0) if reco and reco.get("ev_per_dollar") is not None else None
 
-        bet_id = add_open_bet(
-            ledger_payload,
-            {
-                "sport": sport.strip(),
-                "team": team.strip() or None,
-                "opponent": opponent.strip() or None,
-                "market": market.strip(),
-                "market_type": market_type,
-                "selection": selection.strip(),
-                "book": book,
-                "devig_method": devig_method,
-                "devig_details": devig_details.strip() or None,
-                "recommended_stake_snapshot": rec_snapshot,
-                "stake_source": stake_source,
-                "odds_american": parse_american_odds(book_odds_raw),
-                "stake": stake,
-                "fair_odds_american": fair_odds,
-                "true_prob": true_prob,
-                "ev_pct": ev_pct,
-                "kelly_fraction_used": KELLY_FRACTION if stake_source == "Recommended" else None,
-                "notes": notes.strip() or None,
-            },
-        )
-        save_ledger(ledger_path, ledger_payload)
-        st.success(f"Added OPEN bet: {bet_id}")
+        row = {
+            "sport": sport.strip(),
+            "league": sport.strip(),
+            "team": team.strip() or None,
+            "opponent": opponent.strip() or None,
+            "market": market.strip(),
+            "market_type": market_type,
+            "selection": selection.strip(),
+            "player": selection.strip(),
+            "book": book,
+            "devig_method": devig_method,
+            "devig_details": devig_details.strip() or None,
+            "recommended_stake_snapshot": rec_snapshot,
+            "stake_source": stake_source,
+            "odds_american": parse_american_odds(book_odds_raw),
+            "book_odds": parse_american_odds(book_odds_raw),
+            "stake": stake,
+            "fair_odds_american": fair_odds,
+            "fair_odds": fair_odds,
+            "true_prob": true_prob,
+            "ev_pct": ev_pct,
+            "kelly_fraction_used": KELLY_FRACTION if stake_source == "Recommended" else None,
+            "kelly_frac": KELLY_FRACTION if stake_source == "Recommended" else None,
+            "notes": notes.strip() or None,
+            "status": "OPEN",
+            "result": "OPEN",
+            "timestamp": now_ts(),
+            "placed_at": now_ts(),
+            "starting_bankroll": float(ledger_payload.get("starting_bankroll", 0.0)),
+            "unit_size": float(ledger_payload.get("unit_size", 1.0)),
+        }
+        bet_id = str(uuid.uuid4())[:8]
+        row["bet_id"] = bet_id
+        if log_this_bet:
+            append_ledger_row(row)
+            st.success(f"Added OPEN bet: {bet_id}")
+        else:
+            st.success("Bet not logged (toggle is off).")
     except Exception as e:
         st.error(f"Failed to add bet: {e}")

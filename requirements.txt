@@ -1,0 +1,7 @@
+streamlit
+pandas
+numpy
+altair
+st-gsheets-connection
+gspread
+google-auth

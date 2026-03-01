@@ -22,6 +22,7 @@ from typing import Optional, List, Dict, Any
 import pandas as pd
 import streamlit as st
 import altair as alt
+from storage import load_ledger_payload, save_ledger_payload, get_storage_backend_label
 
 
 # -----------------------------
@@ -1071,13 +1072,11 @@ class Ledger:
             "unit_size": self.unit_size,
             "bets": [asdict(b) for b in self.bets],
         }
-        with open(self.storage_path, "w") as f:
-            json.dump(payload, f, indent=2)
+        save_ledger_payload(payload)
 
     @classmethod
     def load(cls, storage_path: str) -> "Ledger":
-        with open(storage_path, "r") as f:
-            payload = json.load(f)
+        payload = load_ledger_payload()
         led = cls(payload["starting_bankroll"], payload["unit_size"], storage_path=storage_path)
         led.bets = [Bet(**b) for b in payload.get("bets", [])]
         return led
@@ -1475,8 +1474,8 @@ st.title("📈 EV Betting Dashboard")
 
 with st.sidebar:
     st.header("Settings")
-    default_path = "/Users/chrischukwura/Downloads/ev_ledger.json"
-    storage_path = st.text_input("Ledger JSON path", value=default_path)
+    storage_path = "auto"
+    st.text_input("Ledger backend", value=get_storage_backend_label(), disabled=True)
     st.divider()
     if st.button("🔄 Reload"):
         st.rerun()
@@ -1484,7 +1483,7 @@ with st.sidebar:
 try:
     ledger = Ledger.load(storage_path)
 except Exception as e:
-    st.error(f"Could not load ledger at: {storage_path}\n\n{e}")
+    st.error(f"Could not load ledger ({get_storage_backend_label()} backend).\n\n{e}")
     st.stop()
 
 normalized_count = ledger.normalize_existing_bets()
@@ -3601,8 +3600,7 @@ with tab6:
     st.divider()
     st.subheader("Raw JSON")
     try:
-        with open(storage_path, "r") as f:
-            raw = json.load(f)
+        raw = load_ledger_payload()
         st.json(raw)
     except Exception as e:
-        st.error(f"Could not read JSON: {e}")
+        st.error(f"Could not read ledger payload: {e}")

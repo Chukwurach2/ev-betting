@@ -1,0 +1,14 @@
+# Python
+__pycache__/
+*.pyc
+
+# Local data
+data/
+*.json
+
+# Secrets
+*.key
+*.pem
+
+# macOS
+.DS_Store
