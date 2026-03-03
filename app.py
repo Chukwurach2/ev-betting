@@ -24,6 +24,19 @@ import streamlit as st
 import altair as alt
 from storage import load_ledger_payload, save_ledger_payload, get_storage_backend_label
 
+# --- DEBUG (temporary) ---
+try:
+    rows = load_ledger()
+    st.sidebar.markdown("### Debug")
+    st.sidebar.write("Backend:", get_storage_backend_label())
+    st.sidebar.write("Rows:", len(rows))
+    st.sidebar.write("worksheet_name:", st.secrets.get("worksheet_name"))
+    st.sidebar.write("spreadsheet_id:", st.secrets.get("spreadsheet_id"))
+    st.sidebar.write("spreadsheet_name:", st.secrets.get("spreadsheet_name"))
+except Exception as e:
+    st.sidebar.error(f"Debug error: {e}")
+# --- END DEBUG ---
+
 
 # -----------------------------
 # Odds helpers
