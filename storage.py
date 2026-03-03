@@ -86,6 +86,7 @@ def _secrets_get(key: str, default: Any = None) -> Any:
 def _gsheets_config() -> Dict[str, Any]:
     return {
         "credentials": _secrets_get("gcp_service_account"),
+        "spreadsheet_id": _secrets_get("spreadsheet_id"),
         "spreadsheet_name": _secrets_get("spreadsheet_name"),
         "worksheet_name": _secrets_get("worksheet_name", DEFAULT_WORKSHEET) or DEFAULT_WORKSHEET,
     }
@@ -93,7 +94,9 @@ def _gsheets_config() -> Dict[str, Any]:
 
 def _google_backend_enabled() -> bool:
     cfg = _gsheets_config()
-    return bool(isinstance(cfg.get("credentials"), dict) and cfg["credentials"] and cfg.get("spreadsheet_name"))
+    has_creds = isinstance(cfg.get("credentials"), dict) and bool(cfg["credentials"])
+    has_sheet = bool(cfg.get("spreadsheet_id") or cfg.get("spreadsheet_name"))
+    return has_creds and has_sheet
 
 
 def get_storage_backend_label() -> str:
@@ -107,16 +110,22 @@ def _get_gspread_worksheet():
 
     cfg = _gsheets_config()
     client = gspread.service_account_from_dict(dict(cfg["credentials"]))
-    spreadsheet_name = str(cfg["spreadsheet_name"])
     worksheet_name = str(cfg.get("worksheet_name") or DEFAULT_WORKSHEET)
 
-    try:
-        sh = client.open(spreadsheet_name)
-    except SpreadsheetNotFound:
-        if spreadsheet_name.startswith("http"):
-            sh = client.open_by_url(spreadsheet_name)
-        else:
-            sh = client.open_by_key(spreadsheet_name)
+    spreadsheet_id = cfg.get("spreadsheet_id")
+    spreadsheet_name = cfg.get("spreadsheet_name")
+
+    if spreadsheet_id:
+        sh = client.open_by_key(str(spreadsheet_id))
+    else:
+        # fallback to name/url behavior
+        try:
+            sh = client.open(str(spreadsheet_name))
+        except SpreadsheetNotFound:
+            if str(spreadsheet_name).startswith("http"):
+                sh = client.open_by_url(str(spreadsheet_name))
+            else:
+                sh = client.open_by_key(str(spreadsheet_name))
 
     try:
         ws = sh.worksheet(worksheet_name)
