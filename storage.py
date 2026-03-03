@@ -17,6 +17,8 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+from collections.abc import Mapping
+
 
 import streamlit as st
 
@@ -91,10 +93,10 @@ def _gsheets_config() -> Dict[str, Any]:
         "worksheet_name": _secrets_get("worksheet_name", DEFAULT_WORKSHEET) or DEFAULT_WORKSHEET,
     }
 
-
 def _google_backend_enabled() -> bool:
     cfg = _gsheets_config()
-    has_creds = isinstance(cfg.get("credentials"), dict) and bool(cfg["credentials"])
+    creds = cfg.get("credentials")
+    has_creds = isinstance(creds, Mapping) and bool(creds)
     has_sheet = bool(cfg.get("spreadsheet_id") or cfg.get("spreadsheet_name"))
     return has_creds and has_sheet
 
