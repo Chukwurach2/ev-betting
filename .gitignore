@@ -12,3 +12,29 @@ data/
 
 # macOS
 .DS_Store
+
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+
+# Streamlit local secrets
+.streamlit/
+
+# One-off scripts
+migrate_ledger_to_gsheets.py
+
+# macOS
+.DS_Store
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Streamlit local secrets (NEVER commit)
+.streamlit/
+
+# One-off migration script (keep local)
+migrate_ledger_to_gsheets.py

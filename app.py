@@ -1061,7 +1061,8 @@ class Bet:
 
 class Ledger:
     def __init__(self, starting_bankroll: float, unit_size: float, storage_path: str):
-        self.starting_bankroll = float(starting_bankroll)
+        # Bankroll baseline is fixed at $500; current bankroll is baseline + settled PnL.
+        self.starting_bankroll = 500.0
         self.unit_size = float(unit_size)
         self.storage_path = storage_path
         self.bets: List[Bet] = []
@@ -1499,7 +1500,7 @@ m = ledger.metrics()
 
 # KPIs
 c1, c2, c3, c4, c5, c6 = st.columns(6)
-c1.metric("Realized Bankroll", f"${m['realized_bankroll']:.2f}")
+c1.metric("Bankroll", f"${m['realized_bankroll']:.2f}")
 c2.metric("Open Exposure", f"${m['open_exposure']:.2f}")
 c3.metric("Worst-case Bankroll", f"${m['effective_bankroll_if_all_open_lose']:.2f}")
 c4.metric("Settled PnL", f"${m['settled_pnl']:.2f}", f"{m['settled_units_pnl']:+.2f}u")
