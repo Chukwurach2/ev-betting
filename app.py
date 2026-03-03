@@ -34,6 +34,8 @@ try:
     st.sidebar.write("worksheet_name:", st.secrets.get("worksheet_name"))
     st.sidebar.write("spreadsheet_id:", st.secrets.get("spreadsheet_id"))
     st.sidebar.write("spreadsheet_name:", st.secrets.get("spreadsheet_name"))
+    st.sidebar.write("Has gcp_service_account:", "gcp_service_account" in st.secrets)
+    st.sidebar.write("gcp_service_account type:", type(st.secrets.get("gcp_service_account")).__name__)
 except Exception as e:
     st.sidebar.error(f"Debug error: {e}")
 # --- END DEBUG ---
