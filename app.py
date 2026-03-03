@@ -1095,7 +1095,13 @@ class Ledger:
     def load(cls, storage_path: str) -> "Ledger":
         payload = load_ledger_payload()
         led = cls(payload["starting_bankroll"], payload["unit_size"], storage_path=storage_path)
-        led.bets = [Bet(**b) for b in payload.get("bets", [])]
+        bet_fields = set(Bet.__dataclass_fields__.keys())
+        led.bets = []
+        for b in payload.get("bets", []):
+            if not isinstance(b, dict):
+                continue
+            safe_b = {k: v for k, v in b.items() if k in bet_fields}
+            led.bets.append(Bet(**safe_b))
         return led
 
     def realized_bankroll(self) -> float:
