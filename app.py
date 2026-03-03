@@ -1554,14 +1554,14 @@ if not open_risk_df.empty and m["realized_bankroll"] > 0:
 
 st.divider()
 
-tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(
-    ["📊 Dashboard", "➕ New Bet", "✏️ Edit Bets", "✅ Grade Bets", "📉 Closing Odds", "⚙️ Export / Raw"]
+tab_dashboard, tab_objective, tab_new_bet, tab_edit_bets, tab_grade_bets, tab_closing_odds, tab_export = st.tabs(
+    ["📊 Dashboard", "🧭 Objective & Scope", "➕ New Bet", "✏️ Edit Bets", "✅ Grade Bets", "📉 Closing Odds", "⚙️ Export / Raw"]
 )
 
 # -----------------------------
 # TAB 1: Dashboard
 # -----------------------------
-with tab1:
+with tab_dashboard:
     settled_base = df[df["status"].isin(["WON", "LOST", "VOID"])].copy()
     open_base = df[df["status"] == "OPEN"].copy()
 
@@ -2307,9 +2307,86 @@ with tab1:
         st.info("No settled bets yet for performance breakdown charts.")
 
 # -----------------------------
-# TAB 2: New Bet
+# TAB 2: Objective & Scope
 # -----------------------------
-with tab2:
+with tab_objective:
+    st.markdown(
+        """
+# EV Betting Framework - NBA & NHL Player Props
+
+## Objective
+This model targets +EV player prop opportunities using sharp-weighted fair pricing, structured EV thresholds, and disciplined bankroll management. The goal is scalable edge supported by CLV tracking.
+
+---
+
+## NBA Player Prop Rules
+
+### Devig Method
+- Additive devig
+- Sharp-weighted pricing:
+  - Pinnacle: 0.50
+  - Circa: 0.25
+  - BetOnline: 0.20
+  - DraftKings: 0.03
+  - FanDuel: 0.02
+
+### Book Requirements
+- At least one sharp anchor (Pinnacle or Circa)
+- Minimum 3 books total
+- Skip if only soft books are present
+
+### Primary Betting Zone
+- Odds: +105 to +165
+- Minimum EV: 6%
+
+### Extended Zone
+- Odds: +165 to +250
+- Minimum EV: 10%
+
+### Avoid
+- +250+ unless >=12% EV
+- Boost-driven outliers without sharp confirmation
+
+---
+
+## NHL Player Prop Rules
+
+### Devig Method
+- Multiplicative devig
+- Same sharp-weight structure as NBA
+
+### Book Requirements
+- At least one sharp anchor (Pinnacle or Circa)
+- Minimum 3 books total
+
+### Primary Betting Zone
+- Odds: -120 to +140
+- Minimum EV: 6-7%
+
+### Extended Zone
+- Odds: +140 to +200
+- Minimum EV: 10%
+
+### Anytime Goals / High Variance Markets
+- Require 12-15% EV minimum
+
+### Avoid
+- +200+ unless >=12-15% EV
+- Alt ladders unless strong sharp agreement
+
+---
+
+## Bankroll Management
+- Kelly Fraction: 0.25
+- Max stake cap: 3% bankroll
+- Scaling only after 300+ bets with positive CLV
+"""
+    )
+
+# -----------------------------
+# TAB 3: New Bet
+# -----------------------------
+with tab_new_bet:
     st.subheader("New Bet")
     st.caption("Type inside dropdowns to search prior entries. Similar entries are standardized automatically.")
 
@@ -3190,9 +3267,9 @@ with tab2:
                 st.error(f"Failed to add live bet: {e}")
 
 # -----------------------------
-# TAB 3: Edit Bets
+# TAB 4: Edit Bets
 # -----------------------------
-with tab3:
+with tab_edit_bets:
     st.subheader("Edit Logged Bet")
     if df.empty:
         st.info("No bets found.")
@@ -3330,9 +3407,9 @@ with tab3:
                     st.error(f"Failed to update bet: {e}")
 
 # -----------------------------
-# TAB 4: Grade Bets (3 buttons)
+# TAB 5: Grade Bets (3 buttons)
 # -----------------------------
-with tab4:
+with tab_grade_bets:
     st.subheader("Grade OPEN Bets")
     open_df = df[df["status"] == "OPEN"].copy().sort_values("placed_at_dt", ascending=False, na_position="last")
 
@@ -3540,9 +3617,9 @@ with tab4:
                         st.error(f"Failed: {e}")
 
 # -----------------------------
-# TAB 5: Closing Odds
+# TAB 6: Closing Odds
 # -----------------------------
-with tab5:
+with tab_closing_odds:
     st.subheader("Log Closing Odds / Boost Adjustments")
     st.caption("Condensed view for OPEN bets. For boosted straights, set Non-Boosted Odds so CLV is measured on true entry price.")
 
@@ -3609,9 +3686,9 @@ with tab5:
                 st.error(f"Failed to save updates: {e}")
 
 # -----------------------------
-# TAB 6: Export / Raw
+# TAB 7: Export / Raw
 # -----------------------------
-with tab6:
+with tab_export:
     st.subheader("Export / Backup")
 
     if not df.empty:
