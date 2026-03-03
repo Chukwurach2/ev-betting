@@ -15,7 +15,6 @@ import math
 import calendar
 import re
 import uuid
-import storage
 from dataclasses import dataclass, asdict
 from datetime import datetime
 from typing import Optional, List, Dict, Any
@@ -24,21 +23,6 @@ import pandas as pd
 import streamlit as st
 import altair as alt
 from storage import load_ledger_payload, save_ledger_payload, get_storage_backend_label, append_ledger_row
-
-# --- DEBUG (temporary) ---
-try:
-    rows = storage.load_ledger()
-    st.sidebar.markdown("### Debug")
-    st.sidebar.write("Backend:", storage.get_storage_backend_label())
-    st.sidebar.write("Rows:", len(rows))
-    st.sidebar.write("worksheet_name:", st.secrets.get("worksheet_name"))
-    st.sidebar.write("spreadsheet_id:", st.secrets.get("spreadsheet_id"))
-    st.sidebar.write("spreadsheet_name:", st.secrets.get("spreadsheet_name"))
-    st.sidebar.write("Has gcp_service_account:", "gcp_service_account" in st.secrets)
-    st.sidebar.write("gcp_service_account type:", type(st.secrets.get("gcp_service_account")).__name__)
-except Exception as e:
-    st.sidebar.error(f"Debug error: {e}")
-# --- END DEBUG ---
 
 
 # -----------------------------
@@ -980,7 +964,10 @@ def build_month_calendar_df(daily_df: pd.DataFrame, month_key: str) -> pd.DataFr
     value_map: Dict[pd.Timestamp, Dict[str, Any]] = {}
     if daily_df is not None and not daily_df.empty:
         for _, r in daily_df.iterrows():
-            d = pd.Timestamp(r["day"]).normalize()
+            d = pd.to_datetime(r.get("day"), errors="coerce")
+            if pd.isna(d):
+                continue
+            d = d.normalize()
             value_map[d] = {
                 "bets": int(r.get("bets", 0)),
                 "staked": float(r.get("staked", 0.0)),
@@ -1499,7 +1486,7 @@ st.title("📈 EV Betting Dashboard")
 with st.sidebar:
     st.header("Settings")
     storage_path = "auto"
-    st.text_input("Ledger backend", value=get_storage_backend_label(), disabled=True)
+    st.caption(f"Data source: {get_storage_backend_label()}")
     st.divider()
     if st.button("🔄 Reload"):
         st.rerun()
@@ -1676,50 +1663,63 @@ with tab1:
             pnl=("pnl", "sum"),
             net_units=("net_units", "sum"),
         ).reset_index()
+        day_cal["day"] = pd.to_datetime(day_cal["day"], errors="coerce")
+        day_cal = day_cal.dropna(subset=["day"]).copy()
         day_cal["roi"] = day_cal["pnl"] / day_cal["staked"]
         day_cal["month"] = day_cal["day"].dt.strftime("%Y-%m")
-        month_opts_perf = sorted(day_cal["month"].unique().tolist(), reverse=True)
-        chosen_month = st.selectbox("Calendar Month (Performance Window)", options=month_opts_perf, index=0, key="perf_calendar_month")
-        cal_plot = build_month_calendar_df(day_cal, chosen_month)
-        rect = alt.Chart(cal_plot).mark_rect(cornerRadius=6, stroke="#d1d5db", strokeWidth=1).encode(
-            x=alt.X("weekday:O", sort=["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"], title=None),
-            y=alt.Y("week_idx:O", title=None),
-            color=alt.Color(
-                "bucket:N",
-                scale=alt.Scale(
-                    domain=["outside", "neutral", "flat", "pos", "neg"],
-                    range=["#f8fafc", "#ffffff", "#eef2ff", "#e9f9ee", "#fdecec"],
+        month_series = day_cal["month"].dropna()
+        month_opts_perf = sorted(
+            month_series.astype(str).str.strip().replace("", pd.NA).dropna().unique().tolist(),
+            reverse=True,
+        )
+        if not month_opts_perf:
+            st.info("No valid daily dates available for performance calendar in this window.")
+            cal_plot = pd.DataFrame()
+        else:
+            chosen_month = st.selectbox("Calendar Month (Performance Window)", options=month_opts_perf, index=0, key="perf_calendar_month")
+            cal_plot = build_month_calendar_df(day_cal, chosen_month)
+        if cal_plot.empty:
+            st.info("No calendar data available.")
+        else:
+            rect = alt.Chart(cal_plot).mark_rect(cornerRadius=6, stroke="#d1d5db", strokeWidth=1).encode(
+                x=alt.X("weekday:O", sort=["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"], title=None),
+                y=alt.Y("week_idx:O", title=None),
+                color=alt.Color(
+                    "bucket:N",
+                    scale=alt.Scale(
+                        domain=["outside", "neutral", "flat", "pos", "neg"],
+                        range=["#f8fafc", "#ffffff", "#eef2ff", "#e9f9ee", "#fdecec"],
+                    ),
+                    legend=None,
                 ),
-                legend=None,
-            ),
-            tooltip=[
-                alt.Tooltip("yearmonthdate(date):T", title="Date"),
-                alt.Tooltip("bets:Q", title="# Bets"),
-                alt.Tooltip("staked:Q", title="Staked $"),
-                alt.Tooltip("pnl:Q", title="PnL $"),
-                alt.Tooltip("net_units:Q", title="Units"),
-                alt.Tooltip("roi:Q", title="ROI"),
-            ],
-        )
-        day_numbers = alt.Chart(cal_plot).mark_text(align="left", baseline="top", dx=-22, dy=-12, fontSize=11).encode(
-            x=alt.X("weekday:O", sort=["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"], title=None),
-            y=alt.Y("week_idx:O", title=None),
-            text=alt.Text("day_num:N"),
-            color=alt.Color("day_label_color:N", scale=None),
-        )
-        unit_labels = alt.Chart(cal_plot).mark_text(fontSize=12, fontWeight="bold").encode(
-            x=alt.X("weekday:O", sort=["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"], title=None),
-            y=alt.Y("week_idx:O", title=None),
-            text=alt.Text("units_label:N"),
-            color=alt.Color("units_color:N", scale=None),
-        )
-        st.altair_chart(
-            (rect + day_numbers + unit_labels).properties(
-                height=260,
-                title=f"Daily Net Units Calendar ({chosen_month})"
-            ).configure_axis(labelColor="#475569"),
-            width="stretch"
-        )
+                tooltip=[
+                    alt.Tooltip("yearmonthdate(date):T", title="Date"),
+                    alt.Tooltip("bets:Q", title="# Bets"),
+                    alt.Tooltip("staked:Q", title="Staked $"),
+                    alt.Tooltip("pnl:Q", title="PnL $"),
+                    alt.Tooltip("net_units:Q", title="Units"),
+                    alt.Tooltip("roi:Q", title="ROI"),
+                ],
+            )
+            day_numbers = alt.Chart(cal_plot).mark_text(align="left", baseline="top", dx=-22, dy=-12, fontSize=11).encode(
+                x=alt.X("weekday:O", sort=["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"], title=None),
+                y=alt.Y("week_idx:O", title=None),
+                text=alt.Text("day_num:N"),
+                color=alt.Color("day_label_color:N", scale=None),
+            )
+            unit_labels = alt.Chart(cal_plot).mark_text(fontSize=12, fontWeight="bold").encode(
+                x=alt.X("weekday:O", sort=["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"], title=None),
+                y=alt.Y("week_idx:O", title=None),
+                text=alt.Text("units_label:N"),
+                color=alt.Color("units_color:N", scale=None),
+            )
+            st.altair_chart(
+                (rect + day_numbers + unit_labels).properties(
+                    height=260,
+                    title=f"Daily Net Units Calendar ({chosen_month})"
+                ).configure_axis(labelColor="#475569"),
+                width="stretch"
+            )
 
         # Team profitability panels
         team_perf = perf_chart[perf_chart["team"].notna() & (perf_chart["team"].astype(str).str.strip() != "")].copy()

@@ -128,7 +128,7 @@ Grant **Editor** access.
 Create `.streamlit/secrets.toml` locally (DO NOT COMMIT):
 
 ```toml
-spreadsheet_id = "YOUR_SPREADSHEET_ID"
+spreadsheet_name = "YOUR_SPREADSHEET_NAME_OR_ID"
 worksheet_name = "ledger"
 
 [gcp_service_account]
@@ -148,6 +148,22 @@ client_x509_cert_url = "..."
 
 For Streamlit Cloud:
 App → Settings → Secrets → paste the same values.
+
+---
+
+# 🔁 One-Time Backfill (Local -> Sheets)
+
+If you logged bets locally before enabling Sheets, run the built-in backfill page once:
+
+1. Launch app with valid Sheets secrets.
+2. Open **`99_Backfill`** page in Streamlit sidebar.
+3. Review counts and click **APPEND MISSING TO SHEETS**.
+
+Duplicate safety:
+- Primary key: `bet_id`
+- Fallback key: `placed_at/timestamp + selection/player + book + odds`
+
+After this, new bets from dashboard/mobile append to Google Sheets by default (with local fallback only if Sheets is unavailable).
 
 ---
 

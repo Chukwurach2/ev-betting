@@ -179,7 +179,7 @@ button[kind="primary"] { min-height: 2.8rem; font-size: 1.05rem; }
 )
 
 ledger_payload = load_ledger_payload()
-st.caption(f"Ledger backend: `{get_storage_backend_label()}`")
+st.caption(f"Data source: {get_storage_backend_label()}")
 
 unit_size = float(ledger_payload.get("unit_size", 1.0))
 br = realized_bankroll(ledger_payload)

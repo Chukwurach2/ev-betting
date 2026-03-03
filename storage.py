@@ -329,9 +329,13 @@ def load_ledger() -> List[Dict[str, Any]]:
 
 def append_ledger_row(row: Dict[str, Any]) -> None:
     """Append one row to Sheets (primary) or local JSON fallback."""
+    row_to_write = dict(row) if isinstance(row, dict) else {}
+    if not str(row_to_write.get("bet_id", "")).strip():
+        row_to_write["bet_id"] = str(uuid.uuid4())[:8]
+
     if _google_backend_enabled():
         try:
-            _append_google_row(row)
+            _append_google_row(row_to_write)
             return
         except Exception as exc:
             _warn_once(f"Google Sheets append failed ({exc}). Writing to local ledger fallback.")
@@ -341,11 +345,11 @@ def append_ledger_row(row: Dict[str, Any]) -> None:
         raw.setdefault("bets", [])
         if not isinstance(raw["bets"], list):
             raw["bets"] = []
-        raw["bets"].append(row)
+        raw["bets"].append(row_to_write)
     elif isinstance(raw, list):
-        raw.append(row)
+        raw.append(row_to_write)
     else:
-        raw = [row]
+        raw = [row_to_write]
     _write_local_raw(raw)
 
 
