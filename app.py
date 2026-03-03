@@ -23,7 +23,7 @@ from typing import Optional, List, Dict, Any
 import pandas as pd
 import streamlit as st
 import altair as alt
-from storage import load_ledger_payload, save_ledger_payload, get_storage_backend_label
+from storage import load_ledger_payload, save_ledger_payload, get_storage_backend_label, append_ledger_row
 
 # --- DEBUG (temporary) ---
 try:
@@ -1267,6 +1267,7 @@ class Ledger:
         )
         validate_devig_details(b.devig_method, b.devig_details)
         self.bets.append(b)
+        append_ledger_row(asdict(b))
         return bet_id
 
     def update_bet(self, bet_id: str, updates: Dict[str, Any]) -> None:
@@ -2645,7 +2646,6 @@ with tab2:
                 unboosted_odds_american=unboosted_for_store,
                 notes=notes,
             )
-            ledger.save()
             st.success(f"Added OPEN bet: {bet_id}")
             if rec is not None:
                 st.markdown(
@@ -2976,7 +2976,6 @@ with tab2:
                     parlay_true_prob=float(pc["true_prob"]),
                     parlay_legs=pc["legs"],
                 )
-                ledger.save()
                 st.success(f"Added OPEN parlay bet: {parlay_bet_id}")
                 st.rerun()
             except Exception as e:
@@ -3185,7 +3184,6 @@ with tab2:
                     unboosted_odds_american=live_calc["unboosted_odds_american"],
                     notes=live_notes_tagged,
                 )
-                ledger.save()
                 st.success(f"Added OPEN live bet: {live_bet_id}")
                 st.rerun()
             except Exception as e:
