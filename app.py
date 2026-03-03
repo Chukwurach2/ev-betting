@@ -15,6 +15,7 @@ import math
 import calendar
 import re
 import uuid
+import storage
 from dataclasses import dataclass, asdict
 from datetime import datetime
 from typing import Optional, List, Dict, Any
@@ -26,9 +27,9 @@ from storage import load_ledger_payload, save_ledger_payload, get_storage_backen
 
 # --- DEBUG (temporary) ---
 try:
-    rows = load_ledger()
+    rows = storage.load_ledger()
     st.sidebar.markdown("### Debug")
-    st.sidebar.write("Backend:", get_storage_backend_label())
+    st.sidebar.write("Backend:", storage.get_storage_backend_label())
     st.sidebar.write("Rows:", len(rows))
     st.sidebar.write("worksheet_name:", st.secrets.get("worksheet_name"))
     st.sidebar.write("spreadsheet_id:", st.secrets.get("spreadsheet_id"))
