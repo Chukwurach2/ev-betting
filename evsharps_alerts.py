@@ -29,6 +29,10 @@ try:
     from storage import append_alert_candidate
 except Exception:
     append_alert_candidate = None
+try:
+    from storage import load_ledger_payload
+except Exception:
+    load_ledger_payload = None
 
 API_URL = "https://api-production-3a3b.up.railway.app/api/nba"
 TOKEN_CACHE_FILE = Path(__file__).resolve().parent / ".evsharps_tokens.json"
@@ -67,6 +71,7 @@ KELLY_FRACTION = float(os.getenv("KELLY_FRACTION", "0.25"))
 MIN_STAKE = float(os.getenv("MIN_STAKE", "2"))
 MAX_STAKE_PCT = float(os.getenv("MAX_STAKE_PCT", "0.03"))
 ROUND_TO = float(os.getenv("ROUND_TO", "0.50"))
+BANKROLL_MODE = os.getenv("BANKROLL_MODE", "realized").strip().lower() or "realized"
 
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "").strip()
@@ -556,6 +561,37 @@ def recommended_stake(bankroll: float, p_true: float, odds: int) -> float:
     return max(0.0, stake)
 
 
+def resolve_runtime_bankroll(fallback_bankroll: float) -> float:
+    if load_ledger_payload is None:
+        return float(fallback_bankroll)
+    try:
+        payload = load_ledger_payload()
+        start_raw = payload.get("starting_bankroll", fallback_bankroll)
+        start = float(start_raw if start_raw not in (None, "") else fallback_bankroll)
+        bets = payload.get("bets", [])
+        if not isinstance(bets, list):
+            bets = []
+
+        settled_statuses = {"WON", "LOST", "VOID"}
+        settled_pnl = 0.0
+        open_exposure = 0.0
+        for b in bets:
+            if not isinstance(b, dict):
+                continue
+            status = str(b.get("status", "")).upper()
+            if status in settled_statuses:
+                settled_pnl += float(b.get("pnl", 0.0) or 0.0)
+            else:
+                open_exposure += float(b.get("stake", 0.0) or 0.0)
+
+        realized = start + settled_pnl
+        if BANKROLL_MODE == "effective":
+            return max(0.0, realized - open_exposure)
+        return realized
+    except Exception:
+        return float(fallback_bankroll)
+
+
 def ev_from_prob_and_american(p_true: float, odds: int) -> float:
     if odds == 0:
         return 0.0
@@ -848,6 +884,7 @@ def persist_alert_candidate(
     market_odds: Optional[int],
     gap_cents: Optional[int],
     recommended_stake_amount: float,
+    bankroll_used: float,
 ) -> None:
     if append_alert_candidate is None:
         return
@@ -873,7 +910,7 @@ def persist_alert_candidate(
         "ev_source": ev_source,
         "fair_source": fair_source,
         "recommended_stake": round(float(recommended_stake_amount), 2),
-        "bankroll_snapshot": BANKROLL,
+        "bankroll_snapshot": round(float(bankroll_used), 2),
         "kelly_fraction_used": KELLY_FRACTION,
         "max_stake_pct": MAX_STAKE_PCT,
         "min_stake": MIN_STAKE,
@@ -903,6 +940,7 @@ def format_pick(
     market_odds: Optional[int],
     gap_cents: Optional[int],
     recommended_stake_amount: float,
+    bankroll_used: float,
 ) -> str:
     player = str(p.get("player") or "").strip()
     market_str = build_market_string(p)
@@ -930,6 +968,7 @@ def format_pick(
 
     msg_lines.append(f"EV: {ev_str}")
     msg_lines.append(f"Recommended Stake: ${recommended_stake_amount:.2f}")
+    msg_lines.append(f"Bankroll Used: ${bankroll_used:.2f}")
     msg_lines.append(
         f"Stake Rule: {KELLY_FRACTION:.2f} Kelly, max {MAX_STAKE_PCT*100:.0f}% bankroll"
     )
@@ -1034,6 +1073,7 @@ def main() -> None:
             raw_picks = extract_picks(payload)
             picks, grouped_raw_rows, rep_by_market = select_representative_rows(raw_picks)
             target_market_keys: set[str] = set()
+            bankroll_used = resolve_runtime_bankroll(BANKROLL)
 
             if DEBUG_SCAN:
                 print("RAW SAMPLE COUNT:", len(raw_picks))
@@ -1362,7 +1402,7 @@ def main() -> None:
                 fair_for_stake = to_int_odds(fair_used)
                 if fair_for_stake is not None:
                     p_true_for_stake = true_prob_from_american_fair(fair_for_stake)
-                    recommended_stake_amount = recommended_stake(BANKROLL, p_true_for_stake, odds_int)
+                    recommended_stake_amount = recommended_stake(bankroll_used, p_true_for_stake, odds_int)
                 else:
                     recommended_stake_amount = 0.0
 
@@ -1393,6 +1433,7 @@ def main() -> None:
                     market_odds=market_odds,
                     gap_cents=gap_cents,
                     recommended_stake_amount=recommended_stake_amount,
+                    bankroll_used=bankroll_used,
                 )
                 send_telegram(msg)
                 persist_alert_candidate(
@@ -1409,6 +1450,7 @@ def main() -> None:
                     market_odds=market_odds,
                     gap_cents=gap_cents,
                     recommended_stake_amount=recommended_stake_amount,
+                    bankroll_used=bankroll_used,
                 )
 
                 alerted_today.add(k)
