@@ -17,6 +17,7 @@ Key behavior:
 import hashlib
 import json
 import os
+import re
 import time
 from datetime import datetime
 from pathlib import Path
@@ -75,6 +76,14 @@ ENABLE_GAP_FILTER = os.getenv("ENABLE_GAP_FILTER", "1") == "1"
 GAP_PRIMARY = int(os.getenv("GAP_PRIMARY", "5"))
 GAP_EXTENDED = int(os.getenv("GAP_EXTENDED", "12"))
 GAP_HIGH = int(os.getenv("GAP_HIGH", "20"))
+
+ENABLE_UI_FALLBACK = os.getenv("ENABLE_UI_FALLBACK", "0") == "1"
+UI_FALLBACK_DEBUG = os.getenv("UI_FALLBACK_DEBUG", "0") == "1"
+EVSHARPS_UI_URL = os.getenv("EVSHARPS_UI_URL", "https://www.evsharps.com/nba/player-props").strip()
+EVSHARPS_UI_STORAGE_STATE = os.getenv("EVSHARPS_UI_STORAGE_STATE", "").strip()
+EVSHARPS_UI_EMAIL = os.getenv("EVSHARPS_UI_EMAIL", "").strip()
+EVSHARPS_UI_PASSWORD = os.getenv("EVSHARPS_UI_PASSWORD", "").strip()
+EVSHARPS_UI_LOGIN_URL = os.getenv("EVSHARPS_UI_LOGIN_URL", "https://www.evsharps.com/login").strip()
 
 BANKROLL = _safe_float(os.getenv("BANKROLL", "500"), 500.0)
 KELLY_FRACTION = float(os.getenv("KELLY_FRACTION", "0.25"))
@@ -302,6 +311,188 @@ def normalize_book(code: Any) -> str:
 def format_ny_book_name(code: Any) -> str:
     c = book_code(code)
     return BOOK_DISPLAY_MAP.get(c, c or "Unknown")
+
+
+def _book_code_from_text(text: Any) -> Optional[str]:
+    s = str(text or "").strip().lower()
+    if not s:
+        return None
+
+    for code in BOOK_DISPLAY_MAP.keys():
+        if re.search(rf"\b{re.escape(code)}\b", s):
+            return code
+
+    for code, name in BOOK_DISPLAY_MAP.items():
+        normalized_name = name.split(" (", 1)[0].strip().lower()
+        if normalized_name and normalized_name in s:
+            return code
+    return None
+
+
+def _extract_american_odds_tokens(text: Any) -> List[int]:
+    s = str(text or "")
+    tokens = re.findall(r"(?<!\d)([+-]\d{2,4}|100)(?!\d)", s)
+    out: List[int] = []
+    for tok in tokens:
+        odds = to_int_odds(tok)
+        if odds is not None:
+            out.append(odds)
+    return out
+
+
+def _extract_pct_decimal(text: Any) -> Optional[float]:
+    s = str(text or "")
+    m = re.search(r"(-?\d+(?:\.\d+)?)\s*%", s)
+    if not m:
+        return None
+    try:
+        return float(m.group(1)) / 100.0
+    except Exception:
+        return None
+
+
+def _parse_ui_row(cells: List[str], raw_text: str) -> Dict[str, Any]:
+    joined = " | ".join(cells) if cells else str(raw_text or "")
+    side_match = re.search(r"\b([ou])\s*([0-9]+(?:\.[0-9]+)?)\b", joined.lower())
+    under = None
+    handicap = None
+    if side_match:
+        under = side_match.group(1) == "u"
+        handicap = side_match.group(2)
+
+    odds = _extract_american_odds_tokens(joined)
+    best_line = odds[0] if odds else None
+    fair_odds = odds[1] if len(odds) > 1 else None
+
+    player = cells[0].strip() if cells else ""
+    prop = cells[1].strip() if len(cells) > 1 else ""
+    book_code_guess = _book_code_from_text(joined)
+    ev_decimal = _extract_pct_decimal(joined)
+
+    return {
+        "player": player,
+        "prop": prop,
+        "handicap": handicap,
+        "under": under,
+        "book_code": book_code_guess,
+        "line": best_line,
+        "fairVal": fair_odds,
+        "ev": ev_decimal,
+        "raw_text": raw_text,
+        "cells": cells,
+    }
+
+
+def _ui_row_matches_pick(ui_row: Dict[str, Any], p: Dict[str, Any]) -> bool:
+    if _norm_str(ui_row.get("player")) != _norm_str(p.get("player")):
+        return False
+
+    ui_prop = _norm_str(ui_row.get("prop"))
+    p_prop = _norm_str(p.get("prop"))
+    if ui_prop and p_prop and (p_prop not in ui_prop and ui_prop not in p_prop):
+        return False
+
+    ui_handicap = str(ui_row.get("handicap") or "").strip()
+    p_handicap = str(p.get("handicap") or "").strip()
+    if ui_handicap and p_handicap and ui_handicap != p_handicap:
+        return False
+
+    ui_under = ui_row.get("under")
+    if ui_under is not None and bool(p.get("under", False)) != bool(ui_under):
+        return False
+
+    return True
+
+
+def collect_ui_rows_playwright() -> List[Dict[str, Any]]:
+    try:
+        from playwright.sync_api import sync_playwright
+    except Exception:
+        if DEBUG_SCAN or UI_FALLBACK_DEBUG:
+            print("UI fallback disabled: playwright is not installed.")
+        return []
+
+    rows: List[Dict[str, Any]] = []
+    try:
+        with sync_playwright() as pw:
+            browser = pw.chromium.launch(headless=True)
+            context_kwargs: Dict[str, Any] = {}
+            if EVSHARPS_UI_STORAGE_STATE and Path(EVSHARPS_UI_STORAGE_STATE).exists():
+                context_kwargs["storage_state"] = EVSHARPS_UI_STORAGE_STATE
+            context = browser.new_context(**context_kwargs)
+            page = context.new_page()
+
+            if EVSHARPS_UI_EMAIL and EVSHARPS_UI_PASSWORD:
+                try:
+                    page.goto(EVSHARPS_UI_LOGIN_URL, wait_until="domcontentloaded", timeout=30000)
+                    page.fill('input[type="email"]', EVSHARPS_UI_EMAIL)
+                    page.fill('input[type="password"]', EVSHARPS_UI_PASSWORD)
+                    page.click('button[type="submit"]')
+                    page.wait_for_timeout(1500)
+                except Exception:
+                    pass
+
+            page.goto(EVSHARPS_UI_URL, wait_until="domcontentloaded", timeout=30000)
+            page.wait_for_timeout(2000)
+
+            selector = "table tbody tr"
+            nodes = page.query_selector_all(selector)
+            if not nodes:
+                selector = '[role="row"]'
+                nodes = page.query_selector_all(selector)
+
+            for node in nodes:
+                txt = (node.inner_text() or "").strip()
+                if not txt:
+                    continue
+                cells = [c.strip() for c in txt.split("\n") if c.strip()]
+                parsed = _parse_ui_row(cells, txt)
+                if not parsed.get("player"):
+                    continue
+                rows.append(parsed)
+
+            context.close()
+            browser.close()
+    except Exception as e:
+        if DEBUG_SCAN or UI_FALLBACK_DEBUG:
+            print(f"UI fallback scrape error: {e}")
+        return []
+
+    if DEBUG_SCAN or UI_FALLBACK_DEBUG:
+        print(f"UI fallback rows collected: {len(rows)}")
+    return rows
+
+
+def find_ui_row_for_pick(p: Dict[str, Any], ui_rows: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    matches = [r for r in ui_rows if _ui_row_matches_pick(r, p)]
+    if not matches:
+        return None
+    scored = sorted(
+        matches,
+        key=lambda r: (
+            1 if r.get("line") is not None else 0,
+            1 if r.get("fairVal") is not None else 0,
+            1 if r.get("ev") is not None else 0,
+            1 if r.get("book_code") else 0,
+        ),
+        reverse=True,
+    )
+    return scored[0]
+
+
+def merge_pick_with_ui_row(p: Dict[str, Any], ui_row: Dict[str, Any]) -> Dict[str, Any]:
+    q = dict(p)
+    if ui_row.get("book_code"):
+        q["book"] = ui_row["book_code"]
+    if ui_row.get("line") is not None:
+        q["line"] = str(ui_row["line"])
+    if ui_row.get("fairVal") is not None:
+        q["fairVal"] = str(ui_row["fairVal"])
+    if ui_row.get("ev") is not None:
+        q["ev"] = ui_row["ev"]
+    q["_ui_fallback"] = True
+    q["_ui_row"] = ui_row
+    return q
 
 
 def today_iso() -> str:
@@ -666,6 +857,38 @@ def is_placeholder_pick(p: Dict[str, Any]) -> bool:
         pass
 
     return ev_is_zero and (fair_is_100 or line_is_100 or implied_is_50pct)
+
+
+def _is_100_like_odds_value(v: Any) -> bool:
+    if v is None:
+        return False
+    s = str(v).strip()
+    if s in {"100", "+100"}:
+        return True
+    parsed = parse_two_sided_odds(v)
+    if parsed:
+        return parsed[0] == 100 and parsed[1] == 100
+    return False
+
+
+def all_bookodds_masked_100(p: Dict[str, Any]) -> bool:
+    book_odds = p.get("bookOdds")
+    if not isinstance(book_odds, dict) or not book_odds:
+        return False
+    vals = list(book_odds.values())
+    if not vals:
+        return False
+    return all(_is_100_like_odds_value(v) for v in vals)
+
+
+def is_blurred_or_unusable_api_row(p: Dict[str, Any]) -> bool:
+    blurred_raw = p.get("blurred")
+    blurred = str(blurred_raw).strip().lower() in {"1", "true", "yes"}
+    if blurred:
+        return True
+    if all_bookodds_masked_100(p):
+        return True
+    return is_placeholder_pick(p)
 
 
 def is_reconstructible_placeholder(p: Dict[str, Any]) -> bool:
@@ -1085,6 +1308,13 @@ def main() -> None:
         fail_examples_by_reason: Dict[str, int] = {}
         near_miss: List[Dict[str, Any]] = []
         candidates = 0
+        ui_rows_cache: Optional[List[Dict[str, Any]]] = None
+
+        def get_ui_rows() -> List[Dict[str, Any]]:
+            nonlocal ui_rows_cache
+            if ui_rows_cache is None:
+                ui_rows_cache = collect_ui_rows_playwright() if ENABLE_UI_FALLBACK else []
+            return ui_rows_cache
 
         def add_fail_example(reason: str, p: Dict[str, Any]) -> None:
             if not DEBUG_SCAN:
@@ -1185,6 +1415,28 @@ def main() -> None:
                 else:
                     print("TARGET DUPES: no raw rows matched DEBUG_* filters")
 
+                if ENABLE_UI_FALLBACK:
+                    ui_rows = get_ui_rows()
+                    target_ui_rows = [r for r in ui_rows if is_target_debug_pick(r)]
+                    print(f"TARGET UI ROWS: count={len(target_ui_rows)}")
+                    for r in target_ui_rows[:10]:
+                        print(
+                            "TARGET UI ROW:",
+                            json.dumps(
+                                {
+                                    "player": r.get("player"),
+                                    "prop": r.get("prop"),
+                                    "handicap": r.get("handicap"),
+                                    "under": r.get("under"),
+                                    "book_code": r.get("book_code"),
+                                    "line": r.get("line"),
+                                    "fairVal": r.get("fairVal"),
+                                    "ev": r.get("ev"),
+                                },
+                                ensure_ascii=False,
+                            ),
+                        )
+
             for p in picks:
                 reasons["total"] += 1
                 debug_target = market_identity_key(p) in target_market_keys if DEBUG_PLAYER else False
@@ -1197,6 +1449,8 @@ def main() -> None:
                     "line": p.get("line"),
                     "ev_raw": p.get("ev"),
                     "fairVal_raw": p.get("fairVal"),
+                    "api_blurred_or_unusable": None,
+                    "ui_fallback_used": False,
                     "placeholder": None,
                     "reconstructible_placeholder": None,
                     "books_present": list(p.get("bookOdds", {}).keys()) if isinstance(p.get("bookOdds"), dict) else None,
@@ -1215,9 +1469,36 @@ def main() -> None:
                     "reject_reason": None,
                 }
 
+                api_blurred_or_unusable = is_blurred_or_unusable_api_row(p)
+                ui_fallback_used = False
+                if api_blurred_or_unusable and ENABLE_UI_FALLBACK:
+                    ui_row = find_ui_row_for_pick(p, get_ui_rows())
+                    if ui_row is not None:
+                        p = merge_pick_with_ui_row(p, ui_row)
+                        ui_fallback_used = True
+                        if DEBUG_SCAN or debug_target or UI_FALLBACK_DEBUG:
+                            print(
+                                "UI FALLBACK MATCH:",
+                                json.dumps(
+                                    {
+                                        "player": p.get("player"),
+                                        "prop": p.get("prop"),
+                                        "handicap": p.get("handicap"),
+                                        "under": p.get("under"),
+                                        "book": p.get("book"),
+                                        "line": p.get("line"),
+                                        "fairVal": p.get("fairVal"),
+                                        "ev": p.get("ev"),
+                                    },
+                                    ensure_ascii=False,
+                                ),
+                            )
+
                 placeholder = is_placeholder_pick(p)
                 reconstructible_placeholder = is_reconstructible_placeholder(p) if placeholder else False
                 if debug_target:
+                    debug_diag["api_blurred_or_unusable"] = api_blurred_or_unusable
+                    debug_diag["ui_fallback_used"] = ui_fallback_used
                     debug_diag["placeholder"] = placeholder
                     debug_diag["reconstructible_placeholder"] = reconstructible_placeholder
 
