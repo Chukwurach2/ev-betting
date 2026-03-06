@@ -24,7 +24,9 @@ import streamlit as st
 
 LOCAL_DATA_DIR = Path(__file__).resolve().parent / "data"
 LOCAL_LEDGER_PATH = LOCAL_DATA_DIR / "ev_ledger.json"
+LOCAL_ALERTS_PATH = LOCAL_DATA_DIR / "ev_alerts.json"
 DEFAULT_WORKSHEET = "ledger"
+DEFAULT_ALERTS_WORKSHEET = "alerts"
 
 REQUIRED_LEDGER_COLUMNS = [
     "timestamp",
@@ -38,6 +40,31 @@ REQUIRED_LEDGER_COLUMNS = [
     "kelly_frac",
     "notes",
     "result",
+]
+
+REQUIRED_ALERT_COLUMNS = [
+    "alert_id",
+    "timestamp",
+    "player",
+    "prop",
+    "handicap",
+    "under",
+    "market_display",
+    "game",
+    "dt",
+    "recommended_book_code",
+    "recommended_book_name",
+    "recommended_odds",
+    "fair_odds",
+    "market_odds",
+    "ev_pct",
+    "gap_cents",
+    "zone",
+    "ev_source",
+    "devig_summary",
+    "sharp_confirmation_summary",
+    "is_logged",
+    "logged_at",
 ]
 
 NUMERIC_FIELDS = {
@@ -65,7 +92,7 @@ NUMERIC_FIELDS = {
     "kelly_frac",
 }
 
-BOOL_FIELDS = {"is_live", "is_parlay"}
+BOOL_FIELDS = {"is_live", "is_parlay", "is_logged"}
 
 
 def _warn_once(message: str) -> None:
@@ -91,6 +118,7 @@ def _gsheets_config() -> Dict[str, Any]:
         "spreadsheet_id": _secrets_get("spreadsheet_id"),
         "spreadsheet_name": _secrets_get("spreadsheet_name"),
         "worksheet_name": _secrets_get("worksheet_name", DEFAULT_WORKSHEET) or DEFAULT_WORKSHEET,
+        "alerts_worksheet_name": _secrets_get("alerts_worksheet_name", DEFAULT_ALERTS_WORKSHEET) or DEFAULT_ALERTS_WORKSHEET,
     }
 
 def _google_backend_enabled() -> bool:
@@ -138,10 +166,48 @@ def _get_gspread_worksheet():
     return ws
 
 
+@st.cache_resource(show_spinner=False)
+def _get_gspread_alerts_worksheet():
+    import gspread
+    from gspread.exceptions import SpreadsheetNotFound, WorksheetNotFound
+
+    cfg = _gsheets_config()
+    client = gspread.service_account_from_dict(dict(cfg["credentials"]))
+    worksheet_name = str(cfg.get("alerts_worksheet_name") or DEFAULT_ALERTS_WORKSHEET)
+
+    spreadsheet_id = cfg.get("spreadsheet_id")
+    spreadsheet_name = cfg.get("spreadsheet_name")
+
+    if spreadsheet_id:
+        sh = client.open_by_key(str(spreadsheet_id))
+    else:
+        try:
+            sh = client.open(str(spreadsheet_name))
+        except SpreadsheetNotFound:
+            if str(spreadsheet_name).startswith("http"):
+                sh = client.open_by_url(str(spreadsheet_name))
+            else:
+                sh = client.open_by_key(str(spreadsheet_name))
+
+    try:
+        ws = sh.worksheet(worksheet_name)
+    except WorksheetNotFound:
+        ws = sh.add_worksheet(title=worksheet_name, rows=2000, cols=80)
+
+    _ensure_sheet_headers(ws, REQUIRED_ALERT_COLUMNS)
+    return ws
+
+
 def _ensure_local_ledger_file() -> None:
     LOCAL_DATA_DIR.mkdir(parents=True, exist_ok=True)
     if not LOCAL_LEDGER_PATH.exists():
         LOCAL_LEDGER_PATH.write_text("[]", encoding="utf-8")
+
+
+def _ensure_local_alerts_file() -> None:
+    LOCAL_DATA_DIR.mkdir(parents=True, exist_ok=True)
+    if not LOCAL_ALERTS_PATH.exists():
+        LOCAL_ALERTS_PATH.write_text("[]", encoding="utf-8")
 
 
 def _coerce_value(key: str, value: Any) -> Any:
@@ -198,6 +264,33 @@ def _normalize_row_for_schema(row: Dict[str, Any]) -> Dict[str, Any]:
     normalized.setdefault("kelly_frac", normalized.get("kelly_fraction_used") or "")
     normalized.setdefault("notes", normalized.get("notes") or "")
     normalized.setdefault("result", normalized.get("status") or "")
+    return normalized
+
+
+def _normalize_alert_row_for_schema(row: Dict[str, Any]) -> Dict[str, Any]:
+    normalized = dict(row)
+    normalized.setdefault("alert_id", str(uuid.uuid4())[:8])
+    normalized.setdefault("timestamp", datetime.now().isoformat(timespec="seconds"))
+    normalized.setdefault("player", "")
+    normalized.setdefault("prop", "")
+    normalized.setdefault("handicap", "")
+    normalized.setdefault("under", False)
+    normalized.setdefault("market_display", "")
+    normalized.setdefault("game", "")
+    normalized.setdefault("dt", "")
+    normalized.setdefault("recommended_book_code", "")
+    normalized.setdefault("recommended_book_name", "")
+    normalized.setdefault("recommended_odds", "")
+    normalized.setdefault("fair_odds", "")
+    normalized.setdefault("market_odds", "")
+    normalized.setdefault("ev_pct", "")
+    normalized.setdefault("gap_cents", "")
+    normalized.setdefault("zone", "")
+    normalized.setdefault("ev_source", "")
+    normalized.setdefault("devig_summary", "")
+    normalized.setdefault("sharp_confirmation_summary", "")
+    normalized.setdefault("is_logged", False)
+    normalized.setdefault("logged_at", "")
     return normalized
 
 
@@ -277,6 +370,50 @@ def _append_google_row(row: Dict[str, Any]) -> None:
     ws.append_row(values, value_input_option="USER_ENTERED")
 
 
+def _load_google_alert_rows() -> List[Dict[str, Any]]:
+    ws = _get_gspread_alerts_worksheet()
+    values = ws.get_all_values()
+    if not values:
+        _ensure_sheet_headers(ws, REQUIRED_ALERT_COLUMNS)
+        return []
+
+    headers = values[0]
+    rows: List[Dict[str, Any]] = []
+    for raw in values[1:]:
+        if not raw or all(str(v).strip() == "" for v in raw):
+            continue
+        row = {}
+        for idx, key in enumerate(headers):
+            row[key] = _coerce_value(key, raw[idx] if idx < len(raw) else "")
+        rows.append(row)
+    return rows
+
+
+def _append_google_alert_row(row: Dict[str, Any]) -> None:
+    ws = _get_gspread_alerts_worksheet()
+    normalized = _normalize_alert_row_for_schema(row)
+    headers = _ensure_sheet_headers(ws, REQUIRED_ALERT_COLUMNS, list(normalized.keys()))
+    values = [_serialize_value(normalized.get(h)) for h in headers]
+    ws.append_row(values, value_input_option="USER_ENTERED")
+
+
+def _rewrite_google_alert_rows(rows: List[Dict[str, Any]]) -> None:
+    ws = _get_gspread_alerts_worksheet()
+    normalized_rows = [_normalize_alert_row_for_schema(r) for r in rows]
+
+    headers = list(REQUIRED_ALERT_COLUMNS)
+    for row in normalized_rows:
+        for key in row.keys():
+            if key not in headers:
+                headers.append(key)
+
+    ws.clear()
+    ws.update("1:1", [headers])
+    if normalized_rows:
+        matrix = [[_serialize_value(row.get(h)) for h in headers] for row in normalized_rows]
+        ws.append_rows(matrix, value_input_option="USER_ENTERED")
+
+
 def _rewrite_google_rows(rows: List[Dict[str, Any]]) -> None:
     ws = _get_gspread_worksheet()
     normalized_rows = [_normalize_row_for_schema(r) for r in rows]
@@ -304,9 +441,25 @@ def _read_local_raw() -> Any:
         return []
 
 
+def _read_local_alerts_raw() -> Any:
+    _ensure_local_alerts_file()
+    try:
+        with LOCAL_ALERTS_PATH.open("r", encoding="utf-8") as f:
+            return json.load(f)
+    except (OSError, json.JSONDecodeError):
+        _warn_once("Local alerts file is missing/corrupt. Continuing with an empty alerts queue.")
+        return []
+
+
 def _write_local_raw(raw: Any) -> None:
     _ensure_local_ledger_file()
     with LOCAL_LEDGER_PATH.open("w", encoding="utf-8") as f:
+        json.dump(raw, f, indent=2)
+
+
+def _write_local_alerts_raw(raw: Any) -> None:
+    _ensure_local_alerts_file()
+    with LOCAL_ALERTS_PATH.open("w", encoding="utf-8") as f:
         json.dump(raw, f, indent=2)
 
 
@@ -413,3 +566,89 @@ def save_ledger_payload(payload: Dict[str, Any]) -> None:
         "bets": bets,
     }
     _write_local_raw(local_payload)
+
+
+def load_alert_candidates() -> List[Dict[str, Any]]:
+    """Load alert candidates from Sheets (primary) or local JSON fallback."""
+    if _google_backend_enabled():
+        try:
+            return _load_google_alert_rows()
+        except Exception as exc:
+            _warn_once(f"Google Sheets alerts unavailable ({exc}). Falling back to local alerts queue.")
+
+    raw = _read_local_alerts_raw()
+    if isinstance(raw, list):
+        return [r for r in raw if isinstance(r, dict)]
+    if isinstance(raw, dict):
+        val = raw.get("alerts")
+        if isinstance(val, list):
+            return [r for r in val if isinstance(r, dict)]
+    return []
+
+
+def append_alert_candidate(row: Dict[str, Any]) -> bool:
+    """
+    Append one alert candidate to Sheets (primary) or local JSON fallback.
+    Returns False when alert_id already exists.
+    """
+    row_to_write = _normalize_alert_row_for_schema(dict(row) if isinstance(row, dict) else {})
+    alert_id = str(row_to_write.get("alert_id", "")).strip()
+    if not alert_id:
+        alert_id = str(uuid.uuid4())[:8]
+        row_to_write["alert_id"] = alert_id
+
+    existing = load_alert_candidates()
+    if any(str(r.get("alert_id", "")).strip() == alert_id for r in existing if isinstance(r, dict)):
+        return False
+
+    if _google_backend_enabled():
+        try:
+            _append_google_alert_row(row_to_write)
+            return True
+        except Exception as exc:
+            _warn_once(f"Google Sheets alert append failed ({exc}). Writing to local alerts fallback.")
+
+    raw = _read_local_alerts_raw()
+    if isinstance(raw, list):
+        raw.append(row_to_write)
+    elif isinstance(raw, dict):
+        raw.setdefault("alerts", [])
+        if not isinstance(raw["alerts"], list):
+            raw["alerts"] = []
+        raw["alerts"].append(row_to_write)
+    else:
+        raw = [row_to_write]
+    _write_local_alerts_raw(raw)
+    return True
+
+
+def mark_alert_logged(alert_id: str, logged_at: Optional[str] = None) -> bool:
+    """Mark alert candidate as logged; returns True if an alert row was updated."""
+    target = str(alert_id or "").strip()
+    if not target:
+        return False
+
+    rows = load_alert_candidates()
+    updated = False
+    stamp = logged_at or datetime.now().isoformat(timespec="seconds")
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        if str(row.get("alert_id", "")).strip() == target:
+            row["is_logged"] = True
+            row["logged_at"] = stamp
+            updated = True
+            break
+
+    if not updated:
+        return False
+
+    if _google_backend_enabled():
+        try:
+            _rewrite_google_alert_rows(rows)
+            return True
+        except Exception as exc:
+            _warn_once(f"Google Sheets alert update failed ({exc}). Writing to local alerts fallback.")
+
+    _write_local_alerts_raw(rows)
+    return True

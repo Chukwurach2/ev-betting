@@ -2312,14 +2312,7 @@ with tab_dashboard:
 with tab_objective:
     st.markdown(
         """
-# EV Betting Framework - NBA & NHL Player Props
-
-## Objective
-This model targets +EV player prop opportunities using sharp-weighted fair pricing, structured EV thresholds, and disciplined bankroll management. The goal is scalable edge supported by CLV tracking.
-
----
-
-## NBA Player Prop Rules
+# NBA Player Prop Rules
 
 ### Devig Method
 - Additive devig
@@ -2330,10 +2323,13 @@ This model targets +EV player prop opportunities using sharp-weighted fair prici
   - DraftKings: 0.03
   - FanDuel: 0.02
 
-### Book Requirements
-- At least one sharp anchor (Pinnacle or Circa)
+### Sharp Confirmation / Book Requirements
 - Minimum 3 books total
-- Skip if only soft books are present
+- Accept if any of the following is true:
+  - Pinnacle present, OR
+  - Circa present, OR
+  - BetOnline present plus DraftKings or FanDuel
+- Skip soft-book-only markets
 
 ### Primary Betting Zone
 - Odds: +105 to +165
@@ -2343,43 +2339,26 @@ This model targets +EV player prop opportunities using sharp-weighted fair prici
 - Odds: +165 to +250
 - Minimum EV: 10%
 
+### High Odds Rule
+- +250+ only if EV >= 12%
+
+### Fair vs Market Gap Filter
+- Primary zone: minimum 8-cent gap
+- Extended zone: minimum 20-cent gap
+- High odds: minimum 30-cent gap
+- Market consensus uses median of available book prices
+
+### EV Alerts Queue
+- Use the **EV Alerts** page to review live candidates generated from these rules
+- Alerts are reviewed manually before being logged
+- Logging from EV Alerts adds an OPEN bet to the ledger
+- Alerts are not automatically treated as placed bets
+
 ### Avoid
-- +250+ unless >=12% EV
+- Placeholder / neutral rows
 - Boost-driven outliers without sharp confirmation
-
----
-
-## NHL Player Prop Rules
-
-### Devig Method
-- Multiplicative devig
-- Same sharp-weight structure as NBA
-
-### Book Requirements
-- At least one sharp anchor (Pinnacle or Circa)
-- Minimum 3 books total
-
-### Primary Betting Zone
-- Odds: -120 to +140
-- Minimum EV: 6-7%
-
-### Extended Zone
-- Odds: +140 to +200
-- Minimum EV: 10%
-
-### Anytime Goals / High Variance Markets
-- Require 12-15% EV minimum
-
-### Avoid
-- +200+ unless >=12-15% EV
-- Alt ladders unless strong sharp agreement
-
----
-
-## Bankroll Management
-- Kelly Fraction: 0.25
-- Max stake cap: 3% bankroll
-- Scaling only after 300+ bets with positive CLV
+- Soft-book-only edges
+- Plays failing gap filter
 """
     )
 

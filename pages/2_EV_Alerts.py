@@ -1,0 +1,183 @@
+from __future__ import annotations
+
+from datetime import datetime, timedelta
+from typing import Any, Dict, List
+
+import pandas as pd
+import streamlit as st
+
+from storage import (
+    append_ledger_row,
+    get_storage_backend_label,
+    load_alert_candidates,
+    mark_alert_logged,
+)
+
+
+st.set_page_config(page_title="EV Alerts", layout="centered")
+st.title("EV Alerts")
+st.caption("Live +EV alert candidates generated from EVSharps rules")
+st.warning("Alerts are candidates, not auto-submitted bets. Review before logging.")
+st.caption(f"Data source: {get_storage_backend_label()}")
+
+
+def _to_ts(value: Any) -> pd.Timestamp:
+    return pd.to_datetime(value, errors="coerce")
+
+
+def _safe_str(value: Any) -> str:
+    if value is None:
+        return ""
+    return str(value).strip()
+
+
+def _build_selection(row: Dict[str, Any]) -> str:
+    player = _safe_str(row.get("player"))
+    market = _safe_str(row.get("market_display") or row.get("prop"))
+    if player and market:
+        return f"{player} | {market}"
+    return player or market or ""
+
+
+try:
+    alerts_raw = load_alert_candidates()
+except Exception as exc:
+    st.error(f"Could not load alert candidates: {exc}")
+    st.stop()
+
+alerts: List[Dict[str, Any]] = [r for r in alerts_raw if isinstance(r, dict)]
+if not alerts:
+    st.info("No current alert candidates")
+    st.stop()
+
+for row in alerts:
+    row.setdefault("is_logged", False)
+    row.setdefault("timestamp", "")
+    row["timestamp_dt"] = _to_ts(row.get("timestamp"))
+    row.setdefault("zone", "")
+    row.setdefault("recommended_book_name", "")
+    row.setdefault("ev_pct", None)
+
+alerts_df = pd.DataFrame(alerts)
+alerts_df = alerts_df.sort_values("timestamp_dt", ascending=False, na_position="last")
+
+zones = sorted([z for z in alerts_df.get("zone", pd.Series(dtype=str)).dropna().astype(str).unique() if z])
+books = sorted([
+    b for b in alerts_df.get("recommended_book_name", pd.Series(dtype=str)).dropna().astype(str).unique() if b
+])
+
+c1, c2 = st.columns(2)
+with c1:
+    zone_filter = st.multiselect("Zone", zones, default=zones)
+with c2:
+    book_filter = st.multiselect("Book", books, default=books)
+
+c3, c4 = st.columns(2)
+with c3:
+    status_filter = st.selectbox("Status", ["All", "Unlogged", "Logged"], index=1)
+with c4:
+    days_filter = st.selectbox("Date Range", ["Last 1 day", "Last 3 days", "Last 7 days", "Last 30 days", "All"], index=2)
+
+filtered = alerts_df.copy()
+if zone_filter:
+    filtered = filtered[filtered["zone"].astype(str).isin(zone_filter)]
+if book_filter:
+    filtered = filtered[filtered["recommended_book_name"].astype(str).isin(book_filter)]
+
+if status_filter == "Unlogged":
+    filtered = filtered[~filtered["is_logged"].astype(bool)]
+elif status_filter == "Logged":
+    filtered = filtered[filtered["is_logged"].astype(bool)]
+
+if days_filter != "All":
+    days = int(days_filter.split()[1])
+    cutoff = pd.Timestamp(datetime.now() - timedelta(days=days))
+    filtered = filtered[filtered["timestamp_dt"] >= cutoff]
+
+if filtered.empty:
+    st.info("No current alert candidates")
+    st.stop()
+
+st.subheader("Recent Alerts")
+show_cols = [
+    "timestamp",
+    "player",
+    "market_display",
+    "zone",
+    "recommended_book_name",
+    "recommended_odds",
+    "fair_odds",
+    "market_odds",
+    "ev_pct",
+    "gap_cents",
+    "ev_source",
+    "is_logged",
+    "logged_at",
+]
+
+for col in show_cols:
+    if col not in filtered.columns:
+        filtered[col] = ""
+
+st.dataframe(filtered[show_cols], width="stretch", hide_index=True)
+
+unlogged = filtered[~filtered["is_logged"].astype(bool)].copy()
+if unlogged.empty:
+    st.success("All filtered alerts are already logged.")
+    st.stop()
+
+st.subheader("Log to Ledger")
+
+options = []
+id_map: Dict[str, Dict[str, Any]] = {}
+for _, r in unlogged.iterrows():
+    alert_id = _safe_str(r.get("alert_id"))
+    label = f"{_safe_str(r.get('timestamp'))} | {_safe_str(r.get('player'))} | {_safe_str(r.get('market_display'))} | {_safe_str(r.get('recommended_book_name'))} {_safe_str(r.get('recommended_odds'))}"
+    if not alert_id:
+        continue
+    options.append(label)
+    id_map[label] = r.to_dict()
+
+if not options:
+    st.info("No loggable alerts in the current filter.")
+    st.stop()
+
+selected_label = st.selectbox("Select alert", options)
+selected = id_map[selected_label]
+
+if st.button("Log to Ledger", type="primary"):
+    try:
+        alert_ts = _safe_str(selected.get("timestamp")) or datetime.now().isoformat(timespec="seconds")
+        market_display = _safe_str(selected.get("market_display") or selected.get("prop"))
+        player = _safe_str(selected.get("player"))
+
+        ledger_row = {
+            "timestamp": alert_ts,
+            "placed_at": alert_ts,
+            "sport": "NBA",
+            "league": "NBA",
+            "market": market_display,
+            "selection": _build_selection(selected),
+            "player": player,
+            "book": _safe_str(selected.get("recommended_book_name")),
+            "odds_american": selected.get("recommended_odds"),
+            "book_odds": selected.get("recommended_odds"),
+            "fair_odds_american": selected.get("fair_odds"),
+            "fair_odds": selected.get("fair_odds"),
+            "ev_pct": selected.get("ev_pct"),
+            "stake": 0,
+            "kelly_frac": 0,
+            "notes": "Logged from EV Alerts page",
+            "status": "OPEN",
+            "result": "OPEN",
+        }
+
+        append_ledger_row(ledger_row)
+        ok = mark_alert_logged(_safe_str(selected.get("alert_id")), datetime.now().isoformat(timespec="seconds"))
+        if not ok:
+            st.warning("Bet logged, but alert status update did not persist. Refresh and check the alert queue.")
+        else:
+            st.success("Alert logged to ledger and marked as logged.")
+        st.rerun()
+    except Exception as exc:
+        st.error(f"Could not log this alert: {exc}")
