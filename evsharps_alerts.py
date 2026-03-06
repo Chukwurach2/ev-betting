@@ -52,6 +52,10 @@ RUN_ONCE = os.getenv("RUN_ONCE", "0") == "1"
 USE_WEIGHTED_DEVIG = os.getenv("USE_WEIGHTED_DEVIG", "0") == "1"
 DEBUG_SCAN = os.getenv("DEBUG_SCAN", "0") == "1"
 SHOW_NEAR_MISS = os.getenv("SHOW_NEAR_MISS", "1") == "1"
+DEBUG_PLAYER = os.getenv("DEBUG_PLAYER", "").strip()
+DEBUG_PROP = os.getenv("DEBUG_PROP", "").strip()
+DEBUG_HANDICAP = os.getenv("DEBUG_HANDICAP", "").strip()
+DEBUG_UNDER_RAW = os.getenv("DEBUG_UNDER", "").strip()
 
 ENABLE_GAP_FILTER = os.getenv("ENABLE_GAP_FILTER", "1") == "1"
 GAP_PRIMARY = int(os.getenv("GAP_PRIMARY", "5"))
@@ -140,6 +144,42 @@ def _parse_expires_at(value: Any) -> Optional[int]:
         return int(dt.timestamp())
     except Exception:
         return None
+
+
+def _parse_debug_under(raw: str) -> Optional[bool]:
+    v = str(raw or "").strip().lower()
+    if v == "":
+        return None
+    if v in {"1", "true", "t", "yes", "y"}:
+        return True
+    if v in {"0", "false", "f", "no", "n"}:
+        return False
+    return None
+
+
+DEBUG_UNDER = _parse_debug_under(DEBUG_UNDER_RAW)
+
+
+def _norm_str(value: Any) -> str:
+    return str(value or "").strip().lower()
+
+
+def is_target_debug_pick(p: Dict[str, Any]) -> bool:
+    if not DEBUG_PLAYER:
+        return False
+    if _norm_str(p.get("player")) != _norm_str(DEBUG_PLAYER):
+        return False
+    if DEBUG_PROP and _norm_str(p.get("prop")) != _norm_str(DEBUG_PROP):
+        return False
+    if DEBUG_HANDICAP and str(p.get("handicap") or "").strip() != DEBUG_HANDICAP.strip():
+        return False
+    if DEBUG_UNDER is not None and bool(p.get("under", False)) != DEBUG_UNDER:
+        return False
+    return True
+
+
+def emit_target_debug(diag: Dict[str, Any]) -> None:
+    print("TARGET DEBUG:", json.dumps(diag, ensure_ascii=False))
 
 
 def load_tokens() -> Dict[str, Any]:
@@ -373,6 +413,118 @@ def side_market_odds(v: Any, want_under: bool) -> Optional[int]:
         over_odds, under_odds = parsed
         return under_odds if want_under else over_odds
     return to_int_odds(v)
+
+
+def best_ny_price_from_bookodds(p: Dict[str, Any]) -> Tuple[Optional[str], Optional[int]]:
+    book_odds = p.get("bookOdds")
+    if not isinstance(book_odds, dict) or not book_odds:
+        return None, None
+
+    want_under = bool(p.get("under", False))
+    best_code: Optional[str] = None
+    best_odds: Optional[int] = None
+    best_score: Optional[float] = None
+
+    for bk_raw, raw in book_odds.items():
+        bk = book_code(bk_raw)
+        if bk not in NY_ALLOWED_BOOKS:
+            continue
+        side_odds = side_market_odds(raw, want_under)
+        if side_odds is None or side_odds == 0:
+            continue
+        score = american_profit_multiple(side_odds)
+        if best_score is None or score > best_score:
+            best_score = score
+            best_code = bk
+            best_odds = side_odds
+
+    return best_code, best_odds
+
+
+def _bookodds_map_lower(book_odds: Dict[str, Any]) -> Dict[str, Any]:
+    out: Dict[str, Any] = {}
+    for k, v in book_odds.items():
+        kk = book_code(k)
+        if kk and kk not in out:
+            out[kk] = v
+    return out
+
+
+def _tiered_sharp_books(available_books: set[str]) -> List[str]:
+    if "pn" in available_books and "circa" in available_books:
+        return ["pn", "circa"]
+    if "pn" in available_books and "bol" in available_books:
+        return ["pn", "bol"]
+    if "circa" in available_books and "bol" in available_books:
+        return ["circa", "bol"]
+    if "bol" in available_books and ("dk" in available_books or "fd" in available_books):
+        out = ["bol"]
+        if "dk" in available_books:
+            out.append("dk")
+        if "fd" in available_books:
+            out.append("fd")
+        return out
+    return []
+
+
+def sharp_fair_prob_details(p: Dict[str, Any]) -> Dict[str, Any]:
+    book_odds = p.get("bookOdds")
+    if not isinstance(book_odds, dict) or not book_odds:
+        return {"p_true": None, "books_used": [], "method": "NO_BOOKODDS"}
+
+    want_under = bool(p.get("under", False))
+    odds_map = _bookodds_map_lower(book_odds)
+    selected = _tiered_sharp_books(set(odds_map.keys()))
+    if not selected:
+        return {"p_true": None, "books_used": [], "method": "NO_TIER_MATCH"}
+
+    weighted: List[Tuple[float, float]] = []
+    books_used: List[str] = []
+
+    for bk in selected:
+        raw = odds_map.get(bk)
+        if raw is None:
+            continue
+
+        parsed = parse_two_sided_odds(raw)
+        if parsed:
+            over_odds, under_odds = parsed
+            p_over_raw = implied_prob_from_american(over_odds)
+            p_under_raw = implied_prob_from_american(under_odds)
+            denom = p_over_raw + p_under_raw
+            if denom <= 0:
+                continue
+            p_over_true = p_over_raw / denom
+            p_side = (1.0 - p_over_true) if want_under else p_over_true
+            confidence = 1.0
+        else:
+            side = side_market_odds(raw, want_under)
+            if side is None:
+                continue
+            p_side = implied_prob_from_american(side)
+            # one-sided quote gets lower confidence weight
+            confidence = 0.70
+
+        base_w = DEVIG_WEIGHTS.get(bk, 0.0)
+        eff_w = base_w * confidence
+        if eff_w <= 0:
+            continue
+
+        weighted.append((p_side, eff_w))
+        books_used.append(bk)
+
+    if not weighted:
+        return {"p_true": None, "books_used": books_used, "method": "NO_VALID_SHARP_ROWS"}
+
+    wsum = sum(w for _, w in weighted)
+    if wsum <= 0:
+        return {"p_true": None, "books_used": books_used, "method": "ZERO_WEIGHT"}
+    p_true = sum(p * (w / wsum) for p, w in weighted)
+    return {"p_true": p_true, "books_used": books_used, "method": "SHARP_TIERED"}
+
+
+def sharp_fair_prob_from_bookodds(p: Dict[str, Any]) -> Optional[float]:
+    return sharp_fair_prob_details(p).get("p_true")
 
 
 def kelly_fraction_from_prob_and_odds(p_true: float, odds: int) -> float:
@@ -619,9 +771,13 @@ def stable_key(p: Dict[str, Any]) -> str:
 def persist_alert_candidate(
     p: Dict[str, Any],
     alert_id: str,
+    place_book_code: str,
+    place_book_name: str,
+    place_odds_int: int,
     zone: str,
     ev_used: float,
     ev_source: str,
+    fair_source: str,
     fair_used: str,
     market_odds: Optional[int],
     gap_cents: Optional[int],
@@ -640,15 +796,16 @@ def persist_alert_candidate(
         "market_display": build_market_string(p),
         "game": p.get("game"),
         "dt": p.get("dt"),
-        "recommended_book_code": book_code(p.get("book")),
-        "recommended_book_name": format_ny_book_name(p.get("book")),
-        "recommended_odds": to_int_odds(p.get("line")),
+        "recommended_book_code": place_book_code,
+        "recommended_book_name": place_book_name,
+        "recommended_odds": place_odds_int,
         "fair_odds": to_int_odds(fair_used) if fair_used is not None else None,
         "market_odds": market_odds,
         "ev_pct": round(ev_used * 100.0, 4),
         "gap_cents": gap_cents,
         "zone": zone,
         "ev_source": ev_source,
+        "fair_source": fair_source,
         "recommended_stake": round(float(recommended_stake_amount), 2),
         "bankroll_snapshot": BANKROLL,
         "kelly_fraction_used": KELLY_FRACTION,
@@ -671,18 +828,20 @@ def persist_alert_candidate(
 def format_pick(
     p: Dict[str, Any],
     zone: str,
+    place_book_name: str,
+    place_odds_int: int,
     ev_used: float,
     fair_used: str,
     ev_source: str,
+    fair_source: str,
     market_odds: Optional[int],
     gap_cents: Optional[int],
-    place_on: str,
     recommended_stake_amount: float,
 ) -> str:
     player = str(p.get("player") or "").strip()
     market_str = build_market_string(p)
-    odds = americanize(p.get("line"))
-    book_name = normalize_book(p.get("book"))
+    odds = americanize(place_odds_int)
+    book_name = place_book_name
     dt_raw = str(p.get("dt") or "").strip() or "N/A"
     game_raw = str(p.get("game") or "").strip() or "N/A"
 
@@ -694,7 +853,7 @@ def format_pick(
         f"{player} | {market_str}",
         f"DATE: {dt_raw}",
         f"GAME: {game_raw}",
-        f"PLACE ON: {place_on}",
+        f"PLACE ON: {place_book_name}",
         f"Book: {book_name} {odds} | Fair: {fair_used}",
     ]
 
@@ -709,6 +868,7 @@ def format_pick(
         f"Stake Rule: {KELLY_FRACTION:.2f} Kelly, max {MAX_STAKE_PCT*100:.0f}% bankroll"
     )
     msg_lines.append(f"EV Source: {ev_source}")
+    msg_lines.append(f"Fair Source: {fair_source}")
 
     if devig_str:
         msg_lines.append(f"Devig vs: {devig_str}")
@@ -833,10 +993,39 @@ def main() -> None:
 
             for p in picks:
                 reasons["total"] += 1
+                debug_target = is_target_debug_pick(p)
+                debug_diag = {
+                    "player": p.get("player"),
+                    "prop": p.get("prop"),
+                    "handicap": p.get("handicap"),
+                    "under": bool(p.get("under", False)),
+                    "book": p.get("book"),
+                    "line": p.get("line"),
+                    "ev_raw": p.get("ev"),
+                    "fairVal_raw": p.get("fairVal"),
+                    "books_present": list(p.get("bookOdds", {}).keys()) if isinstance(p.get("bookOdds"), dict) else None,
+                    "sharp_confirmation": "NOT_CHECKED",
+                    "ny_book": "NOT_CHECKED",
+                    "derived_ny_book": None,
+                    "derived_ny_line": None,
+                    "derived_sharp_fair": None,
+                    "odds_int": None,
+                    "ev_used": None,
+                    "zone": None,
+                    "market_odds": None,
+                    "gap": "NOT_CHECKED",
+                    "dupe": "NOT_CHECKED",
+                    "final_decision": None,
+                    "reject_reason": None,
+                }
 
                 if is_placeholder_pick(p):
                     reasons["skip_placeholder"] += 1
                     add_fail_example("skip_placeholder", p)
+                    if debug_target:
+                        debug_diag["final_decision"] = "REJECT"
+                        debug_diag["reject_reason"] = "skip_placeholder"
+                        emit_target_debug(debug_diag)
                     continue
 
                 books_ok, books_fail = sharp_confirmation_ok(p)
@@ -844,9 +1033,13 @@ def main() -> None:
                     if books_fail == "books":
                         reasons["fail_books"] += 1
                         add_fail_example("fail_books", p)
+                        if debug_target:
+                            debug_diag["sharp_confirmation"] = "FAIL_BOOKS"
                     else:
                         reasons["fail_sharp_confirmation"] += 1
                         add_fail_example("fail_sharp_confirmation", p)
+                        if debug_target:
+                            debug_diag["sharp_confirmation"] = "FAIL_SHARP_CONFIRMATION"
                         if SHOW_NEAR_MISS:
                             near_miss.append(
                                 {
@@ -865,12 +1058,23 @@ def main() -> None:
                                     "books_present": list(p.get("bookOdds", {}).keys()) if isinstance(p.get("bookOdds"), dict) else None,
                                 }
                             )
+                    if debug_target:
+                        debug_diag["final_decision"] = "REJECT"
+                        debug_diag["reject_reason"] = "fail_books" if books_fail == "books" else "fail_sharp_confirmation"
+                        emit_target_debug(debug_diag)
                     continue
+                elif debug_target:
+                    debug_diag["sharp_confirmation"] = "PASS"
 
-                pick_book_code = book_code(p.get("book"))
-                if pick_book_code not in NY_ALLOWED_BOOKS:
+                place_book_code, place_odds_int = best_ny_price_from_bookodds(p)
+                if debug_target:
+                    debug_diag["derived_ny_book"] = place_book_code
+                    debug_diag["derived_ny_line"] = place_odds_int
+                if not place_book_code or place_odds_int is None or place_odds_int == 0:
                     reasons["fail_ny_book"] += 1
                     add_fail_example("fail_ny_book", p)
+                    if debug_target:
+                        debug_diag["ny_book"] = "FAIL"
                     if SHOW_NEAR_MISS:
                         near_miss.append(
                             {
@@ -883,44 +1087,94 @@ def main() -> None:
                                 "ev_raw": p.get("ev"),
                             }
                         )
+                    if debug_target:
+                        debug_diag["final_decision"] = "REJECT"
+                        debug_diag["reject_reason"] = "fail_ny_book"
+                        emit_target_debug(debug_diag)
                     continue
+                elif debug_target:
+                    debug_diag["ny_book"] = "PASS"
 
-                odds_int = to_int_odds(p.get("line"))
+                odds_int = int(place_odds_int)
+                if debug_target:
+                    debug_diag["odds_int"] = odds_int
                 if odds_int is None:
                     reasons["fail_odds_parse"] += 1
                     add_fail_example("fail_odds_parse", p)
+                    if debug_target:
+                        debug_diag["final_decision"] = "REJECT"
+                        debug_diag["reject_reason"] = "fail_odds_parse"
+                        emit_target_debug(debug_diag)
                     continue
 
-                fair_int = to_int_odds(p.get("fairVal"))
                 raw_ev = p.get("ev")
-                ev_api = to_ev_float(raw_ev)
-                if ev_api is None or ev_api == 0:
-                    if fair_int is not None:
-                        p_true_api = true_prob_from_american_fair(fair_int)
-                        ev_api = ev_from_prob_and_american(p_true_api, odds_int)
-                    else:
-                        reasons["fail_ev_api"] += 1
-                        add_fail_example("fail_ev_api", p)
-                        continue
+                fair_int = to_int_odds(p.get("fairVal"))
 
-                fair_api = americanize(p.get("fairVal"))
+                ev_used: Optional[float] = None
+                fair_used: Optional[str] = None
+                ev_source = "API_FALLBACK"
+                fair_source = "API_FALLBACK"
 
-                ev_used = ev_api
-                fair_used = fair_api
-                ev_source = "API"
+                sharp_details = sharp_fair_prob_details(p)
+                p_true_sharp = sharp_details.get("p_true")
+                if p_true_sharp is not None:
+                    sharp_fair_odds = american_from_prob(p_true_sharp)
+                    if sharp_fair_odds is not None:
+                        fair_used = americanize(sharp_fair_odds)
+                        ev_used = ev_from_prob_and_american(p_true_sharp, odds_int)
+                        ev_source = "SHARP_BOOKS"
+                        fair_source = "SHARP_BOOKS"
+                        if debug_target:
+                            debug_diag["derived_sharp_fair"] = fair_used
 
-                if USE_WEIGHTED_DEVIG:
-                    p_true = weighted_devig_fair_prob(p)
-                    if p_true is None:
-                        reasons["fail_weighted_missing"] += 1
-                    else:
-                        fair_odds = american_from_prob(p_true)
-                        if fair_odds is not None:
-                            ev_used = ev_from_prob_and_american(p_true, odds_int)
-                            fair_used = americanize(fair_odds)
-                            ev_source = "WEIGHTED"
-                        else:
+                if ev_used is None:
+                    if USE_WEIGHTED_DEVIG:
+                        p_true_weighted = weighted_devig_fair_prob(p)
+                        if p_true_weighted is None:
                             reasons["fail_weighted_missing"] += 1
+                        else:
+                            fair_weighted_odds = american_from_prob(p_true_weighted)
+                            if fair_weighted_odds is not None:
+                                fair_used = americanize(fair_weighted_odds)
+                                ev_used = ev_from_prob_and_american(p_true_weighted, odds_int)
+                                ev_source = "WEIGHTED_FALLBACK"
+                                fair_source = "WEIGHTED_FALLBACK"
+                            else:
+                                reasons["fail_weighted_missing"] += 1
+
+                if ev_used is None:
+                    ev_api = to_ev_float(raw_ev)
+                    fair_api = americanize(p.get("fairVal"))
+                    if ev_api is None or ev_api == 0:
+                        if fair_int is not None:
+                            p_true_api = true_prob_from_american_fair(fair_int)
+                            ev_api = ev_from_prob_and_american(p_true_api, odds_int)
+                        else:
+                            reasons["fail_ev_api"] += 1
+                            add_fail_example("fail_ev_api", p)
+                            if debug_target:
+                                debug_diag["final_decision"] = "REJECT"
+                                debug_diag["reject_reason"] = "fail_ev_api"
+                                emit_target_debug(debug_diag)
+                            continue
+                    ev_used = ev_api
+                    fair_used = fair_api
+                    ev_source = "API_FALLBACK"
+                    fair_source = "API_FALLBACK"
+
+                # type narrowing
+                if ev_used is None:
+                    reasons["fail_ev_api"] += 1
+                    add_fail_example("fail_ev_api", p)
+                    if debug_target:
+                        debug_diag["final_decision"] = "REJECT"
+                        debug_diag["reject_reason"] = "fail_ev_api"
+                        emit_target_debug(debug_diag)
+                    continue
+                if fair_used is None:
+                    fair_used = ""
+                if debug_target:
+                    debug_diag["ev_used"] = ev_used
 
                 if DEBUG_SCAN and reasons["total"] <= 10:
                     print(
@@ -929,7 +1183,7 @@ def main() -> None:
                         "ev_raw=", raw_ev,
                         "fairVal=", p.get("fairVal"),
                         "line=", p.get("line"),
-                        "ev_api=", ev_api,
+                        "ev_api=", to_ev_float(raw_ev),
                         "ev_used=", ev_used,
                         "source=", ev_source,
                     )
@@ -937,12 +1191,22 @@ def main() -> None:
                 if ev_used < EV_THRESHOLD_FLOOR:
                     reasons["fail_ev_floor"] += 1
                     add_fail_example("fail_ev_floor", p)
+                    if debug_target:
+                        debug_diag["final_decision"] = "REJECT"
+                        debug_diag["reject_reason"] = "fail_ev_floor"
+                        emit_target_debug(debug_diag)
                     continue
 
                 zone = zone_for_play(odds_int, ev_used)
+                if debug_target:
+                    debug_diag["zone"] = zone
                 if zone is None:
                     reasons["fail_zone"] += 1
                     add_fail_example("fail_zone", p)
+                    if debug_target:
+                        debug_diag["final_decision"] = "REJECT"
+                        debug_diag["reject_reason"] = "fail_zone"
+                        emit_target_debug(debug_diag)
                     continue
 
                 market_odds: Optional[int] = None
@@ -951,15 +1215,24 @@ def main() -> None:
                 if ENABLE_GAP_FILTER:
                     fair_used_int = to_int_odds(fair_used)
                     market_odds = market_consensus_odds(p)
+                    if debug_target:
+                        debug_diag["market_odds"] = market_odds
                     if fair_used_int is None or market_odds is None:
                         reasons["fail_market_consensus"] += 1
                         add_fail_example("fail_market_consensus", p)
+                        if debug_target:
+                            debug_diag["gap"] = "FAIL_MARKET_CONSENSUS"
+                            debug_diag["final_decision"] = "REJECT"
+                            debug_diag["reject_reason"] = "fail_market_consensus"
+                            emit_target_debug(debug_diag)
                         continue
 
                     gap_ok, gap_cents, min_gap = fair_market_gap_ok(zone, fair_used_int, market_odds)
                     if not gap_ok:
                         reasons["fail_gap"] += 1
                         add_fail_example("fail_gap", p)
+                        if debug_target:
+                            debug_diag["gap"] = f"FAIL(min={min_gap}, actual={gap_cents})"
                         if SHOW_NEAR_MISS:
                             near_miss.append(
                                 {
@@ -975,7 +1248,15 @@ def main() -> None:
                                     "min_gap": min_gap,
                                 }
                             )
+                        if debug_target:
+                            debug_diag["final_decision"] = "REJECT"
+                            debug_diag["reject_reason"] = "fail_gap"
+                            emit_target_debug(debug_diag)
                         continue
+                    elif debug_target:
+                        debug_diag["gap"] = f"PASS({gap_cents})"
+                elif debug_target:
+                    debug_diag["gap"] = "SKIPPED"
 
                 fair_for_stake = to_int_odds(fair_used)
                 if fair_for_stake is not None:
@@ -990,26 +1271,39 @@ def main() -> None:
                 if k in alerted_today:
                     reasons["dupe"] += 1
                     add_fail_example("dupe", p)
+                    if debug_target:
+                        debug_diag["dupe"] = "FAIL"
+                        debug_diag["final_decision"] = "REJECT"
+                        debug_diag["reject_reason"] = "dupe"
+                        emit_target_debug(debug_diag)
                     continue
+                elif debug_target:
+                    debug_diag["dupe"] = "PASS"
 
                 msg = format_pick(
                     p=p,
                     zone=zone,
+                    place_book_name=format_ny_book_name(place_book_code),
+                    place_odds_int=odds_int,
                     ev_used=ev_used,
                     fair_used=fair_used,
                     ev_source=ev_source,
+                    fair_source=fair_source,
                     market_odds=market_odds,
                     gap_cents=gap_cents,
-                    place_on=format_ny_book_name(p.get("book")),
                     recommended_stake_amount=recommended_stake_amount,
                 )
                 send_telegram(msg)
                 persist_alert_candidate(
                     p=p,
                     alert_id=k,
+                    place_book_code=place_book_code,
+                    place_book_name=format_ny_book_name(place_book_code),
+                    place_odds_int=odds_int,
                     zone=zone,
                     ev_used=ev_used,
                     ev_source=ev_source,
+                    fair_source=fair_source,
                     fair_used=fair_used,
                     market_odds=market_odds,
                     gap_cents=gap_cents,
@@ -1018,6 +1312,9 @@ def main() -> None:
 
                 alerted_today.add(k)
                 reasons["alerted"] += 1
+                if debug_target:
+                    debug_diag["final_decision"] = "ALERT"
+                    emit_target_debug(debug_diag)
 
             cache = {"date": today_iso(), "keys": sorted(alerted_today)}
             save_alert_cache(cache)
