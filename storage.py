@@ -61,6 +61,12 @@ REQUIRED_ALERT_COLUMNS = [
     "gap_cents",
     "zone",
     "ev_source",
+    "recommended_stake",
+    "bankroll_snapshot",
+    "kelly_fraction_used",
+    "max_stake_pct",
+    "min_stake",
+    "round_to",
     "devig_summary",
     "sharp_confirmation_summary",
     "is_logged",
@@ -90,6 +96,11 @@ NUMERIC_FIELDS = {
     "book_odds",
     "fair_odds",
     "kelly_frac",
+    "recommended_stake",
+    "bankroll_snapshot",
+    "max_stake_pct",
+    "min_stake",
+    "round_to",
 }
 
 BOOL_FIELDS = {"is_live", "is_parlay", "is_logged"}
@@ -287,6 +298,12 @@ def _normalize_alert_row_for_schema(row: Dict[str, Any]) -> Dict[str, Any]:
     normalized.setdefault("gap_cents", "")
     normalized.setdefault("zone", "")
     normalized.setdefault("ev_source", "")
+    normalized.setdefault("recommended_stake", "")
+    normalized.setdefault("bankroll_snapshot", "")
+    normalized.setdefault("kelly_fraction_used", "")
+    normalized.setdefault("max_stake_pct", "")
+    normalized.setdefault("min_stake", "")
+    normalized.setdefault("round_to", "")
     normalized.setdefault("devig_summary", "")
     normalized.setdefault("sharp_confirmation_summary", "")
     normalized.setdefault("is_logged", False)

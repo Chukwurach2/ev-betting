@@ -110,6 +110,7 @@ show_cols = [
     "market_odds",
     "ev_pct",
     "gap_cents",
+    "recommended_stake",
     "ev_source",
     "is_logged",
     "logged_at",

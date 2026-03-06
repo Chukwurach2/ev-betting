@@ -58,6 +58,12 @@ GAP_PRIMARY = int(os.getenv("GAP_PRIMARY", "5"))
 GAP_EXTENDED = int(os.getenv("GAP_EXTENDED", "12"))
 GAP_HIGH = int(os.getenv("GAP_HIGH", "20"))
 
+BANKROLL = float(os.getenv("BANKROLL", "500"))
+KELLY_FRACTION = float(os.getenv("KELLY_FRACTION", "0.25"))
+MIN_STAKE = float(os.getenv("MIN_STAKE", "2"))
+MAX_STAKE_PCT = float(os.getenv("MAX_STAKE_PCT", "0.03"))
+ROUND_TO = float(os.getenv("ROUND_TO", "0.50"))
+
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "").strip()
 TELEGRAM_DISABLE = os.getenv("TELEGRAM_DISABLE", "0") == "1"
@@ -326,6 +332,12 @@ def implied_prob_from_american(odds: int) -> float:
     return (-odds) / ((-odds) + 100.0)
 
 
+def american_profit_multiple(odds: int) -> float:
+    if odds > 0:
+        return odds / 100.0
+    return 100.0 / abs(odds)
+
+
 def true_prob_from_american_fair(odds: int) -> float:
     if odds > 0:
         return 100.0 / (odds + 100.0)
@@ -361,6 +373,35 @@ def side_market_odds(v: Any, want_under: bool) -> Optional[int]:
         over_odds, under_odds = parsed
         return under_odds if want_under else over_odds
     return to_int_odds(v)
+
+
+def kelly_fraction_from_prob_and_odds(p_true: float, odds: int) -> float:
+    b = american_profit_multiple(odds)
+    q = 1.0 - p_true
+    f = (b * p_true - q) / b
+    return max(0.0, f)
+
+
+def round_to_increment(value: float, increment: float) -> float:
+    if increment <= 0:
+        return value
+    return round(value / increment) * increment
+
+
+def recommended_stake(bankroll: float, p_true: float, odds: int) -> float:
+    full_kelly = kelly_fraction_from_prob_and_odds(p_true, odds)
+    if full_kelly <= 0:
+        return 0.0
+
+    raw_stake = bankroll * full_kelly * KELLY_FRACTION
+    cap_amount = bankroll * MAX_STAKE_PCT
+    stake = min(raw_stake, cap_amount)
+
+    if stake > 0 and stake < MIN_STAKE:
+        stake = MIN_STAKE
+
+    stake = round_to_increment(stake, ROUND_TO)
+    return max(0.0, stake)
 
 
 def ev_from_prob_and_american(p_true: float, odds: int) -> float:
@@ -584,6 +625,7 @@ def persist_alert_candidate(
     fair_used: str,
     market_odds: Optional[int],
     gap_cents: Optional[int],
+    recommended_stake_amount: float,
 ) -> None:
     if append_alert_candidate is None:
         return
@@ -607,6 +649,12 @@ def persist_alert_candidate(
         "gap_cents": gap_cents,
         "zone": zone,
         "ev_source": ev_source,
+        "recommended_stake": round(float(recommended_stake_amount), 2),
+        "bankroll_snapshot": BANKROLL,
+        "kelly_fraction_used": KELLY_FRACTION,
+        "max_stake_pct": MAX_STAKE_PCT,
+        "min_stake": MIN_STAKE,
+        "round_to": ROUND_TO,
         "devig_summary": DEVIG_DESC,
         "sharp_confirmation_summary": "3+ books and [pn/circa or bol+dk/fd]",
         "is_logged": False,
@@ -629,6 +677,7 @@ def format_pick(
     market_odds: Optional[int],
     gap_cents: Optional[int],
     place_on: str,
+    recommended_stake_amount: float,
 ) -> str:
     player = str(p.get("player") or "").strip()
     market_str = build_market_string(p)
@@ -655,6 +704,10 @@ def format_pick(
         msg_lines.append(f"Gap: {gap_cents} cents")
 
     msg_lines.append(f"EV: {ev_str}")
+    msg_lines.append(f"Recommended Stake: ${recommended_stake_amount:.2f}")
+    msg_lines.append(
+        f"Stake Rule: {KELLY_FRACTION:.2f} Kelly, max {MAX_STAKE_PCT*100:.0f}% bankroll"
+    )
     msg_lines.append(f"EV Source: {ev_source}")
 
     if devig_str:
@@ -924,6 +977,13 @@ def main() -> None:
                             )
                         continue
 
+                fair_for_stake = to_int_odds(fair_used)
+                if fair_for_stake is not None:
+                    p_true_for_stake = true_prob_from_american_fair(fair_for_stake)
+                    recommended_stake_amount = recommended_stake(BANKROLL, p_true_for_stake, odds_int)
+                else:
+                    recommended_stake_amount = 0.0
+
                 candidates += 1
 
                 k = stable_key(p)
@@ -941,6 +1001,7 @@ def main() -> None:
                     market_odds=market_odds,
                     gap_cents=gap_cents,
                     place_on=format_ny_book_name(p.get("book")),
+                    recommended_stake_amount=recommended_stake_amount,
                 )
                 send_telegram(msg)
                 persist_alert_candidate(
@@ -952,6 +1013,7 @@ def main() -> None:
                     fair_used=fair_used,
                     market_odds=market_odds,
                     gap_cents=gap_cents,
+                    recommended_stake_amount=recommended_stake_amount,
                 )
 
                 alerted_today.add(k)
