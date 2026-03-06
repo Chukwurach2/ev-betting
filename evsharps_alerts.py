@@ -668,6 +668,33 @@ def is_placeholder_pick(p: Dict[str, Any]) -> bool:
     return ev_is_zero and (fair_is_100 or line_is_100 or implied_is_50pct)
 
 
+def is_reconstructible_placeholder(p: Dict[str, Any]) -> bool:
+    if not is_placeholder_pick(p):
+        return False
+
+    book_odds = p.get("bookOdds")
+    if not isinstance(book_odds, dict) or not book_odds:
+        return False
+
+    books_present = {book_code(k) for k in book_odds.keys() if str(k).strip()}
+    if len(books_present) < 3:
+        return False
+
+    sharp_ok, _ = sharp_confirmation_ok(p)
+    if not sharp_ok:
+        return False
+
+    if not any(b in NY_ALLOWED_BOOKS for b in books_present):
+        return False
+
+    want_under = bool(p.get("under", False))
+    for raw in book_odds.values():
+        side = side_market_odds(raw, want_under)
+        if side is not None and side != 0:
+            return True
+    return False
+
+
 def sharp_confirmation_ok(p: Dict[str, Any]) -> Tuple[bool, str]:
     book_odds = p.get("bookOdds")
     if not isinstance(book_odds, dict):
@@ -1139,6 +1166,7 @@ def main() -> None:
                                 "ev": row.get("ev"),
                                 "fairVal": row.get("fairVal"),
                                 "placeholder": is_placeholder_pick(row),
+                                "reconstructible_placeholder": is_reconstructible_placeholder(row),
                                 "books_present_count": books_count,
                                 "ranking": row_quality_score(row),
                             }
@@ -1149,6 +1177,8 @@ def main() -> None:
                                 "line": selected.get("line"),
                                 "ev": selected.get("ev"),
                                 "fairVal": selected.get("fairVal"),
+                                "placeholder": is_placeholder_pick(selected),
+                                "reconstructible_placeholder": is_reconstructible_placeholder(selected),
                                 "ranking": row_quality_score(selected),
                             }
                             print("TARGET DUPE SELECTED:", json.dumps(sel_summary, ensure_ascii=False))
@@ -1167,6 +1197,8 @@ def main() -> None:
                     "line": p.get("line"),
                     "ev_raw": p.get("ev"),
                     "fairVal_raw": p.get("fairVal"),
+                    "placeholder": None,
+                    "reconstructible_placeholder": None,
                     "books_present": list(p.get("bookOdds", {}).keys()) if isinstance(p.get("bookOdds"), dict) else None,
                     "sharp_confirmation": "NOT_CHECKED",
                     "ny_book": "NOT_CHECKED",
@@ -1183,7 +1215,13 @@ def main() -> None:
                     "reject_reason": None,
                 }
 
-                if is_placeholder_pick(p):
+                placeholder = is_placeholder_pick(p)
+                reconstructible_placeholder = is_reconstructible_placeholder(p) if placeholder else False
+                if debug_target:
+                    debug_diag["placeholder"] = placeholder
+                    debug_diag["reconstructible_placeholder"] = reconstructible_placeholder
+
+                if placeholder and not reconstructible_placeholder:
                     reasons["skip_placeholder"] += 1
                     add_fail_example("skip_placeholder", p)
                     if debug_target:
