@@ -31,6 +31,7 @@ except Exception:
     append_alert_candidate = None
 
 API_URL = "https://api-production-3a3b.up.railway.app/api/nba"
+TOKEN_CACHE_FILE = Path(__file__).resolve().parent / ".evsharps_tokens.json"
 
 # Rule thresholds
 PRIMARY_MIN_ODDS = 105
@@ -61,10 +62,16 @@ TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "").strip()
 TELEGRAM_DISABLE = os.getenv("TELEGRAM_DISABLE", "0") == "1"
 
+ENV_ACCESS_TOKEN = os.getenv("EVSHARPS_ACCESS_TOKEN", "").strip() or os.getenv("EVSHARPS_BEARER", "").strip()
+ENV_REFRESH_TOKEN = os.getenv("EVSHARPS_REFRESH_TOKEN", "").strip()
+ENV_EXPIRES_AT = os.getenv("EVSHARPS_EXPIRES_AT", "").strip()
+ENV_SUPABASE_TOKEN_URL = os.getenv("EVSHARPS_SUPABASE_TOKEN_URL", "").strip()
+
 DEVIG_DESC = os.getenv(
     "DEVIG_DESC",
     "Additive devig | Sharp-weighted pricing: pn 0.50, circa 0.25, bol 0.20, dk 0.03, fd 0.02",
 )
+AUTH_REFRESH_FAIL_MSG = "EV bot auth refresh failed — manual intervention may be required"
 
 # Weighted pricing inputs
 DEVIG_WEIGHTS: Dict[str, float] = {
@@ -112,6 +119,114 @@ PROP_MAP = {
 }
 
 CACHE_FILE = Path(__file__).resolve().parent / "alerted_cache.json"
+
+
+def _parse_expires_at(value: Any) -> Optional[int]:
+    if value is None or str(value).strip() == "":
+        return None
+    raw = str(value).strip()
+    try:
+        return int(float(raw))
+    except Exception:
+        pass
+    try:
+        dt = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+        return int(dt.timestamp())
+    except Exception:
+        return None
+
+
+def load_tokens() -> Dict[str, Any]:
+    if TOKEN_CACHE_FILE.exists():
+        try:
+            data = json.loads(TOKEN_CACHE_FILE.read_text(encoding="utf-8"))
+            if isinstance(data, dict):
+                tokens = {
+                    "access_token": str(data.get("access_token") or "").strip(),
+                    "refresh_token": str(data.get("refresh_token") or "").strip(),
+                    "expires_at": _parse_expires_at(data.get("expires_at")),
+                    "token_type": str(data.get("token_type") or "bearer").strip() or "bearer",
+                    "supabase_token_url": str(data.get("supabase_token_url") or "").strip(),
+                }
+                # Allow env to fill gaps without overriding valid cache values.
+                if not tokens["supabase_token_url"] and ENV_SUPABASE_TOKEN_URL:
+                    tokens["supabase_token_url"] = ENV_SUPABASE_TOKEN_URL
+                return tokens
+        except Exception:
+            pass
+
+    tokens = {
+        "access_token": ENV_ACCESS_TOKEN,
+        "refresh_token": ENV_REFRESH_TOKEN,
+        "expires_at": _parse_expires_at(ENV_EXPIRES_AT),
+        "token_type": "bearer",
+        "supabase_token_url": ENV_SUPABASE_TOKEN_URL,
+    }
+    save_tokens(tokens)
+    return tokens
+
+
+def save_tokens(tokens: Dict[str, Any]) -> None:
+    payload = {
+        "access_token": str(tokens.get("access_token") or "").strip(),
+        "refresh_token": str(tokens.get("refresh_token") or "").strip(),
+        "expires_at": _parse_expires_at(tokens.get("expires_at")),
+        "token_type": str(tokens.get("token_type") or "bearer").strip() or "bearer",
+        "supabase_token_url": str(tokens.get("supabase_token_url") or "").strip(),
+    }
+    try:
+        TOKEN_CACHE_FILE.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    except Exception:
+        # Never crash service if token cache write fails.
+        pass
+
+
+def access_token_expired(tokens: Dict[str, Any], skew_seconds: int = 60) -> bool:
+    access = str(tokens.get("access_token") or "").strip()
+    if not access:
+        return True
+    expires_at = _parse_expires_at(tokens.get("expires_at"))
+    if expires_at is None:
+        return False
+    now_ts = int(time.time())
+    return now_ts >= (int(expires_at) - int(skew_seconds))
+
+
+def refresh_access_token(tokens: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    refresh_token = str(tokens.get("refresh_token") or "").strip()
+    token_url = str(tokens.get("supabase_token_url") or ENV_SUPABASE_TOKEN_URL).strip()
+    if not refresh_token or not token_url:
+        return None
+
+    try:
+        resp = requests.post(token_url, json={"refresh_token": refresh_token}, timeout=20)
+        if not resp.ok:
+            return None
+        data = resp.json() if resp.content else {}
+    except Exception:
+        return None
+
+    new_access = str(data.get("access_token") or "").strip()
+    if not new_access:
+        return None
+
+    new_refresh = str(data.get("refresh_token") or refresh_token).strip()
+    expires_in_raw = data.get("expires_in")
+    try:
+        expires_in = int(float(expires_in_raw))
+    except Exception:
+        expires_in = None
+    expires_at = int(time.time()) + expires_in if expires_in is not None else None
+
+    refreshed = {
+        "access_token": new_access,
+        "refresh_token": new_refresh,
+        "expires_at": expires_at,
+        "token_type": str(data.get("token_type") or "bearer").strip() or "bearer",
+        "supabase_token_url": token_url,
+    }
+    save_tokens(refreshed)
+    return refreshed
 
 
 def book_code(code: Any) -> str:
@@ -386,17 +501,31 @@ def fair_market_gap_ok(zone: str, fair_odds: int, market_odds: int) -> Tuple[boo
     return gap_cents >= min_gap, gap_cents, min_gap
 
 
-def fetch_payload(token: str) -> Any:
+def fetch_payload(tokens: Dict[str, Any]) -> Tuple[Any, Dict[str, Any]]:
+    access_token = str(tokens.get("access_token") or "").strip()
+    if not access_token:
+        raise requests.HTTPError("Missing access token")
+
     headers = {
         "accept": "*/*",
         "origin": "https://www.evsharps.com",
         "referer": "https://www.evsharps.com/",
-        "authorization": f"Bearer {token}",
+        "authorization": f"Bearer {access_token}",
         "user-agent": "Mozilla/5.0",
     }
     r = requests.get(API_URL, headers=headers, timeout=30)
+    if r.status_code in {401, 403}:
+        refreshed = refresh_access_token(tokens)
+        if not refreshed:
+            r.raise_for_status()
+        retry_headers = dict(headers)
+        retry_headers["authorization"] = f"Bearer {refreshed['access_token']}"
+        r2 = requests.get(API_URL, headers=retry_headers, timeout=30)
+        r2.raise_for_status()
+        return r2.json(), refreshed
+
     r.raise_for_status()
-    return r.json()
+    return r.json(), tokens
 
 
 def extract_picks(payload: Any) -> List[Dict[str, Any]]:
@@ -559,9 +688,9 @@ def send_telegram(msg: str) -> None:
 
 
 def main() -> None:
-    api_token = os.getenv("EVSHARPS_BEARER")
-    if not api_token:
-        raise SystemExit("Missing EVSHARPS_BEARER env var.")
+    tokens = load_tokens()
+    if not str(tokens.get("access_token") or "").strip():
+        raise SystemExit("Missing EVSharps access token. Set EVSHARPS_ACCESS_TOKEN or initialize .evsharps_tokens.json.")
 
     while True:
         started = datetime.now()
@@ -614,7 +743,15 @@ def main() -> None:
             fail_examples_by_reason[reason] = fail_examples_by_reason.get(reason, 0) + 1
 
         try:
-            payload = fetch_payload(api_token)
+            if access_token_expired(tokens):
+                refreshed = refresh_access_token(tokens)
+                if refreshed:
+                    tokens = refreshed
+                else:
+                    send_telegram(AUTH_REFRESH_FAIL_MSG)
+
+            payload, tokens = fetch_payload(tokens)
+            save_tokens(tokens)
             picks = extract_picks(payload)
 
             if DEBUG_SCAN:
@@ -840,6 +977,9 @@ def main() -> None:
                     print(json.dumps(row, ensure_ascii=False))
 
         except requests.HTTPError as e:
+            status = getattr(getattr(e, "response", None), "status_code", None)
+            if status in {401, 403}:
+                send_telegram(AUTH_REFRESH_FAIL_MSG)
             print("HTTP error:", e)
         except Exception as e:
             print("Error:", e)
