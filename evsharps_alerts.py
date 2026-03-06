@@ -37,6 +37,16 @@ except Exception:
 API_URL = "https://api-production-3a3b.up.railway.app/api/nba"
 TOKEN_CACHE_FILE = Path(__file__).resolve().parent / ".evsharps_tokens.json"
 
+
+def _safe_float(value: Any, default: float) -> float:
+    try:
+        v = float(value)
+    except Exception:
+        return default
+    if v != v:  # NaN check
+        return default
+    return v
+
 # Rule thresholds
 PRIMARY_MIN_ODDS = 105
 PRIMARY_MAX_ODDS = 165
@@ -66,7 +76,7 @@ GAP_PRIMARY = int(os.getenv("GAP_PRIMARY", "5"))
 GAP_EXTENDED = int(os.getenv("GAP_EXTENDED", "12"))
 GAP_HIGH = int(os.getenv("GAP_HIGH", "20"))
 
-BANKROLL = float(os.getenv("BANKROLL", "500"))
+BANKROLL = _safe_float(os.getenv("BANKROLL", "500"), 500.0)
 KELLY_FRACTION = float(os.getenv("KELLY_FRACTION", "0.25"))
 MIN_STAKE = float(os.getenv("MIN_STAKE", "2"))
 MAX_STAKE_PCT = float(os.getenv("MAX_STAKE_PCT", "0.03"))
@@ -561,13 +571,19 @@ def recommended_stake(bankroll: float, p_true: float, odds: int) -> float:
     return max(0.0, stake)
 
 
-def resolve_runtime_bankroll(fallback_bankroll: float) -> float:
+def resolve_runtime_bankroll(fallback_bankroll: float) -> Tuple[float, str]:
+    fallback = _safe_float(fallback_bankroll, 0.0)
+    fallback_valid = fallback > 0
+
     if load_ledger_payload is None:
-        return float(fallback_bankroll)
+        if fallback_valid:
+            return fallback, "env_fallback_no_storage"
+        return 0.0, "none"
+
     try:
         payload = load_ledger_payload()
-        start_raw = payload.get("starting_bankroll", fallback_bankroll)
-        start = float(start_raw if start_raw not in (None, "") else fallback_bankroll)
+        start_raw = payload.get("starting_bankroll", fallback)
+        start = _safe_float(start_raw if start_raw not in (None, "") else fallback, fallback)
         bets = payload.get("bets", [])
         if not isinstance(bets, list):
             bets = []
@@ -580,16 +596,22 @@ def resolve_runtime_bankroll(fallback_bankroll: float) -> float:
                 continue
             status = str(b.get("status", "")).upper()
             if status in settled_statuses:
-                settled_pnl += float(b.get("pnl", 0.0) or 0.0)
+                settled_pnl += _safe_float(b.get("pnl", 0.0), 0.0)
             else:
-                open_exposure += float(b.get("stake", 0.0) or 0.0)
+                open_exposure += _safe_float(b.get("stake", 0.0), 0.0)
 
         realized = start + settled_pnl
-        if BANKROLL_MODE == "effective":
-            return max(0.0, realized - open_exposure)
-        return realized
+        dynamic = realized - open_exposure if BANKROLL_MODE == "effective" else realized
+        if dynamic > 0:
+            source = "dynamic_effective" if BANKROLL_MODE == "effective" else "dynamic_realized"
+            return dynamic, source
+        if fallback_valid:
+            return fallback, "env_fallback_dynamic_nonpositive"
+        return 0.0, "none"
     except Exception:
-        return float(fallback_bankroll)
+        if fallback_valid:
+            return fallback, "env_fallback_dynamic_error"
+        return 0.0, "none"
 
 
 def ev_from_prob_and_american(p_true: float, odds: int) -> float:
@@ -1073,9 +1095,10 @@ def main() -> None:
             raw_picks = extract_picks(payload)
             picks, grouped_raw_rows, rep_by_market = select_representative_rows(raw_picks)
             target_market_keys: set[str] = set()
-            bankroll_used = resolve_runtime_bankroll(BANKROLL)
+            bankroll_used, bankroll_source = resolve_runtime_bankroll(BANKROLL)
 
             if DEBUG_SCAN:
+                print(f"BANKROLL DEBUG: source={bankroll_source} used={bankroll_used:.2f}")
                 print("RAW SAMPLE COUNT:", len(raw_picks))
                 print("REPRESENTATIVE COUNT:", len(picks))
                 for p in raw_picks[:10]:
