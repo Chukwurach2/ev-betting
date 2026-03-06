@@ -739,6 +739,72 @@ def extract_picks(payload: Any) -> List[Dict[str, Any]]:
     return picks
 
 
+def market_identity_key(p: Dict[str, Any]) -> str:
+    parts = [
+        _norm_str(p.get("dt")),
+        _norm_str(p.get("game")),
+        _norm_str(p.get("player")),
+        _norm_str(p.get("prop")),
+        str(p.get("handicap") or "").strip(),
+        "u" if bool(p.get("under", False)) else "o",
+    ]
+    return "|".join(parts)
+
+
+def _books_present_count(p: Dict[str, Any]) -> int:
+    book_odds = p.get("bookOdds")
+    if not isinstance(book_odds, dict):
+        return 0
+    return len([k for k in book_odds.keys() if str(k).strip()])
+
+
+def row_quality_score(p: Dict[str, Any]) -> Tuple[int, int, int, int, int, int, int, int, str, str]:
+    placeholder = is_placeholder_pick(p)
+    ev_val = to_ev_float(p.get("ev"))
+    ev_nonzero = 1 if (ev_val is not None and abs(ev_val) > 1e-12) else 0
+
+    line_int = to_int_odds(p.get("line"))
+    has_line = 1 if (line_int is not None and line_int != 0) else 0
+    has_book = 1 if bool(book_code(p.get("book"))) else 0
+
+    books_count = _books_present_count(p)
+    has_bookodds = 1 if books_count > 0 else 0
+
+    fair_int = to_int_odds(p.get("fairVal"))
+    fair_nondefault = 1 if (fair_int is not None and fair_int not in {0, 100}) else 0
+
+    ny_book, ny_line = best_ny_price_from_bookodds(p)
+    ny_placeable = 1 if (ny_book and ny_line is not None and ny_line != 0) else 0
+
+    # Higher tuple wins.
+    return (
+        1 if not placeholder else 0,  # 1) non-placeholder
+        ev_nonzero,                   # 2) valid nonzero ev
+        has_line,                     # 3) non-empty/nonzero line
+        has_book,                     # 4) non-empty book
+        has_bookodds,                 # 5) populated bookOdds
+        books_count,                  # 6) more books
+        fair_nondefault,              # 7) fairVal not default
+        ny_placeable,                 # 8) NY-placeable derived line exists
+        _norm_str(p.get("book")),     # deterministic tie-breaker
+        str(p.get("line") or "").strip(),
+    )
+
+
+def select_representative_rows(raw_picks: List[Dict[str, Any]]) -> Tuple[List[Dict[str, Any]], Dict[str, List[Dict[str, Any]]], Dict[str, Dict[str, Any]]]:
+    grouped: Dict[str, List[Dict[str, Any]]] = {}
+    for p in raw_picks:
+        grouped.setdefault(market_identity_key(p), []).append(p)
+
+    reps: List[Dict[str, Any]] = []
+    rep_by_key: Dict[str, Dict[str, Any]] = {}
+    for key, rows in grouped.items():
+        best = max(rows, key=row_quality_score)
+        reps.append(best)
+        rep_by_key[key] = best
+    return reps, grouped, rep_by_key
+
+
 def build_market_string(p: Dict[str, Any]) -> str:
     prop = str(p.get("prop") or "").strip().lower()
     prop_name = PROP_MAP.get(prop, prop.upper() if prop else "")
@@ -965,11 +1031,14 @@ def main() -> None:
 
             payload, tokens = fetch_payload(tokens)
             save_tokens(tokens)
-            picks = extract_picks(payload)
+            raw_picks = extract_picks(payload)
+            picks, grouped_raw_rows, rep_by_market = select_representative_rows(raw_picks)
+            target_market_keys: set[str] = set()
 
             if DEBUG_SCAN:
-                print("RAW SAMPLE COUNT:", len(picks))
-                for p in picks[:10]:
+                print("RAW SAMPLE COUNT:", len(raw_picks))
+                print("REPRESENTATIVE COUNT:", len(picks))
+                for p in raw_picks[:10]:
                     book_odds = p.get("bookOdds")
                     keys = list(book_odds.keys()) if isinstance(book_odds, dict) else None
                     vals = list(book_odds.values())[:3] if isinstance(book_odds, dict) else None
@@ -991,9 +1060,41 @@ def main() -> None:
                     }
                     print("RAW SAMPLE:", json.dumps(raw_sample, ensure_ascii=False))
 
+            if DEBUG_PLAYER:
+                target_raw_rows = [r for r in raw_picks if is_target_debug_pick(r)]
+                target_market_keys = {market_identity_key(r) for r in target_raw_rows}
+                if target_raw_rows:
+                    for mkey in sorted(target_market_keys):
+                        rows = grouped_raw_rows.get(mkey, [])
+                        selected = rep_by_market.get(mkey)
+                        print(f"TARGET DUPES: key={mkey} count={len(rows)}")
+                        for row in rows:
+                            books_count = _books_present_count(row)
+                            dupe_summary = {
+                                "book": row.get("book"),
+                                "line": row.get("line"),
+                                "ev": row.get("ev"),
+                                "fairVal": row.get("fairVal"),
+                                "placeholder": is_placeholder_pick(row),
+                                "books_present_count": books_count,
+                                "ranking": row_quality_score(row),
+                            }
+                            print("TARGET DUPE ROW:", json.dumps(dupe_summary, ensure_ascii=False))
+                        if selected is not None:
+                            sel_summary = {
+                                "book": selected.get("book"),
+                                "line": selected.get("line"),
+                                "ev": selected.get("ev"),
+                                "fairVal": selected.get("fairVal"),
+                                "ranking": row_quality_score(selected),
+                            }
+                            print("TARGET DUPE SELECTED:", json.dumps(sel_summary, ensure_ascii=False))
+                else:
+                    print("TARGET DUPES: no raw rows matched DEBUG_* filters")
+
             for p in picks:
                 reasons["total"] += 1
-                debug_target = is_target_debug_pick(p)
+                debug_target = market_identity_key(p) in target_market_keys if DEBUG_PLAYER else False
                 debug_diag = {
                     "player": p.get("player"),
                     "prop": p.get("prop"),
