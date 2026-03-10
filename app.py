@@ -1069,6 +1069,7 @@ class Ledger:
         self.unit_size = float(unit_size)
         self.storage_path = storage_path
         self.bets: List[Bet] = []
+        self.duplicate_bet_ids_removed: int = 0
 
     def save(self) -> None:
         payload = {
@@ -1084,11 +1085,26 @@ class Ledger:
         led = cls(payload["starting_bankroll"], payload["unit_size"], storage_path=storage_path)
         bet_fields = set(Bet.__dataclass_fields__.keys())
         led.bets = []
+        seen_idx: Dict[str, int] = {}
+        removed = 0
         for b in payload.get("bets", []):
             if not isinstance(b, dict):
                 continue
             safe_b = {k: v for k, v in b.items() if k in bet_fields}
-            led.bets.append(Bet(**safe_b))
+            try:
+                bet_obj = Bet(**safe_b)
+            except TypeError:
+                continue
+            bid = str(getattr(bet_obj, "bet_id", "")).strip()
+            if not bid:
+                continue
+            if bid in seen_idx:
+                led.bets[seen_idx[bid]] = bet_obj
+                removed += 1
+            else:
+                seen_idx[bid] = len(led.bets)
+                led.bets.append(bet_obj)
+        led.duplicate_bet_ids_removed = removed
         return led
 
     def realized_bankroll(self) -> float:
@@ -1205,6 +1221,7 @@ class Ledger:
         ev_pct: Optional[float] = None,
         kelly_fraction_used: Optional[float] = None,
         kelly_units_from_tool: Optional[float] = None,
+        placed_at: Optional[str] = None,
         is_live: bool = False,
         boost_pct: Optional[float] = None,
         unboosted_odds_american: Optional[float] = None,
@@ -1220,7 +1237,7 @@ class Ledger:
         bet_id = str(uuid.uuid4())[:8]
         b = Bet(
             bet_id=bet_id,
-            placed_at=now_ts(),
+            placed_at=str(placed_at).strip() if isinstance(placed_at, str) and str(placed_at).strip() else now_ts(),
             sport=canonicalize_value("sport", sport),
             team=canonicalize_team(canonicalize_value("sport", sport), team),
             opponent=canonicalize_team(canonicalize_value("sport", sport), opponent),
@@ -1263,6 +1280,7 @@ class Ledger:
             raise ValueError(f"Bet id not found: {bet_id}")
 
         allowed = {
+            "placed_at",
             "sport", "team", "opponent", "market", "market_type", "selection", "book", "devig_method", "devig_details",
             "recommended_stake_snapshot", "stake_source",
             "is_live",
@@ -1396,6 +1414,10 @@ class Ledger:
             for col in expected_cols:
                 if col not in df.columns:
                     df[col] = None
+            # Safety net: enforce unique bet_id rows in UI projections.
+            if "bet_id" in df.columns:
+                df["bet_id"] = df["bet_id"].astype(str)
+                df = df.drop_duplicates(subset=["bet_id"], keep="last").copy()
 
         # Canonicalize key categorical fields for consistent filtering/grouping.
         df["sport"] = df.get("sport").apply(lambda x: canonicalize_value("sport", x) if pd.notnull(x) else x)
@@ -1498,12 +1520,13 @@ except Exception as e:
     st.stop()
 
 normalized_count = ledger.normalize_existing_bets()
-if normalized_count > 0:
+if normalized_count > 0 or ledger.duplicate_bet_ids_removed > 0:
     try:
         ledger.save()
-        st.info(f"Standardized {normalized_count} existing field values (books/teams/labels).")
+        if ledger.duplicate_bet_ids_removed > 0:
+            st.warning(f"Removed {ledger.duplicate_bet_ids_removed} duplicate bet row(s) by bet_id.")
     except Exception as e:
-        st.warning(f"Normalization changes were made in memory but could not be saved: {e}")
+        st.warning(f"Ledger cleanup changes were made in memory but could not be saved: {e}")
 
 df = ledger.to_df()
 m = ledger.metrics()
@@ -2423,6 +2446,18 @@ with tab_new_bet:
             opponent_pick = st.text_input("Opponent (optional)", value="")
     with colB:
         book_pick = st.selectbox("Book", options=book_options, index=0)
+        timing_pick = st.radio(
+            "Timing",
+            options=["Pre-live", "Live"],
+            index=0,
+            horizontal=True,
+            key="new_bet_timing_pick",
+        )
+        placed_date_pick = st.date_input(
+            "Placed Date",
+            value=datetime.now().date(),
+            key="new_bet_placed_date",
+        )
         odds_american = float(st.number_input("Odds (American)", value=-110, step=1))
         boost_pct_input = st.text_input("Boost % (optional)", value="", placeholder="e.g., 20 for 20%")
         notes = st.text_input("Notes (optional)", value="")
@@ -2447,6 +2482,11 @@ with tab_new_bet:
     market = canonicalize_value("market", market_pick)
     market_type_final = canonicalize_value("market_type", market_type)
     book = canonicalize_value("book", book_pick)
+    is_live_pick = timing_pick == "Live"
+    placed_at_for_add = datetime.combine(
+        placed_date_pick,
+        datetime.now().time().replace(microsecond=0),
+    ).isoformat(timespec="seconds")
     team = canonicalize_team(sport, team_pick)
     opponent = canonicalize_team(sport, opponent_pick)
 
@@ -2698,6 +2738,8 @@ with tab_new_bet:
                 true_prob=true_prob_val,
                 kelly_fraction_used=float(kelly_fraction) if kelly_units_val is None else None,
                 kelly_units_from_tool=kelly_units_val,
+                placed_at=placed_at_for_add,
+                is_live=is_live_pick,
                 boost_pct=boost_pct_val,
                 unboosted_odds_american=unboosted_for_store,
                 notes=notes,
@@ -3254,19 +3296,51 @@ with tab_edit_bets:
         st.info("No bets found.")
     else:
         edit_df = df.sort_values("placed_at_dt", ascending=False, na_position="last").copy()
-        edit_df["label"] = edit_df.apply(
-            lambda r: f"{r['bet_id']} | {r['status']} | {r['sport']} | {r['selection']} | ${r['stake']:.2f}",
-            axis=1
-        )
-        id_to_label = dict(zip(edit_df["bet_id"], edit_df["label"]))
-        selected_bet_id = st.selectbox(
-            "Select bet",
-            options=edit_df["bet_id"].tolist(),
-            format_func=lambda x: id_to_label.get(x, x)
-        )
-        selected = next((b for b in ledger.bets if b.bet_id == selected_bet_id), None)
+        ef1, ef2 = st.columns([1.2, 1.2])
+        with ef1:
+            edit_book_options = sorted([x for x in edit_df["book"].dropna().astype(str).unique().tolist() if x.strip()])
+            edit_book_filter = st.selectbox(
+                "Book Filter",
+                options=["All Books"] + edit_book_options,
+                index=0,
+                key="edit_bets_book_filter",
+            )
+        with ef2:
+            edit_status_filter = st.selectbox(
+                "Status Filter",
+                options=["All Statuses", "OPEN", "WON", "LOST", "VOID"],
+                index=0,
+                key="edit_bets_status_filter",
+            )
+
+        if edit_book_filter != "All Books":
+            edit_df = edit_df[edit_df["book"] == edit_book_filter]
+        if edit_status_filter != "All Statuses":
+            edit_df = edit_df[edit_df["status"] == edit_status_filter]
+
+        if edit_df.empty:
+            st.info("No bets match the current filters.")
+            selected = None
+        else:
+            edit_df["label"] = edit_df.apply(
+                lambda r: f"{r['bet_id']} | {r['status']} | {r['sport']} | {r['selection']} | ${r['stake']:.2f}",
+                axis=1
+            )
+            id_to_label = dict(zip(edit_df["bet_id"], edit_df["label"]))
+            selected_bet_id = st.selectbox(
+                "Select bet",
+                options=edit_df["bet_id"].tolist(),
+                format_func=lambda x: id_to_label.get(x, x)
+            )
+            selected = next((b for b in ledger.bets if b.bet_id == selected_bet_id), None)
 
         if selected is not None:
+            placed_ts = pd.to_datetime(selected.placed_at, errors="coerce")
+            if pd.isna(placed_ts):
+                placed_ts = pd.Timestamp(datetime.now())
+            placed_date_default = placed_ts.date()
+            placed_time_default = placed_ts.time().replace(microsecond=0)
+
             with st.form(f"edit_form_{selected_bet_id}"):
                 e1, e2, e3 = st.columns(3)
                 with e1:
@@ -3329,6 +3403,8 @@ with tab_edit_bets:
                             selected.status if selected.status in ["OPEN", "WON", "LOST", "VOID"] else "OPEN"
                         ),
                     )
+                    placed_date_e = st.date_input("Placed Date", value=placed_date_default)
+                    placed_time_e = st.time_input("Placed Time", value=placed_time_default)
                     ev_e = st.text_input("EV % (optional)", value="" if selected.ev_pct is None else str(selected.ev_pct))
                     kf_e = st.text_input(
                         "Kelly fraction used (optional)",
@@ -3349,8 +3425,10 @@ with tab_edit_bets:
             if save_edit:
                 try:
                     prior_status = str(selected.status).upper().strip()
+                    placed_at_e = datetime.combine(placed_date_e, placed_time_e).isoformat(timespec="seconds")
                     closing_val = float(close_e) if close_e.strip() else None
                     updates = {
+                        "placed_at": placed_at_e,
                         "sport": sport_e,
                         "team": team_e,
                         "opponent": opponent_e,
