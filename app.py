@@ -22,7 +22,14 @@ from typing import Optional, List, Dict, Any
 import pandas as pd
 import streamlit as st
 import altair as alt
-from storage import load_ledger_payload, save_ledger_payload, get_storage_backend_label, append_ledger_row
+from storage import (
+    DEFAULT_STARTING_BANKROLL,
+    append_ledger_row,
+    get_storage_backend_label,
+    get_storage_diagnostics,
+    load_ledger_payload,
+    save_ledger_payload,
+)
 
 
 # -----------------------------
@@ -43,10 +50,33 @@ def decimal_to_american(dec: float) -> float:
         return (dec - 1.0) * 100.0
     return -100.0 / (dec - 1.0)
 
-def american_implied_prob(odds: float) -> float:
-    if odds > 0:
-        return 100.0 / (odds + 100.0)
-    return abs(odds) / (abs(odds) + 100.0)
+def parse_american_odds(value: Any) -> Optional[float]:
+    # Examples: "+120" -> 120.0, "-145" -> -145.0, ""/None/"abc" -> None
+    if value is None:
+        return None
+    if isinstance(value, float) and math.isnan(value):
+        return None
+    if isinstance(value, (int, float)):
+        odds = float(value)
+        return None if odds == 0 else odds
+
+    txt = str(value).strip().replace(",", "")
+    if not txt:
+        return None
+    try:
+        odds = float(txt)
+    except (TypeError, ValueError):
+        return None
+    return None if odds == 0 else odds
+
+
+def american_implied_prob(odds: Any) -> Optional[float]:
+    parsed = parse_american_odds(odds)
+    if parsed is None:
+        return None
+    if parsed > 0:
+        return 100.0 / (parsed + 100.0)
+    return abs(parsed) / (abs(parsed) + 100.0)
 
 def fair_prob_from_fair_american(fair_odds: float) -> float:
     return american_implied_prob(fair_odds)
@@ -79,6 +109,70 @@ def round_to(x: float, step: float) -> float:
 
 def now_ts() -> str:
     return datetime.now().isoformat(timespec="seconds")
+
+
+LEDGER_SESSION_PAYLOAD_KEY = "ledger_last_good_payload"
+LEDGER_SESSION_ROW_COUNT_KEY = "ledger_last_good_row_count"
+LEDGER_SESSION_BANKROLL_KEY = "ledger_last_good_bankroll"
+
+
+def _remember_ledger_payload(payload: Dict[str, Any]) -> None:
+    st.session_state.setdefault(LEDGER_SESSION_PAYLOAD_KEY, None)
+    st.session_state.setdefault(LEDGER_SESSION_ROW_COUNT_KEY, 0)
+    st.session_state.setdefault(LEDGER_SESSION_BANKROLL_KEY, DEFAULT_STARTING_BANKROLL)
+    st.session_state[LEDGER_SESSION_PAYLOAD_KEY] = payload
+    st.session_state[LEDGER_SESSION_ROW_COUNT_KEY] = len(payload.get("bets", []))
+    st.session_state[LEDGER_SESSION_BANKROLL_KEY] = float(
+        payload.get("starting_bankroll", DEFAULT_STARTING_BANKROLL) or DEFAULT_STARTING_BANKROLL
+    )
+
+
+def _load_ledger_payload_guarded() -> Dict[str, Any]:
+    st.session_state.setdefault(LEDGER_SESSION_PAYLOAD_KEY, None)
+    st.session_state.setdefault(LEDGER_SESSION_ROW_COUNT_KEY, 0)
+    st.session_state.setdefault(LEDGER_SESSION_BANKROLL_KEY, DEFAULT_STARTING_BANKROLL)
+
+    previous_payload = st.session_state.get(LEDGER_SESSION_PAYLOAD_KEY)
+    previous_count = int(st.session_state.get(LEDGER_SESSION_ROW_COUNT_KEY, 0) or 0)
+
+    try:
+        payload = load_ledger_payload()
+    except Exception:
+        if previous_payload:
+            st.warning("Ledger load failed. Preserving the last known good in-session ledger instead of resetting state.")
+            return dict(previous_payload)
+        raise
+
+    storage_meta = payload.get("_storage", {})
+    current_count = len(payload.get("bets", []))
+    if storage_meta.get("used_fallback"):
+        st.warning("Google Sheets load failed. Using local fallback data without overwriting the last known bankroll state.")
+
+    if storage_meta.get("state") == "empty" and previous_count > 0:
+        st.warning(
+            "Storage returned an empty ledger after previously loading data. Preserving the last known good ledger and blocking automatic reset."
+        )
+        restored = dict(previous_payload)
+        restored["_storage"] = {
+            **dict(restored.get("_storage", {})),
+            "state": "recovered_from_session",
+            "row_count": previous_count,
+        }
+        return restored
+
+    if storage_meta.get("ok"):
+        _remember_ledger_payload(payload)
+    elif previous_payload:
+        st.warning("Ledger storage is unavailable. Preserving the last known good in-session ledger.")
+        return dict(previous_payload)
+
+    if current_count == 0 and previous_count == 0 and storage_meta.get("state") == "empty":
+        payload["starting_bankroll"] = float(
+            payload.get("starting_bankroll", DEFAULT_STARTING_BANKROLL) or DEFAULT_STARTING_BANKROLL
+        )
+        _remember_ledger_payload(payload)
+
+    return payload
 
 
 # -----------------------------
@@ -1064,25 +1158,40 @@ class Bet:
 
 class Ledger:
     def __init__(self, starting_bankroll: float, unit_size: float, storage_path: str):
-        # Bankroll baseline is fixed at $500; current bankroll is baseline + settled PnL.
-        self.starting_bankroll = 500.0
+        self.starting_bankroll = float(starting_bankroll) if starting_bankroll not in (None, "") else DEFAULT_STARTING_BANKROLL
         self.unit_size = float(unit_size)
         self.storage_path = storage_path
         self.bets: List[Bet] = []
         self.duplicate_bet_ids_removed: int = 0
+        self.last_write_to_sheets: Optional[bool] = None
+        self.last_write_error: Optional[str] = None
+        self.storage_meta: Dict[str, Any] = {}
+        self.source_row_count: int = 0
 
     def save(self) -> None:
         payload = {
             "starting_bankroll": self.starting_bankroll,
             "unit_size": self.unit_size,
             "bets": [asdict(b) for b in self.bets],
+            "_previous_remote_row_count": self.source_row_count,
         }
         save_ledger_payload(payload)
+        payload["_storage"] = {
+            **dict(self.storage_meta),
+            "ok": True,
+            "state": "data" if payload["bets"] else "empty",
+            "row_count": len(payload["bets"]),
+        }
+        self.source_row_count = len(payload["bets"])
+        self.storage_meta = dict(payload["_storage"])
+        _remember_ledger_payload(payload)
 
     @classmethod
     def load(cls, storage_path: str) -> "Ledger":
-        payload = load_ledger_payload()
+        payload = _load_ledger_payload_guarded()
         led = cls(payload["starting_bankroll"], payload["unit_size"], storage_path=storage_path)
+        led.storage_meta = dict(payload.get("_storage", {}))
+        led.source_row_count = int(led.storage_meta.get("row_count", len(payload.get("bets", []))) or 0)
         bet_fields = set(Bet.__dataclass_fields__.keys())
         led.bets = []
         seen_idx: Dict[str, int] = {}
@@ -1271,7 +1380,29 @@ class Ledger:
         )
         validate_devig_details(b.devig_method, b.devig_details)
         self.bets.append(b)
-        append_ledger_row(asdict(b))
+        row_payload = asdict(b)
+        row_payload["starting_bankroll"] = self.starting_bankroll
+        row_payload["unit_size"] = self.unit_size
+        wrote_to_sheets = append_ledger_row(row_payload)
+        self.last_write_to_sheets = bool(wrote_to_sheets)
+        if not wrote_to_sheets:
+            self.last_write_error = get_storage_diagnostics().get("last_storage_error")
+        else:
+            self.last_write_error = None
+        payload = {
+            "starting_bankroll": self.starting_bankroll,
+            "unit_size": self.unit_size,
+            "bets": [asdict(x) for x in self.bets],
+            "_storage": {
+                **dict(self.storage_meta),
+                "ok": True,
+                "state": "data",
+                "row_count": len(self.bets),
+            },
+        }
+        self.source_row_count = len(self.bets)
+        self.storage_meta = dict(payload["_storage"])
+        _remember_ledger_payload(payload)
         return bet_id
 
     def update_bet(self, bet_id: str, updates: Dict[str, Any]) -> None:
@@ -1452,10 +1583,9 @@ class Ledger:
         df["stake"] = pd.to_numeric(df.get("stake"), errors="coerce").fillna(0.0)
         df["units"] = df["stake"] / float(self.unit_size)
 
-        df["implied_prob"] = df.get("odds_american").apply(
-            lambda x: american_implied_prob(x) if pd.notnull(x) else None
-        )
-        df["odds_band"] = df.get("odds_american").apply(odds_band)
+        odds_series = df["odds_american"] if "odds_american" in df.columns else pd.Series([None] * len(df), index=df.index)
+        df["implied_prob"] = odds_series.apply(american_implied_prob)
+        df["odds_band"] = odds_series.apply(odds_band)
 
         # Safe sort
         df = df.sort_values(["placed_at_dt", "bet_id"], ascending=[True, True], na_position="last")
@@ -1520,13 +1650,20 @@ except Exception as e:
     st.stop()
 
 normalized_count = ledger.normalize_existing_bets()
-if normalized_count > 0 or ledger.duplicate_bet_ids_removed > 0:
+can_autosave_cleanup = (
+    ledger.storage_meta.get("ok")
+    and ledger.storage_meta.get("state") in {"data", "empty"}
+    and not ledger.storage_meta.get("used_fallback")
+)
+if (normalized_count > 0 or ledger.duplicate_bet_ids_removed > 0) and can_autosave_cleanup:
     try:
         ledger.save()
         if ledger.duplicate_bet_ids_removed > 0:
             st.warning(f"Removed {ledger.duplicate_bet_ids_removed} duplicate bet row(s) by bet_id.")
     except Exception as e:
         st.warning(f"Ledger cleanup changes were made in memory but could not be saved: {e}")
+elif normalized_count > 0 or ledger.duplicate_bet_ids_removed > 0:
+    st.warning("Ledger cleanup changes were detected, but automatic save was blocked because the storage state is not verified.")
 
 df = ledger.to_df()
 m = ledger.metrics()
@@ -2745,6 +2882,11 @@ with tab_new_bet:
                 notes=notes,
             )
             st.success(f"Added OPEN bet: {bet_id}")
+            if ledger.last_write_to_sheets is False:
+                st.warning(
+                    "Bet saved via local fallback (not Google Sheets). "
+                    f"Reason: {ledger.last_write_error or 'Google backend unavailable'}"
+                )
             if rec is not None:
                 st.markdown(
                     f"**Sizing:** {'CAPPED' if rec['was_capped'] else 'Not capped'} | "
