@@ -8,9 +8,11 @@ import streamlit as st
 
 from storage import (
     append_ledger_row,
+    get_storage_diagnostics,
     get_storage_backend_label,
     load_alert_candidates,
     mark_alert_logged,
+    test_google_sheets_connection,
 )
 
 
@@ -19,6 +21,36 @@ st.title("EV Alerts")
 st.caption("Live +EV alert candidates generated from EVSharps rules")
 st.warning("Alerts are candidates, not auto-submitted bets. Review before logging.")
 st.caption(f"Data source: {get_storage_backend_label()}")
+
+with st.expander("Storage Debug", expanded=False):
+    diag = get_storage_diagnostics()
+    st.write(
+        {
+            "backend_label": diag.get("backend_label"),
+            "google_backend_enabled": diag.get("google_backend_enabled"),
+            "has_credentials": diag.get("has_credentials"),
+            "has_spreadsheet_target": diag.get("has_spreadsheet_target"),
+            "spreadsheet_target": diag.get("spreadsheet_target"),
+            "worksheet_name": diag.get("worksheet_name"),
+            "alerts_worksheet_name": diag.get("alerts_worksheet_name"),
+            "last_storage_error": diag.get("last_storage_error"),
+        }
+    )
+    dc1, dc2 = st.columns(2)
+    with dc1:
+        if st.button("Test Connection", key="alerts_storage_test_connection"):
+            res = test_google_sheets_connection(write_test_row=False)
+            if res.get("ok"):
+                st.success(res.get("message", "Connection OK"))
+            else:
+                st.error(f"Connection failed: {res.get('message')}")
+    with dc2:
+        if st.button("Write Test Ledger Row", key="alerts_storage_write_test_row"):
+            res = test_google_sheets_connection(write_test_row=True)
+            if res.get("ok"):
+                st.success("Test row written to ledger worksheet.")
+            else:
+                st.error(f"Test row write failed: {res.get('message')}")
 
 
 def _to_ts(value: Any) -> pd.Timestamp:
@@ -173,8 +205,14 @@ if st.button("Log to Ledger", type="primary"):
             "result": "OPEN",
         }
 
-        append_ledger_row(ledger_row)
+        wrote_to_sheets = append_ledger_row(ledger_row)
         ok = mark_alert_logged(_safe_str(selected.get("alert_id")), datetime.now().isoformat(timespec="seconds"))
+        if not wrote_to_sheets:
+            diag_now = get_storage_diagnostics()
+            st.warning(
+                "Ledger row was written via local fallback (not Google Sheets). "
+                f"Reason: {diag_now.get('last_storage_error') or 'Google backend unavailable'}"
+            )
         if not ok:
             st.warning("Bet logged, but alert status update did not persist. Refresh and check the alert queue.")
         else:

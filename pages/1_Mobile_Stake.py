@@ -3,7 +3,41 @@ from datetime import datetime
 from typing import Any, Dict, Optional
 
 import streamlit as st
-from storage import load_ledger_payload, append_ledger_row, get_storage_backend_label
+from storage import (
+    append_ledger_row,
+    get_storage_backend_label,
+    get_storage_diagnostics,
+    load_ledger_payload,
+)
+
+
+DEFAULT_STARTING_BANKROLL = 500.0
+
+
+LEDGER_SESSION_PAYLOAD_KEY = "mobile_last_good_payload"
+
+
+def load_ledger_payload_guarded() -> Dict[str, Any]:
+    st.session_state.setdefault(LEDGER_SESSION_PAYLOAD_KEY, None)
+    previous_payload = st.session_state.get(LEDGER_SESSION_PAYLOAD_KEY)
+    try:
+        payload = load_ledger_payload()
+    except Exception:
+        if previous_payload:
+            st.warning("Ledger load failed. Preserving the last known good bankroll for this session.")
+            return dict(previous_payload)
+        raise
+
+    storage_meta = payload.get("_storage", {})
+    if storage_meta.get("state") == "empty" and previous_payload and previous_payload.get("bets"):
+        st.warning("Storage returned an empty ledger after previous data existed. Preserving the last known good bankroll.")
+        return dict(previous_payload)
+
+    payload["starting_bankroll"] = float(
+        payload.get("starting_bankroll", DEFAULT_STARTING_BANKROLL) or DEFAULT_STARTING_BANKROLL
+    )
+    st.session_state[LEDGER_SESSION_PAYLOAD_KEY] = payload
+    return payload
 
 
 # -----------------------------
@@ -178,7 +212,7 @@ button[kind="primary"] { min-height: 2.8rem; font-size: 1.05rem; }
     unsafe_allow_html=True,
 )
 
-ledger_payload = load_ledger_payload()
+ledger_payload = load_ledger_payload_guarded()
 st.caption(f"Data source: {get_storage_backend_label()}")
 
 unit_size = float(ledger_payload.get("unit_size", 1.0))
@@ -337,8 +371,17 @@ if st.button("Add OPEN Bet", type="primary", use_container_width=True, disabled=
         bet_id = str(uuid.uuid4())[:8]
         row["bet_id"] = bet_id
         if log_this_bet:
-            append_ledger_row(row)
+            wrote_to_sheets = append_ledger_row(row)
+            updated_payload = dict(ledger_payload)
+            updated_payload["bets"] = list(ledger_payload.get("bets", [])) + [dict(row)]
+            st.session_state[LEDGER_SESSION_PAYLOAD_KEY] = updated_payload
             st.success(f"Added OPEN bet: {bet_id}")
+            if not wrote_to_sheets:
+                diag = get_storage_diagnostics()
+                st.warning(
+                    "Bet saved via local fallback (not Google Sheets). "
+                    f"Reason: {diag.get('last_storage_error') or 'Google backend unavailable'}"
+                )
         else:
             st.success("Bet not logged (toggle is off).")
     except Exception as e:

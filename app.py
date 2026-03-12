@@ -23,13 +23,15 @@ import pandas as pd
 import streamlit as st
 import altair as alt
 from storage import (
-    DEFAULT_STARTING_BANKROLL,
     append_ledger_row,
     get_storage_backend_label,
     get_storage_diagnostics,
     load_ledger_payload,
     save_ledger_payload,
 )
+
+
+DEFAULT_STARTING_BANKROLL = 500.0
 
 
 # -----------------------------
@@ -1648,6 +1650,21 @@ try:
 except Exception as e:
     st.error(f"Could not load ledger ({get_storage_backend_label()} backend).\n\n{e}")
     st.stop()
+
+storage_diag = get_storage_diagnostics()
+with st.sidebar.expander("Storage Diagnostics", expanded=False):
+    st.write(
+        {
+            "backend_label": storage_diag.get("backend_label"),
+            "spreadsheet_target": storage_diag.get("spreadsheet_target"),
+            "worksheet_name": storage_diag.get("worksheet_name"),
+            "alerts_worksheet_name": storage_diag.get("alerts_worksheet_name"),
+            "loaded_row_count": ledger.storage_meta.get("row_count", len(ledger.bets)),
+            "fallback_used": bool(ledger.storage_meta.get("used_fallback")),
+            "load_state": ledger.storage_meta.get("state"),
+            "last_storage_error": storage_diag.get("last_storage_error"),
+        }
+    )
 
 normalized_count = ledger.normalize_existing_bets()
 can_autosave_cleanup = (
