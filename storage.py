@@ -31,6 +31,8 @@ LOCAL_BACKUP_DIR = LOCAL_DATA_DIR / "backups"
 DEFAULT_WORKSHEET = "ledger"
 DEFAULT_ALERTS_WORKSHEET = "alerts"
 DEFAULT_STARTING_BANKROLL = 500.0
+DEFAULT_DEVIG_METHOD = "Split Weights"
+DEFAULT_DEVIG_DETAILS = "PN"
 
 REQUIRED_LEDGER_COLUMNS = [
     "timestamp",
@@ -383,6 +385,10 @@ def _normalize_row_for_schema(row: Dict[str, Any]) -> Dict[str, Any]:
     normalized.setdefault("fair_odds", normalized.get("fair_odds_american") or "")
     normalized.setdefault("kelly_frac", normalized.get("kelly_fraction_used") or "")
     normalized.setdefault("notes", normalized.get("notes") or "")
+    if not normalized.get("devig_method"):
+        normalized["devig_method"] = DEFAULT_DEVIG_METHOD
+    if not normalized.get("devig_details") and normalized.get("devig_method") == DEFAULT_DEVIG_METHOD:
+        normalized["devig_details"] = DEFAULT_DEVIG_DETAILS
     normalized.setdefault("result", normalized.get("status") or "")
     return normalized
 
@@ -441,7 +447,8 @@ def _sheet_row_to_app_bet(row: Dict[str, Any], default_unit_size: float) -> Dict
     normalized.setdefault("stake", normalized.get("stake", 0.0))
     normalized.setdefault("unit_size", normalized.get("unit_size", default_unit_size))
     normalized.setdefault("market_type", normalized.get("market_type", "Game"))
-    normalized.setdefault("devig_method", normalized.get("devig_method", "Market Avg"))
+    normalized.setdefault("devig_method", normalized.get("devig_method") or DEFAULT_DEVIG_METHOD)
+    normalized.setdefault("devig_details", normalized.get("devig_details") or None)
     normalized.setdefault("status", status)
     normalized.setdefault("pnl", normalized.get("pnl", 0.0))
 

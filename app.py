@@ -32,6 +32,8 @@ from storage import (
 
 
 DEFAULT_STARTING_BANKROLL = 500.0
+DEFAULT_DEVIG_METHOD = "Split Weights"
+DEFAULT_DEVIG_DETAILS = "PN"
 
 
 # -----------------------------
@@ -1129,7 +1131,7 @@ class Bet:
     market_type: str = "Game"
     team: Optional[str] = None
     opponent: Optional[str] = None
-    devig_method: str = "Market Avg"
+    devig_method: str = DEFAULT_DEVIG_METHOD
     devig_details: Optional[str] = None
     recommended_stake_snapshot: Optional[float] = None
     stake_source: Optional[str] = None
@@ -1356,7 +1358,7 @@ class Ledger:
             market_type=canonicalize_value("market_type", market_type),
             selection=selection,
             book=canonicalize_value("book", book),
-            devig_method=canonicalize_devig_method(devig_method),
+            devig_method=canonicalize_devig_method(devig_method or DEFAULT_DEVIG_METHOD),
             devig_details=devig_details.strip() if isinstance(devig_details, str) and devig_details.strip() else None,
             recommended_stake_snapshot=float(recommended_stake_snapshot) if recommended_stake_snapshot is not None else None,
             stake_source=stake_source.strip() if isinstance(stake_source, str) and stake_source.strip() else None,
@@ -1557,7 +1559,7 @@ class Ledger:
         df["market"] = df.get("market").apply(lambda x: canonicalize_value("market", x) if pd.notnull(x) else x)
         df["book"] = df.get("book").apply(lambda x: canonicalize_value("book", x) if pd.notnull(x) else x)
         df["devig_method"] = df.get("devig_method").apply(
-            lambda x: canonicalize_value("devig_method", x) if pd.notnull(x) else "Market Avg"
+            lambda x: canonicalize_value("devig_method", x) if pd.notnull(x) else DEFAULT_DEVIG_METHOD
         )
         df["is_parlay"] = df.get("is_parlay").fillna(False).astype(bool)
         if "is_live" not in df.columns:
@@ -1579,7 +1581,11 @@ class Ledger:
             axis=1,
         )
 
-        df["placed_at_dt"] = pd.to_datetime(df.get("placed_at"), errors="coerce")
+        placed_series = df.get("placed_at")
+        timestamp_series = df["placed_at"] if "timestamp" not in df.columns else df.get("timestamp")
+        df["placed_at_dt"] = pd.to_datetime(placed_series, errors="coerce").fillna(
+            pd.to_datetime(timestamp_series, errors="coerce")
+        )
         df["settled_at_dt"] = pd.to_datetime(df.get("settled_at"), errors="coerce")
 
         df["stake"] = pd.to_numeric(df.get("stake"), errors="coerce").fillna(0.0)
@@ -2618,12 +2624,12 @@ with tab_new_bet:
         devig_method = st.selectbox(
             "Devig Method",
             options=DEVIG_METHOD_OPTIONS,
-            index=0
+            index=DEVIG_METHOD_OPTIONS.index(DEFAULT_DEVIG_METHOD),
         )
         devig_requires_details = devig_method in {"Single Book (100%)", "Split Weights"}
         devig_details = st.text_input(
             "Devig Details (required)" if devig_requires_details else "Devig Details (optional)",
-            value="",
+            value=DEFAULT_DEVIG_DETAILS,
             placeholder="e.g., Pinnacle 100% or FanDuel 50% / DraftKings 50%",
             help="Required for Single Book (100%) and Split Weights. Include book names and percentages.",
         )
@@ -2920,10 +2926,15 @@ with tab_new_bet:
     parlay_leg_count = int(st.number_input("Number of Legs", min_value=2, max_value=8, value=3, step=1, key="parlay_leg_count"))
     parlay_boost_pct = st.number_input("Parlay Boost % (optional)", min_value=0.0, max_value=500.0, value=0.0, step=1.0, key="parlay_boost_pct")
     parlay_book = st.selectbox("Parlay Book", options=book_options, index=0, key="parlay_book_pick")
-    parlay_devig_method = st.selectbox("Parlay Devig Method", options=DEVIG_METHOD_OPTIONS, index=0, key="parlay_devig_method")
+    parlay_devig_method = st.selectbox(
+        "Parlay Devig Method",
+        options=DEVIG_METHOD_OPTIONS,
+        index=DEVIG_METHOD_OPTIONS.index(DEFAULT_DEVIG_METHOD),
+        key="parlay_devig_method",
+    )
     parlay_devig_details = st.text_input(
         "Parlay Devig Details (required for Single/Split)" if parlay_devig_method in {"Single Book (100%)", "Split Weights"} else "Parlay Devig Details (optional)",
-        value="",
+        value=DEFAULT_DEVIG_DETAILS,
         key="parlay_devig_details",
     )
     parlay_label = st.text_input("Parlay Label (optional)", value="", placeholder="e.g., Friday 4-Leg NHL", key="parlay_label")
@@ -3282,10 +3293,15 @@ with tab_new_bet:
         live_notes = st.text_input("Live Notes (optional)", value="", placeholder="e.g., 7:40 Q3", key="live_notes")
 
     with lv3:
-        live_devig_method = st.selectbox("Live Devig Method", options=DEVIG_METHOD_OPTIONS, index=0, key="live_devig_method")
+        live_devig_method = st.selectbox(
+            "Live Devig Method",
+            options=DEVIG_METHOD_OPTIONS,
+            index=DEVIG_METHOD_OPTIONS.index(DEFAULT_DEVIG_METHOD),
+            key="live_devig_method",
+        )
         live_devig_details = st.text_input(
             "Live Devig Details (required for Single/Split)" if live_devig_method in {"Single Book (100%)", "Split Weights"} else "Live Devig Details (optional)",
-            value="",
+            value=DEFAULT_DEVIG_DETAILS,
             key="live_devig_details",
         )
         live_max_frac = st.selectbox(
@@ -3529,7 +3545,7 @@ with tab_edit_bets:
                         "Devig Method",
                         options=DEVIG_METHOD_OPTIONS,
                         index=DEVIG_METHOD_OPTIONS.index(
-                            selected.devig_method if selected.devig_method in DEVIG_METHOD_OPTIONS else "Market Avg"
+                            selected.devig_method if selected.devig_method in DEVIG_METHOD_OPTIONS else DEFAULT_DEVIG_METHOD
                         )
                     )
                     devig_details_e = st.text_input(
@@ -3627,7 +3643,7 @@ with tab_edit_bets:
 # -----------------------------
 with tab_grade_bets:
     st.subheader("Grade OPEN Bets")
-    open_df = df[df["status"] == "OPEN"].copy().sort_values("placed_at_dt", ascending=False, na_position="last")
+    open_df = df[df["status"] == "OPEN"].copy().sort_values("placed_at_dt", ascending=True, na_position="last")
 
     if open_df.empty:
         st.info("No OPEN bets to grade.")
@@ -3673,7 +3689,7 @@ with tab_grade_bets:
                             if c in {"team", "opponent", "devig_details", "notes"}:
                                 updates[c] = new_s if new_s else None
                             elif c == "devig_method":
-                                updates[c] = new_s if new_s else "Market Avg"
+                                updates[c] = new_s if new_s else DEFAULT_DEVIG_METHOD
                     if updates:
                         ledger.update_bet(bet_id_row, updates)
                         updates_made += 1
@@ -3699,7 +3715,12 @@ with tab_grade_bets:
             grade_book_options = sorted([x for x in open_df["book"].dropna().astype(str).unique().tolist() if x.strip()])
             grade_book_filter = st.selectbox("Book Filter", options=["All Books"] + grade_book_options, index=0, key="grade_book_filter")
         with gf4:
-            grade_order = st.selectbox("Order", options=["Newest Placed", "Team A-Z"], index=0, key="grade_order")
+            grade_order = st.selectbox(
+                "Order",
+                options=["Oldest Placed", "Newest Placed", "Team A-Z"],
+                index=0,
+                key="grade_order",
+            )
 
         open_grade_df = open_df.copy()
         if grade_team_filter != "All Teams":
@@ -3711,6 +3732,8 @@ with tab_grade_bets:
 
         if grade_order == "Team A-Z":
             open_grade_df = open_grade_df.sort_values(["team", "placed_at_dt"], ascending=[True, False], na_position="last")
+        elif grade_order == "Oldest Placed":
+            open_grade_df = open_grade_df.sort_values("placed_at_dt", ascending=True, na_position="last")
         else:
             open_grade_df = open_grade_df.sort_values("placed_at_dt", ascending=False, na_position="last")
 

@@ -12,6 +12,8 @@ from storage import (
 
 
 DEFAULT_STARTING_BANKROLL = 500.0
+DEFAULT_DEVIG_METHOD = "Split Weights"
+DEFAULT_DEVIG_DETAILS = "PN"
 
 
 LEDGER_SESSION_PAYLOAD_KEY = "mobile_last_good_payload"
@@ -165,7 +167,7 @@ def add_open_bet(payload: Dict[str, Any], bet: Dict[str, Any]) -> str:
         "market_type": bet.get("market_type", "Game"),
         "team": bet.get("team") or None,
         "opponent": bet.get("opponent") or None,
-        "devig_method": bet.get("devig_method", "Market Avg"),
+        "devig_method": bet.get("devig_method", DEFAULT_DEVIG_METHOD),
         "devig_details": bet.get("devig_details") or None,
         "recommended_stake_snapshot": float(bet.get("recommended_stake_snapshot")) if bet.get("recommended_stake_snapshot") is not None else None,
         "stake_source": bet.get("stake_source") or None,
@@ -182,7 +184,7 @@ def add_open_bet(payload: Dict[str, Any], bet: Dict[str, Any]) -> str:
         "ev_pct": float(bet.get("ev_pct")) if bet.get("ev_pct") is not None else None,
         "kelly_fraction_used": float(bet.get("kelly_fraction_used")) if bet.get("kelly_fraction_used") is not None else None,
         "kelly_units_from_tool": None,
-        "boost_pct": None,
+        "boost_pct": float(bet.get("boost_pct")) if bet.get("boost_pct") is not None else None,
         "unboosted_odds_american": None,
         "closing_odds_american": None,
         "status": "OPEN",
@@ -295,9 +297,21 @@ with s2:
     team = st.text_input("Team (optional)", value="")
     opponent = st.text_input("Opponent (optional)", value="")
     book = st.selectbox("Book", ["DraftKings", "FanDuel", "BetMGM", "Caesars", "Fanatics", "BetRivers", "theScore", "Pinnacle"], index=0)
-    devig_method = st.selectbox("Devig Method", ["Market Avg", "Single Book (100%)", "Split Weights"], index=0)
+    devig_method = st.selectbox(
+        "Devig Method",
+        ["Market Avg", "Single Book (100%)", "Split Weights"],
+        index=["Market Avg", "Single Book (100%)", "Split Weights"].index(DEFAULT_DEVIG_METHOD),
+    )
 
-devig_details = st.text_input("Devig Details (optional)", value="", placeholder="e.g., Pinnacle 100%")
+devig_details = st.text_input(
+    "Devig Details (required for Single/Split)" if devig_method in {"Single Book (100%)", "Split Weights"} else "Devig Details (optional)",
+    value=DEFAULT_DEVIG_DETAILS,
+    placeholder="e.g., Pinnacle 100%",
+)
+used_boost = st.checkbox("Used Boost", value=False)
+boost_pct_raw = ""
+if used_boost:
+    boost_pct_raw = st.text_input("Boost Percent", value="", placeholder="e.g., 20")
 notes = st.text_input("Notes (optional)", value="")
 
 stake_mode = st.radio(
@@ -319,6 +333,14 @@ if st.button("Add OPEN Bet", type="primary", use_container_width=True, disabled=
 
         if devig_method != "Market Avg" and not devig_details.strip():
             raise ValueError("Devig Details required for Single Book (100%) / Split Weights.")
+
+        boost_pct = None
+        if used_boost:
+            if not boost_pct_raw.strip():
+                raise ValueError("Boost Percent is required when Used Boost is enabled.")
+            boost_pct = float(boost_pct_raw)
+            if boost_pct < 0:
+                raise ValueError("Boost Percent cannot be negative.")
 
         if stake_mode == "Manual stake":
             stake = float(manual_stake)
@@ -353,6 +375,7 @@ if st.button("Add OPEN Bet", type="primary", use_container_width=True, disabled=
             "stake_source": stake_source,
             "odds_american": parse_american_odds(book_odds_raw),
             "book_odds": parse_american_odds(book_odds_raw),
+            "boost_pct": boost_pct,
             "stake": stake,
             "fair_odds_american": fair_odds,
             "fair_odds": fair_odds,

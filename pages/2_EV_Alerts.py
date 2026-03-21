@@ -198,6 +198,8 @@ if st.button("Log to Ledger", type="primary"):
             "fair_odds_american": selected.get("fair_odds"),
             "fair_odds": selected.get("fair_odds"),
             "ev_pct": selected.get("ev_pct"),
+            "devig_method": "Split Weights",
+            "devig_details": "PN",
             "stake": 0,
             "kelly_frac": 0,
             "notes": "Logged from EV Alerts page",
