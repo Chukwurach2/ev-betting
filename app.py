@@ -22,6 +22,14 @@ from typing import Optional, List, Dict, Any
 import pandas as pd
 import streamlit as st
 import altair as alt
+from strategy_rules import (
+    PLAYER_PROP_FRAMEWORKS_BY_SPORT,
+    display_name_for_sport,
+    framework_for_sport,
+    objective_scope_labels,
+    objective_scope_sections,
+    sport_from_display_name,
+)
 from storage import (
     append_ledger_row,
     get_storage_backend_label,
@@ -627,117 +635,6 @@ TEAM_NAME_ALIASES = {
     "nats": "nationals",
 }
 
-PLAYER_PROP_FRAMEWORKS_BY_SPORT: Dict[str, Dict[str, Any]] = {
-    "NBA": {
-        "title": "NBA Player Prop Rules",
-        "market_focus": [],
-        "allowed_books": ["Pinnacle", "Circa", "BetOnline", "DraftKings", "FanDuel"],
-        "required_sharp_books": ["Pinnacle", "Circa", "BetOnline"],
-        "preferred_books": ["DraftKings", "FanDuel"],
-        "min_total_books": 3,
-        "default_devig_method": "Split Weights",
-        "devig_methodology": [
-            "Additive devig",
-            "Sharp-weighted pricing:",
-        ],
-        "default_weights": [
-            ("Pinnacle", 0.50),
-            ("Circa", 0.25),
-            ("BetOnline", 0.20),
-            ("DraftKings", 0.03),
-            ("FanDuel", 0.02),
-        ],
-        "sections": [
-            ("Sharp Confirmation / Book Requirements", [
-                "Minimum 3 books total",
-                "Accept if any of the following is true:",
-                "Pinnacle present, OR",
-                "Circa present, OR",
-                "BetOnline present plus DraftKings or FanDuel",
-                "Skip soft-book-only markets",
-            ]),
-            ("Primary Betting Zone", [
-                "Odds: +105 to +165",
-                "Minimum EV: 6%",
-            ]),
-            ("Extended Zone", [
-                "Odds: +165 to +250",
-                "Minimum EV: 10%",
-            ]),
-            ("High Odds Rule", [
-                "+250+ only if EV >= 12%",
-            ]),
-            ("Fair vs Market Gap Filter", [
-                "Primary zone: minimum 8-cent gap",
-                "Extended zone: minimum 20-cent gap",
-                "High odds: minimum 30-cent gap",
-                "Market consensus uses median of available book prices",
-            ]),
-            ("EV Alerts Queue", [
-                "Use the EV Alerts page to review live candidates generated from these rules",
-                "Alerts are reviewed manually before being logged",
-                "Logging from EV Alerts adds an OPEN bet to the ledger",
-                "Alerts are not automatically treated as placed bets",
-            ]),
-            ("Avoid", [
-                "Placeholder / neutral rows",
-                "Boost-driven outliers without sharp confirmation",
-                "Soft-book-only edges",
-                "Plays failing gap filter",
-            ]),
-        ],
-    },
-    "MLB": {
-        "title": "MLB Player Props — Objective / Scope",
-        "market_focus": [
-            "Standard MLB player props only",
-            "Examples: pitcher strikeouts, outs recorded, hits allowed, earned runs, walks allowed, batter hits, total bases, RBI, runs, H+R+RBI",
-            "Exclude home run props from the standard MLB framework for now",
-        ],
-        "allowed_books": ["Pinnacle", "Circa", "FanDuel", "DraftKings", "Caesars", "BetMGM"],
-        "required_sharp_books": ["Pinnacle", "Circa"],
-        "preferred_books": ["FanDuel", "DraftKings"],
-        "min_total_books": 3,
-        "default_devig_method": "Multiplicative",
-        "devig_methodology": [
-            "Use multiplicative devig as the primary method for standard MLB player props",
-            "Weighted fair value should be anchored toward sharper books",
-            "Re-normalize weights based on whichever required books are available",
-        ],
-        "default_weights": [
-            ("Pinnacle", 0.35),
-            ("Circa", 0.30),
-            ("FanDuel", 0.125),
-            ("DraftKings", 0.125),
-            ("Caesars", 0.05),
-            ("BetMGM", 0.05),
-        ],
-        "baseline_ev_threshold_pct": 5.0,
-        "preferred_long_odds_ev_threshold_pct": 6.0,
-        "preferred_odds_band": "+100 to +150",
-        "sections": [
-            ("Book Requirements", [
-                "Require at least 1 sharp book: Pinnacle OR Circa",
-                "Require at least 3 books total",
-                "Prefer at least one of FanDuel or DraftKings to also be present",
-                "If requirements are not met, treat the market as below preferred quality or filter it out based on app logic",
-            ]),
-            ("Betting Range / EV Guidance", [
-                "Focus mainly on odds from +100 to +150",
-                "Require at least +5% EV as baseline",
-                "Prefer +6%+ EV once odds get longer than roughly +140",
-                "Bet MLB standard player props when odds are +100 or better and EV is at least +5%; prefer +6%+ once odds get longer than about +140.",
-            ]),
-            ("Confidence / Quality Framing", [
-                "Tier 1: Pinnacle + multiple books present",
-                "Tier 2: Circa + multiple books present",
-                "Tier 3: weaker support / fewer preferred books, requiring more caution",
-            ]),
-        ],
-    },
-}
-
-
 def infer_market_type(market: str) -> str:
     m = normalize_token(market)
     if "player" in m or m in {
@@ -850,34 +747,12 @@ def validate_devig_details(method: str, details: Optional[str]) -> None:
 
 
 def render_player_prop_framework(sport: str) -> None:
-    cfg = PLAYER_PROP_FRAMEWORKS_BY_SPORT.get(sport)
+    cfg = framework_for_sport(sport)
     if not cfg:
         return
 
     st.markdown(f"# {cfg['title']}")
-
-    market_focus = cfg.get("market_focus") or []
-    if market_focus:
-        st.markdown("### Market Focus")
-        for item in market_focus:
-            st.markdown(f"- {item}")
-
-    st.markdown("### Devig Method")
-    for line in cfg.get("devig_methodology", []):
-        st.markdown(f"- {line}")
-
-    weights = cfg.get("default_weights") or []
-    if weights:
-        st.markdown("### Suggested Default Book Weights")
-        for book_name, weight in weights:
-            st.markdown(f"- {book_name}: {weight * 100:.1f}%")
-
-    if sport == "MLB":
-        st.markdown("### Devig Books")
-        for book_name in cfg.get("allowed_books", []):
-            st.markdown(f"- {book_name}")
-
-    for heading, bullets in cfg.get("sections", []):
+    for heading, bullets in objective_scope_sections(sport):
         st.markdown(f"### {heading}")
         for bullet in bullets:
             st.markdown(f"- {bullet}")
@@ -2710,9 +2585,16 @@ with tab_dashboard:
 # TAB 2: Objective & Scope
 # -----------------------------
 with tab_objective:
-    render_player_prop_framework("NBA")
-    st.divider()
-    render_player_prop_framework("MLB")
+    objective_labels = objective_scope_labels()
+    objective_pick = st.radio(
+        "Scope",
+        options=objective_labels,
+        index=objective_labels.index(display_name_for_sport("NBA")),
+        horizontal=True,
+        key="objective_scope_sport_pick",
+    )
+    objective_sport = sport_from_display_name(objective_pick) or "NBA"
+    render_player_prop_framework(objective_sport)
 
 # -----------------------------
 # TAB 3: New Bet

@@ -3,6 +3,13 @@ from datetime import datetime
 from typing import Any, Dict, Optional
 
 import streamlit as st
+from strategy_rules import (
+    PLAYER_PROP_SPORT_ORDER,
+    display_name_for_sport,
+    evaluate_strategy_fit,
+    framework_for_sport,
+    sport_from_display_name,
+)
 from storage import (
     append_ledger_row,
     get_storage_backend_label,
@@ -15,6 +22,7 @@ DEFAULT_STARTING_BANKROLL = 500.0
 DEFAULT_DEVIG_METHOD = "Split Weights"
 DEFAULT_DEVIG_DETAILS = "PN"
 DEVIG_METHOD_OPTIONS = ["Market Avg", "Multiplicative", "Single Book (100%)", "Split Weights"]
+BOOK_OPTIONS = ["DraftKings", "FanDuel", "BetMGM", "Caesars", "Fanatics", "BetRivers", "theScore", "Pinnacle"]
 
 
 LEDGER_SESSION_PAYLOAD_KEY = "mobile_last_good_payload"
@@ -237,11 +245,25 @@ m2.metric("Unit Size", f"${unit_size:.2f}")
 m3.metric("Preset", "0.25 Kelly / 3% cap")
 
 st.markdown("### Odds Input")
+sport_display_options = ["Select sport"] + [display_name_for_sport(s) for s in PLAYER_PROP_SPORT_ORDER]
+selected_sport_label = st.selectbox("Sport", options=sport_display_options, index=0)
+selected_sport = sport_from_display_name(selected_sport_label) if selected_sport_label != "Select sport" else None
+selected_framework = framework_for_sport(selected_sport) if selected_sport else None
+if selected_framework:
+    st.caption(
+        f"{selected_framework['display_name']}: preferred odds {selected_framework['preferred_odds_band']} | "
+        f"baseline EV {selected_framework['baseline_ev_threshold_pct']:.0f}% | "
+        f"default devig {selected_framework['default_devig_method']}"
+    )
+else:
+    st.info("Choose NBA Player Props, NHL Player Props, or MLB Player Props to evaluate strategy fit.")
+
 book_odds_raw = st.text_input("Book Odds (American)", value="-110", placeholder="e.g., -110 or +140")
 fair_odds_raw = st.text_input("Fair Odds (American)", value="", placeholder="Optional if True Prob provided")
 true_prob_raw = st.text_input("True Probability (0-1)", value="", placeholder="Optional if Fair Odds provided")
 
 reco = None
+fit_eval = None
 parse_err = None
 try:
     book_odds = parse_american_odds(book_odds_raw)
@@ -250,7 +272,9 @@ try:
     if true_prob is not None and not (0.0 < true_prob < 1.0):
         raise ValueError("True probability must be between 0 and 1.")
 
-    if fair_odds is None and true_prob is None:
+    if selected_sport is None:
+        st.info("Select a sport to compute a recommendation and compare the bet to that sport's Objective / Scope rules.")
+    elif fair_odds is None and true_prob is None:
         st.info("Enter Fair Odds or True Probability to compute a recommendation.")
     else:
         reco = recommend_stake(
@@ -264,6 +288,9 @@ try:
             min_stake=MIN_STAKE,
             round_step=ROUND_STEP,
         )
+        ev_pct = float(reco["ev_per_dollar"]) * 100.0 if reco.get("ev_per_dollar") is not None else None
+        if ev_pct is not None:
+            fit_eval = evaluate_strategy_fit(selected_sport, book_odds, ev_pct)
 except Exception as e:
     parse_err = str(e)
 
@@ -281,31 +308,48 @@ if reco is not None:
 
     p_used = reco["true_prob"]
     ev_pct = float(reco["ev_per_dollar"]) * 100.0 if reco.get("ev_per_dollar") is not None else None
-    i1, i2, i3 = st.columns(3)
+    i1, i2, i3, i4 = st.columns(4)
     i1.metric("Book Implied", f"{american_implied_prob(book_odds)*100:.2f}%")
     i2.metric("Fair/True Prob", f"{p_used*100:.2f}%")
-    i3.metric("EV per $", "N/A" if ev_pct is None else f"{ev_pct:+.2f}%")
+    i3.metric("EV %", "N/A" if ev_pct is None else f"{ev_pct:+.2f}%")
+    i4.metric("Sport", selected_sport or "N/A")
 
     st.caption(
         f"Path: raw ${reco['raw_stake_before_cap']:.2f} -> cap ${reco['cap_amount']:.2f} -> "
         f"post-cap ${reco['stake_after_cap_before_min_round']:.2f} -> rounded ${reco['recommended_stake']:.2f}"
     )
 
+    st.markdown("### Strategy Fit")
+    fit_indicator = fit_eval["indicator"] if fit_eval else "Unavailable"
+    sf1, sf2 = st.columns(2)
+    sf1.metric("Indicator", fit_indicator)
+    sf2.metric("Rule Basis", fit_eval["reason"] if fit_eval else "N/A")
+    if fit_eval:
+        callout = fit_eval.get("callout")
+        message = fit_eval.get("explanation", "")
+        if callout == "success":
+            st.success(fit_indicator)
+        elif callout == "warning":
+            st.warning(fit_indicator)
+        else:
+            st.error(fit_indicator)
+        st.caption(message)
+
 st.markdown("### Log New Bet")
 s1, s2 = st.columns(2)
 with s1:
-    sport = st.text_input("Sport", value="NBA")
     market = st.text_input("Market", value="Moneyline")
     market_type = st.selectbox("Market Type", ["Game", "Team", "Player", "Period", "Other"], index=0)
     selection = st.text_input("Selection", value="")
 with s2:
     team = st.text_input("Team (optional)", value="")
     opponent = st.text_input("Opponent (optional)", value="")
-    book = st.selectbox("Book", ["DraftKings", "FanDuel", "BetMGM", "Caesars", "Fanatics", "BetRivers", "theScore", "Pinnacle"], index=0)
+    book = st.selectbox("Book", BOOK_OPTIONS, index=0)
+    mobile_default_devig = selected_framework["default_devig_method"] if selected_framework else DEFAULT_DEVIG_METHOD
     devig_method = st.selectbox(
         "Devig Method",
         DEVIG_METHOD_OPTIONS,
-        index=DEVIG_METHOD_OPTIONS.index(DEFAULT_DEVIG_METHOD),
+        index=DEVIG_METHOD_OPTIONS.index(mobile_default_devig if mobile_default_devig in DEVIG_METHOD_OPTIONS else DEFAULT_DEVIG_METHOD),
     )
 
 devig_details = st.text_input(
@@ -333,8 +377,10 @@ if st.button("Add OPEN Bet", type="primary", use_container_width=True, disabled=
     try:
         if not selection.strip():
             raise ValueError("Selection is required.")
-        if not sport.strip() or not market.strip() or not book.strip():
-            raise ValueError("Sport, Market, and Book are required.")
+        if selected_sport is None:
+            raise ValueError("Select NBA Player Props, NHL Player Props, or MLB Player Props before logging.")
+        if not market.strip() or not book.strip():
+            raise ValueError("Market and Book are required.")
 
         if devig_details_required(devig_method) and not devig_details.strip():
             raise ValueError("Devig Details required for Single Book (100%) / Split Weights.")
@@ -365,8 +411,8 @@ if st.button("Add OPEN Bet", type="primary", use_container_width=True, disabled=
         ev_pct = (float(reco["ev_per_dollar"]) * 100.0) if reco and reco.get("ev_per_dollar") is not None else None
 
         row = {
-            "sport": sport.strip(),
-            "league": sport.strip(),
+            "sport": selected_sport,
+            "league": selected_sport,
             "team": team.strip() or None,
             "opponent": opponent.strip() or None,
             "market": market.strip(),
