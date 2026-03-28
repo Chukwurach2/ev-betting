@@ -110,6 +110,19 @@ def unboosted_american_from_boosted(boosted_odds: float, boost_pct: float) -> fl
     unboosted_dec = 1.0 + ((boosted_dec - 1.0) / mult)
     return decimal_to_american(unboosted_dec)
 
+
+def parse_optional_float(value: Any) -> Optional[float]:
+    if value is None:
+        return None
+    if isinstance(value, float) and math.isnan(value):
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    txt = str(value).strip().replace(",", "")
+    if not txt:
+        return None
+    return float(txt)
+
 def kelly_fraction_from_prob(p: float, odds: float) -> float:
     dec = american_to_decimal(float(odds))
     b = dec - 1.0
@@ -1682,6 +1695,21 @@ class Ledger:
 
         df["stake"] = pd.to_numeric(df.get("stake"), errors="coerce").fillna(0.0)
         df["units"] = df["stake"] / float(self.unit_size)
+
+        for numeric_col in [
+            "odds_american",
+            "fair_odds_american",
+            "true_prob",
+            "ev_pct",
+            "kelly_fraction_used",
+            "kelly_units_from_tool",
+            "boost_pct",
+            "unboosted_odds_american",
+            "closing_odds_american",
+            "pnl",
+        ]:
+            if numeric_col in df.columns:
+                df[numeric_col] = pd.to_numeric(df[numeric_col], errors="coerce")
 
         odds_series = df["odds_american"] if "odds_american" in df.columns else pd.Series([None] * len(df), index=df.index)
         df["implied_prob"] = odds_series.apply(american_implied_prob)
@@ -3938,8 +3966,6 @@ with tab_closing_odds:
             "odds_american", "boost_pct", "unboosted_odds_american", "closing_odds_american"
         ]
         edit_view = closing_df[editor_cols].copy()
-        for c in ["boost_pct", "unboosted_odds_american", "closing_odds_american"]:
-            edit_view[c] = edit_view[c].apply(lambda v: "" if pd.isna(v) else str(v))
 
         edited_closing_df = st.data_editor(
             edit_view,
@@ -3947,6 +3973,12 @@ with tab_closing_odds:
             height=380,
             hide_index=True,
             disabled=[c for c in editor_cols if c not in {"boost_pct", "unboosted_odds_american", "closing_odds_american"}],
+            column_config={
+                "odds_american": st.column_config.NumberColumn("Odds (American)", step=1.0, format="%.0f"),
+                "boost_pct": st.column_config.NumberColumn("Boost %", min_value=0.0, step=1.0, format="%.2f"),
+                "unboosted_odds_american": st.column_config.NumberColumn("Non-Boosted Odds", step=1.0, format="%.0f"),
+                "closing_odds_american": st.column_config.NumberColumn("Closing Odds", step=1.0, format="%.0f"),
+            },
             key=f"closing_odds_editor_{normalize_token(team_pick).replace(' ', '_') if team_pick else 'all'}",
         )
 
@@ -3957,17 +3989,33 @@ with tab_closing_odds:
                     row_id = str(edit_view.iloc[idx]["bet_id"])
                     updates: Dict[str, Any] = {}
                     for c in ["boost_pct", "unboosted_odds_american", "closing_odds_american"]:
-                        old_s = "" if pd.isna(edit_view.iloc[idx][c]) else str(edit_view.iloc[idx][c]).strip()
-                        new_s = "" if pd.isna(edited_closing_df.iloc[idx][c]) else str(edited_closing_df.iloc[idx][c]).strip()
-                        if old_s == new_s:
+                        old_v = parse_optional_float(edit_view.iloc[idx][c])
+                        new_v = parse_optional_float(edited_closing_df.iloc[idx][c])
+                        if old_v is None and new_v is None:
                             continue
-                        if not new_s:
-                            updates[c] = None
-                        else:
-                            updates[c] = float(new_s)
+                        if old_v is not None and new_v is not None and math.isclose(old_v, new_v, rel_tol=0.0, abs_tol=1e-9):
+                            continue
+                        updates[c] = new_v
 
                     if "boost_pct" in updates and updates["boost_pct"] is not None and float(updates["boost_pct"]) < 0:
                         raise ValueError(f"Bet {row_id}: Boost % cannot be negative.")
+
+                    boost_for_row = updates["boost_pct"] if "boost_pct" in updates else parse_optional_float(edit_view.iloc[idx]["boost_pct"])
+                    unboosted_for_row = (
+                        updates["unboosted_odds_american"]
+                        if "unboosted_odds_american" in updates
+                        else parse_optional_float(edit_view.iloc[idx]["unboosted_odds_american"])
+                    )
+                    odds_for_row = parse_optional_float(edit_view.iloc[idx]["odds_american"])
+                    if (
+                        boost_for_row is not None
+                        and boost_for_row > 0
+                        and unboosted_for_row is None
+                        and odds_for_row not in (None, 0.0)
+                    ):
+                        updates["unboosted_odds_american"] = float(
+                            unboosted_american_from_boosted(odds_for_row, boost_for_row)
+                        )
 
                     if updates:
                         ledger.update_bet(row_id, updates)
