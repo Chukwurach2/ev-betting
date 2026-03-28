@@ -14,6 +14,7 @@ from storage import (
 DEFAULT_STARTING_BANKROLL = 500.0
 DEFAULT_DEVIG_METHOD = "Split Weights"
 DEFAULT_DEVIG_DETAILS = "PN"
+DEVIG_METHOD_OPTIONS = ["Market Avg", "Multiplicative", "Single Book (100%)", "Split Weights"]
 
 
 LEDGER_SESSION_PAYLOAD_KEY = "mobile_last_good_payload"
@@ -133,6 +134,10 @@ def recommend_stake(
         "full_kelly_fraction": full_kelly,
         "unit_size": float(unit_size),
     }
+
+
+def devig_details_required(method: str) -> bool:
+    return str(method).strip() in {"Single Book (100%)", "Split Weights"}
 
 
 # -----------------------------
@@ -299,13 +304,13 @@ with s2:
     book = st.selectbox("Book", ["DraftKings", "FanDuel", "BetMGM", "Caesars", "Fanatics", "BetRivers", "theScore", "Pinnacle"], index=0)
     devig_method = st.selectbox(
         "Devig Method",
-        ["Market Avg", "Single Book (100%)", "Split Weights"],
-        index=["Market Avg", "Single Book (100%)", "Split Weights"].index(DEFAULT_DEVIG_METHOD),
+        DEVIG_METHOD_OPTIONS,
+        index=DEVIG_METHOD_OPTIONS.index(DEFAULT_DEVIG_METHOD),
     )
 
 devig_details = st.text_input(
-    "Devig Details (required for Single/Split)" if devig_method in {"Single Book (100%)", "Split Weights"} else "Devig Details (optional)",
-    value=DEFAULT_DEVIG_DETAILS,
+    "Devig Details (required for Single/Split)" if devig_details_required(devig_method) else "Devig Details (optional)",
+    value=DEFAULT_DEVIG_DETAILS if devig_details_required(devig_method) else "",
     placeholder="e.g., Pinnacle 100%",
 )
 used_boost = st.checkbox("Used Boost", value=False)
@@ -331,7 +336,7 @@ if st.button("Add OPEN Bet", type="primary", use_container_width=True, disabled=
         if not sport.strip() or not market.strip() or not book.strip():
             raise ValueError("Sport, Market, and Book are required.")
 
-        if devig_method != "Market Avg" and not devig_details.strip():
+        if devig_details_required(devig_method) and not devig_details.strip():
             raise ValueError("Devig Details required for Single Book (100%) / Split Weights.")
 
         boost_pct = None

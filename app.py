@@ -34,6 +34,9 @@ from storage import (
 DEFAULT_STARTING_BANKROLL = 500.0
 DEFAULT_DEVIG_METHOD = "Split Weights"
 DEFAULT_DEVIG_DETAILS = "PN"
+BOOK_OPTIONS = ["DraftKings", "FanDuel", "BetMGM", "Caesars", "Fanatics", "BetRivers", "theScore", "Pinnacle"]
+SPORT_OPTIONS_DEFAULT = ["NHL", "Intl Hockey", "NBA", "CBB", "NFL", "MLB", "EPL", "UFC"]
+MATCHUP_TRACKING_SPORTS = {"NHL", "Intl Hockey", "NBA", "CBB", "MLB"}
 
 
 # -----------------------------
@@ -311,6 +314,43 @@ MARKET_ALIASES = {
     "anytime goal scorer": "ATG",
     "sog": "Shots on Goal",
     "shots on goal": "Shots on Goal",
+    "k": "Player Strikeouts",
+    "ks": "Player Strikeouts",
+    "so": "Player Strikeouts",
+    "strikeout": "Player Strikeouts",
+    "strikeouts": "Player Strikeouts",
+    "pitcher strikeout": "Player Strikeouts",
+    "pitcher strikeouts": "Player Strikeouts",
+    "player strikeouts": "Player Strikeouts",
+    "outs recorded": "Player Outs Recorded",
+    "pitcher outs": "Player Outs Recorded",
+    "pitcher outs recorded": "Player Outs Recorded",
+    "player outs recorded": "Player Outs Recorded",
+    "earned run": "Player Earned Runs",
+    "earned runs": "Player Earned Runs",
+    "pitcher earned runs": "Player Earned Runs",
+    "player earned runs": "Player Earned Runs",
+    "hits allowed": "Player Hits Allowed",
+    "pitcher hits allowed": "Player Hits Allowed",
+    "player hits allowed": "Player Hits Allowed",
+    "walks allowed": "Player Walks Allowed",
+    "pitcher walks allowed": "Player Walks Allowed",
+    "batter hits": "Player Hits",
+    "player hits": "Player Hits",
+    "hits": "Player Hits",
+    "total bases": "Player Total Bases",
+    "player total bases": "Player Total Bases",
+    "tb": "Player Total Bases",
+    "rbi": "Player RBI",
+    "rbis": "Player RBI",
+    "player rbi": "Player RBI",
+    "runs": "Player Runs",
+    "player runs": "Player Runs",
+    "h+r+rbi": "Player H+R+RBI",
+    "hrrbi": "Player H+R+RBI",
+    "hits+runs+rbi": "Player H+R+RBI",
+    "hits+runs+rbis": "Player H+R+RBI",
+    "player h+r+rbi": "Player H+R+RBI",
     "btts": "BTTS",
     "both teams to score": "BTTS",
     "both teams score": "BTTS",
@@ -384,9 +424,10 @@ MARKET_TYPE_ALIASES = {
     "other": "Other",
 }
 
-DEVIG_METHOD_OPTIONS = ["Market Avg", "Single Book (100%)", "Split Weights"]
+DEVIG_METHOD_OPTIONS = ["Market Avg", "Multiplicative", "Single Book (100%)", "Split Weights"]
 DEVIG_METHOD_ALIASES = {
     "market avg": "Market Avg",
+    "multiplicative": "Multiplicative",
     "single book": "Single Book (100%)",
     "single book 100%": "Single Book (100%)",
     "single book (100%)": "Single Book (100%)",
@@ -426,6 +467,16 @@ DEFAULT_MARKET_OPTIONS = [
     "Team Corners Under",
     "ATG",
     "Shots on Goal",
+    "Player Strikeouts",
+    "Player Outs Recorded",
+    "Player Earned Runs",
+    "Player Hits Allowed",
+    "Player Walks Allowed",
+    "Player Hits",
+    "Player Total Bases",
+    "Player RBI",
+    "Player Runs",
+    "Player H+R+RBI",
 ]
 
 MARKET_PRESETS_BY_SPORT = {
@@ -462,6 +513,9 @@ MARKET_PRESETS_BY_SPORT = {
         "Moneyline", "Runline", "Total Over", "Total Under",
         "1H ML", "1H Total Over", "1H Total Under",
         "Team Total Over", "Team Total Under",
+        "Player Strikeouts", "Player Outs Recorded", "Player Earned Runs",
+        "Player Hits Allowed", "Player Walks Allowed", "Player Hits",
+        "Player Total Bases", "Player RBI", "Player Runs", "Player H+R+RBI",
     ],
     "UFC": [
         "Moneyline", "Method of Victory", "Total Rounds Over", "Total Rounds Under",
@@ -557,6 +611,130 @@ TEAM_NAME_ALIASES = {
     "clips": "clippers",
     "lakers": "lakers",
     "cananda": "canada",
+    "d backs": "diamondbacks",
+    "dbacks": "diamondbacks",
+    "snakes": "diamondbacks",
+    "sawks": "red sox",
+    "chisox": "white sox",
+    "sox": "white sox",
+    "guards": "guardians",
+    "halos": "angels",
+    "brew crew": "brewers",
+    "a's": "athletics",
+    "as": "athletics",
+    "phils": "phillies",
+    "pads": "padres",
+    "nats": "nationals",
+}
+
+PLAYER_PROP_FRAMEWORKS_BY_SPORT: Dict[str, Dict[str, Any]] = {
+    "NBA": {
+        "title": "NBA Player Prop Rules",
+        "market_focus": [],
+        "allowed_books": ["Pinnacle", "Circa", "BetOnline", "DraftKings", "FanDuel"],
+        "required_sharp_books": ["Pinnacle", "Circa", "BetOnline"],
+        "preferred_books": ["DraftKings", "FanDuel"],
+        "min_total_books": 3,
+        "default_devig_method": "Split Weights",
+        "devig_methodology": [
+            "Additive devig",
+            "Sharp-weighted pricing:",
+        ],
+        "default_weights": [
+            ("Pinnacle", 0.50),
+            ("Circa", 0.25),
+            ("BetOnline", 0.20),
+            ("DraftKings", 0.03),
+            ("FanDuel", 0.02),
+        ],
+        "sections": [
+            ("Sharp Confirmation / Book Requirements", [
+                "Minimum 3 books total",
+                "Accept if any of the following is true:",
+                "Pinnacle present, OR",
+                "Circa present, OR",
+                "BetOnline present plus DraftKings or FanDuel",
+                "Skip soft-book-only markets",
+            ]),
+            ("Primary Betting Zone", [
+                "Odds: +105 to +165",
+                "Minimum EV: 6%",
+            ]),
+            ("Extended Zone", [
+                "Odds: +165 to +250",
+                "Minimum EV: 10%",
+            ]),
+            ("High Odds Rule", [
+                "+250+ only if EV >= 12%",
+            ]),
+            ("Fair vs Market Gap Filter", [
+                "Primary zone: minimum 8-cent gap",
+                "Extended zone: minimum 20-cent gap",
+                "High odds: minimum 30-cent gap",
+                "Market consensus uses median of available book prices",
+            ]),
+            ("EV Alerts Queue", [
+                "Use the EV Alerts page to review live candidates generated from these rules",
+                "Alerts are reviewed manually before being logged",
+                "Logging from EV Alerts adds an OPEN bet to the ledger",
+                "Alerts are not automatically treated as placed bets",
+            ]),
+            ("Avoid", [
+                "Placeholder / neutral rows",
+                "Boost-driven outliers without sharp confirmation",
+                "Soft-book-only edges",
+                "Plays failing gap filter",
+            ]),
+        ],
+    },
+    "MLB": {
+        "title": "MLB Player Props — Objective / Scope",
+        "market_focus": [
+            "Standard MLB player props only",
+            "Examples: pitcher strikeouts, outs recorded, hits allowed, earned runs, walks allowed, batter hits, total bases, RBI, runs, H+R+RBI",
+            "Exclude home run props from the standard MLB framework for now",
+        ],
+        "allowed_books": ["Pinnacle", "Circa", "FanDuel", "DraftKings", "Caesars", "BetMGM"],
+        "required_sharp_books": ["Pinnacle", "Circa"],
+        "preferred_books": ["FanDuel", "DraftKings"],
+        "min_total_books": 3,
+        "default_devig_method": "Multiplicative",
+        "devig_methodology": [
+            "Use multiplicative devig as the primary method for standard MLB player props",
+            "Weighted fair value should be anchored toward sharper books",
+            "Re-normalize weights based on whichever required books are available",
+        ],
+        "default_weights": [
+            ("Pinnacle", 0.35),
+            ("Circa", 0.30),
+            ("FanDuel", 0.125),
+            ("DraftKings", 0.125),
+            ("Caesars", 0.05),
+            ("BetMGM", 0.05),
+        ],
+        "baseline_ev_threshold_pct": 5.0,
+        "preferred_long_odds_ev_threshold_pct": 6.0,
+        "preferred_odds_band": "+100 to +150",
+        "sections": [
+            ("Book Requirements", [
+                "Require at least 1 sharp book: Pinnacle OR Circa",
+                "Require at least 3 books total",
+                "Prefer at least one of FanDuel or DraftKings to also be present",
+                "If requirements are not met, treat the market as below preferred quality or filter it out based on app logic",
+            ]),
+            ("Betting Range / EV Guidance", [
+                "Focus mainly on odds from +100 to +150",
+                "Require at least +5% EV as baseline",
+                "Prefer +6%+ EV once odds get longer than roughly +140",
+                "Bet MLB standard player props when odds are +100 or better and EV is at least +5%; prefer +6%+ once odds get longer than about +140.",
+            ]),
+            ("Confidence / Quality Framing", [
+                "Tier 1: Pinnacle + multiple books present",
+                "Tier 2: Circa + multiple books present",
+                "Tier 3: weaker support / fewer preferred books, requiring more caution",
+            ]),
+        ],
+    },
 }
 
 
@@ -564,7 +742,8 @@ def infer_market_type(market: str) -> str:
     m = normalize_token(market)
     if "player" in m or m in {
         "rbs", "rebs", "points", "assists", "player 3pm", "player p+a", "player p+r", "player r+a", "player pra",
-        "atg", "atgs", "shots on goal"
+        "atg", "atgs", "shots on goal", "strikeouts", "outs recorded", "earned runs", "hits allowed",
+        "walks allowed", "hits", "total bases", "rbi", "runs", "h+r+rbi"
     }:
         return "Player"
     if "team total" in m:
@@ -657,13 +836,51 @@ def canonicalize_devig_method(value: Optional[str]) -> str:
     return DEVIG_METHOD_ALIASES.get(key, raw)
 
 
+def devig_details_required(method: str) -> bool:
+    return canonicalize_devig_method(method) in {"Single Book (100%)", "Split Weights"}
+
+
 def validate_devig_details(method: str, details: Optional[str]) -> None:
     m = canonicalize_devig_method(method)
     d = "" if details is None else str(details).strip()
-    if m == "Market Avg":
+    if not devig_details_required(m):
         return
     if not d:
         raise ValueError(f"'{m}' requires Devig Details (e.g., book names and weights).")
+
+
+def render_player_prop_framework(sport: str) -> None:
+    cfg = PLAYER_PROP_FRAMEWORKS_BY_SPORT.get(sport)
+    if not cfg:
+        return
+
+    st.markdown(f"# {cfg['title']}")
+
+    market_focus = cfg.get("market_focus") or []
+    if market_focus:
+        st.markdown("### Market Focus")
+        for item in market_focus:
+            st.markdown(f"- {item}")
+
+    st.markdown("### Devig Method")
+    for line in cfg.get("devig_methodology", []):
+        st.markdown(f"- {line}")
+
+    weights = cfg.get("default_weights") or []
+    if weights:
+        st.markdown("### Suggested Default Book Weights")
+        for book_name, weight in weights:
+            st.markdown(f"- {book_name}: {weight * 100:.1f}%")
+
+    if sport == "MLB":
+        st.markdown("### Devig Books")
+        for book_name in cfg.get("allowed_books", []):
+            st.markdown(f"- {book_name}")
+
+    for heading, bullets in cfg.get("sections", []):
+        st.markdown(f"### {heading}")
+        for bullet in bullets:
+            st.markdown(f"- {bullet}")
 
 
 def matchup_key(team: Optional[str], opponent: Optional[str]) -> Optional[str]:
@@ -2493,57 +2710,9 @@ with tab_dashboard:
 # TAB 2: Objective & Scope
 # -----------------------------
 with tab_objective:
-    st.markdown(
-        """
-# NBA Player Prop Rules
-
-### Devig Method
-- Additive devig
-- Sharp-weighted pricing:
-  - Pinnacle: 0.50
-  - Circa: 0.25
-  - BetOnline: 0.20
-  - DraftKings: 0.03
-  - FanDuel: 0.02
-
-### Sharp Confirmation / Book Requirements
-- Minimum 3 books total
-- Accept if any of the following is true:
-  - Pinnacle present, OR
-  - Circa present, OR
-  - BetOnline present plus DraftKings or FanDuel
-- Skip soft-book-only markets
-
-### Primary Betting Zone
-- Odds: +105 to +165
-- Minimum EV: 6%
-
-### Extended Zone
-- Odds: +165 to +250
-- Minimum EV: 10%
-
-### High Odds Rule
-- +250+ only if EV >= 12%
-
-### Fair vs Market Gap Filter
-- Primary zone: minimum 8-cent gap
-- Extended zone: minimum 20-cent gap
-- High odds: minimum 30-cent gap
-- Market consensus uses median of available book prices
-
-### EV Alerts Queue
-- Use the **EV Alerts** page to review live candidates generated from these rules
-- Alerts are reviewed manually before being logged
-- Logging from EV Alerts adds an OPEN bet to the ledger
-- Alerts are not automatically treated as placed bets
-
-### Avoid
-- Placeholder / neutral rows
-- Boost-driven outliers without sharp confirmation
-- Soft-book-only edges
-- Plays failing gap filter
-"""
-    )
+    render_player_prop_framework("NBA")
+    st.divider()
+    render_player_prop_framework("MLB")
 
 # -----------------------------
 # TAB 3: New Bet
@@ -2552,8 +2721,8 @@ with tab_new_bet:
     st.subheader("New Bet")
     st.caption("Type inside dropdowns to search prior entries. Similar entries are standardized automatically.")
 
-    sport_options = history_options(ledger, "sport", ["NHL", "Intl Hockey", "NBA", "CBB", "NFL", "MLB", "EPL", "UFC"])
-    book_options = ["DraftKings", "FanDuel", "BetMGM", "Caesars", "Fanatics", "BetRivers", "theScore", "Pinnacle"]
+    sport_options = history_options(ledger, "sport", SPORT_OPTIONS_DEFAULT)
+    book_options = BOOK_OPTIONS
 
     colA, colB, colC = st.columns(3)
     with colA:
@@ -2621,15 +2790,17 @@ with tab_new_bet:
         odds_american = float(st.number_input("Odds (American)", value=-110, step=1))
         boost_pct_input = st.text_input("Boost % (optional)", value="", placeholder="e.g., 20 for 20%")
         notes = st.text_input("Notes (optional)", value="")
+        sport_rule_cfg = PLAYER_PROP_FRAMEWORKS_BY_SPORT.get(sport_for_preset, {})
+        sport_default_devig = sport_rule_cfg.get("default_devig_method", DEFAULT_DEVIG_METHOD)
         devig_method = st.selectbox(
             "Devig Method",
             options=DEVIG_METHOD_OPTIONS,
-            index=DEVIG_METHOD_OPTIONS.index(DEFAULT_DEVIG_METHOD),
+            index=DEVIG_METHOD_OPTIONS.index(sport_default_devig if sport_default_devig in DEVIG_METHOD_OPTIONS else DEFAULT_DEVIG_METHOD),
         )
-        devig_requires_details = devig_method in {"Single Book (100%)", "Split Weights"}
+        devig_requires_details = devig_details_required(devig_method)
         devig_details = st.text_input(
             "Devig Details (required)" if devig_requires_details else "Devig Details (optional)",
-            value=DEFAULT_DEVIG_DETAILS,
+            value=DEFAULT_DEVIG_DETAILS if devig_requires_details else "",
             placeholder="e.g., Pinnacle 100% or FanDuel 50% / DraftKings 50%",
             help="Required for Single Book (100%) and Split Weights. Include book names and percentages.",
         )
@@ -2650,8 +2821,13 @@ with tab_new_bet:
     team = canonicalize_team(sport, team_pick)
     opponent = canonicalize_team(sport, opponent_pick)
 
-    if sport in {"NHL", "Intl Hockey", "NBA", "CBB"}:
+    if sport in MATCHUP_TRACKING_SPORTS:
         st.caption(f"{sport} matchup tracking enabled: optional Team/Opponent fields will be saved.")
+    if sport_rule_cfg:
+        st.caption(
+            f"{sport} player-prop framework: default devig {sport_rule_cfg.get('default_devig_method', DEFAULT_DEVIG_METHOD)} | "
+            f"min books {sport_rule_cfg.get('min_total_books', 'N/A')} | sharp books {', '.join(sport_rule_cfg.get('required_sharp_books', []))}"
+        )
     if team is not None and opponent is not None and normalize_token(team) == normalize_token(opponent):
         st.warning("Team and Opponent are the same. Double-check matchup entry.")
 
@@ -2933,8 +3109,8 @@ with tab_new_bet:
         key="parlay_devig_method",
     )
     parlay_devig_details = st.text_input(
-        "Parlay Devig Details (required for Single/Split)" if parlay_devig_method in {"Single Book (100%)", "Split Weights"} else "Parlay Devig Details (optional)",
-        value=DEFAULT_DEVIG_DETAILS,
+        "Parlay Devig Details (required for Single/Split)" if devig_details_required(parlay_devig_method) else "Parlay Devig Details (optional)",
+        value=DEFAULT_DEVIG_DETAILS if devig_details_required(parlay_devig_method) else "",
         key="parlay_devig_details",
     )
     parlay_label = st.text_input("Parlay Label (optional)", value="", placeholder="e.g., Friday 4-Leg NHL", key="parlay_label")
@@ -3300,8 +3476,8 @@ with tab_new_bet:
             key="live_devig_method",
         )
         live_devig_details = st.text_input(
-            "Live Devig Details (required for Single/Split)" if live_devig_method in {"Single Book (100%)", "Split Weights"} else "Live Devig Details (optional)",
-            value=DEFAULT_DEVIG_DETAILS,
+            "Live Devig Details (required for Single/Split)" if devig_details_required(live_devig_method) else "Live Devig Details (optional)",
+            value=DEFAULT_DEVIG_DETAILS if devig_details_required(live_devig_method) else "",
             key="live_devig_details",
         )
         live_max_frac = st.selectbox(
@@ -3531,7 +3707,7 @@ with tab_edit_bets:
                         )
                     )
                     selection_e = st.text_input("Selection", value=selected.selection)
-                    book_options_edit = ["DraftKings", "FanDuel", "BetMGM", "Caesars", "Fanatics", "BetRivers", "theScore", "Pinnacle"]
+                    book_options_edit = BOOK_OPTIONS.copy()
                     selected_book_norm = canonicalize_value("book", selected.book)
                     if selected_book_norm not in book_options_edit:
                         book_options_edit = [selected_book_norm] + book_options_edit
@@ -3549,7 +3725,7 @@ with tab_edit_bets:
                         )
                     )
                     devig_details_e = st.text_input(
-                        "Devig Details (required for Single/Split)" if devig_method_e in {"Single Book (100%)", "Split Weights"} else "Devig Details (optional)",
+                        "Devig Details (required for Single/Split)" if devig_details_required(devig_method_e) else "Devig Details (optional)",
                         value="" if selected.devig_details is None else selected.devig_details
                     )
                     odds_e = st.text_input(

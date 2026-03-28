@@ -85,6 +85,8 @@ if not alerts:
 for row in alerts:
     row.setdefault("is_logged", False)
     row.setdefault("timestamp", "")
+    row.setdefault("sport", _safe_str(row.get("league")))
+    row.setdefault("league", _safe_str(row.get("sport")))
     row["timestamp_dt"] = _to_ts(row.get("timestamp"))
     row.setdefault("zone", "")
     row.setdefault("recommended_book_name", "")
@@ -97,17 +99,22 @@ zones = sorted([z for z in alerts_df.get("zone", pd.Series(dtype=str)).dropna().
 books = sorted([
     b for b in alerts_df.get("recommended_book_name", pd.Series(dtype=str)).dropna().astype(str).unique() if b
 ])
+sports = sorted([
+    s for s in alerts_df.get("sport", pd.Series(dtype=str)).dropna().astype(str).unique() if s
+])
 
-c1, c2 = st.columns(2)
+c1, c2, c3 = st.columns(3)
 with c1:
     zone_filter = st.multiselect("Zone", zones, default=zones)
 with c2:
     book_filter = st.multiselect("Book", books, default=books)
-
-c3, c4 = st.columns(2)
 with c3:
-    status_filter = st.selectbox("Status", ["All", "Unlogged", "Logged"], index=1)
+    sport_filter = st.multiselect("Sport", sports, default=sports)
+
+c4, c5 = st.columns(2)
 with c4:
+    status_filter = st.selectbox("Status", ["All", "Unlogged", "Logged"], index=1)
+with c5:
     days_filter = st.selectbox("Date Range", ["Last 1 day", "Last 3 days", "Last 7 days", "Last 30 days", "All"], index=2)
 
 filtered = alerts_df.copy()
@@ -115,6 +122,8 @@ if zone_filter:
     filtered = filtered[filtered["zone"].astype(str).isin(zone_filter)]
 if book_filter:
     filtered = filtered[filtered["recommended_book_name"].astype(str).isin(book_filter)]
+if sport_filter:
+    filtered = filtered[filtered["sport"].astype(str).isin(sport_filter)]
 
 if status_filter == "Unlogged":
     filtered = filtered[~filtered["is_logged"].astype(bool)]
@@ -133,6 +142,7 @@ if filtered.empty:
 st.subheader("Recent Alerts")
 show_cols = [
     "timestamp",
+    "sport",
     "player",
     "market_display",
     "zone",
@@ -183,12 +193,13 @@ if st.button("Log to Ledger", type="primary"):
         alert_ts = _safe_str(selected.get("timestamp")) or datetime.now().isoformat(timespec="seconds")
         market_display = _safe_str(selected.get("market_display") or selected.get("prop"))
         player = _safe_str(selected.get("player"))
+        alert_sport = _safe_str(selected.get("sport") or selected.get("league") or "NBA")
 
         ledger_row = {
             "timestamp": alert_ts,
             "placed_at": alert_ts,
-            "sport": "NBA",
-            "league": "NBA",
+            "sport": alert_sport,
+            "league": alert_sport,
             "market": market_display,
             "selection": _build_selection(selected),
             "player": player,

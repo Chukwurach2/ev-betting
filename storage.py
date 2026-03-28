@@ -51,6 +51,8 @@ REQUIRED_LEDGER_COLUMNS = [
 REQUIRED_ALERT_COLUMNS = [
     "alert_id",
     "timestamp",
+    "sport",
+    "league",
     "player",
     "prop",
     "handicap",
@@ -397,6 +399,8 @@ def _normalize_alert_row_for_schema(row: Dict[str, Any]) -> Dict[str, Any]:
     normalized = dict(row)
     normalized.setdefault("alert_id", str(uuid.uuid4())[:8])
     normalized.setdefault("timestamp", datetime.now().isoformat(timespec="seconds"))
+    normalized.setdefault("sport", normalized.get("league") or "")
+    normalized.setdefault("league", normalized.get("sport") or "")
     normalized.setdefault("player", "")
     normalized.setdefault("prop", "")
     normalized.setdefault("handicap", "")
