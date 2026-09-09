@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nfl-early-game"
+version = "0.1.0"
+description = "NFL early-game drive/Q1 pricing engine"
+requires-python = ">=3.10"
+dependencies = [
+  "numpy>=1.26",
+  "pandas>=2.1",
+  "pyarrow>=14",
+  "scikit-learn>=1.4",
+  "joblib>=1.3",
+  "requests>=2.31",
+  "PyYAML>=6.0"
+]
+
+[project.scripts]
+nfl-early = "nfl_early.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

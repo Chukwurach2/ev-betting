@@ -1,0 +1,16 @@
+model:
+  ewm_alpha: 0.28
+  min_prior_games: 3
+  random_state: 42
+
+simulation:
+  n_sims: 50000
+  transition_seconds: 0
+  min_drive_seconds: 20
+  max_drive_seconds: 600
+  duration_sigma: 0.38
+
+bet_filter:
+  min_american_odds: -150
+  min_edge: 0.03
+  min_ev: 0.04

@@ -1,0 +1,61 @@
+name: NFL Edge validation and training
+on:
+  push:
+    paths:
+      - 'nfl-edge/**'
+      - '.github/workflows/nfl-edge.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: nfl-edge-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: nfl-edge
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -r model/requirements.txt
+      - run: npm test
+      - run: python -m unittest discover -s tests -p 'test_*.py' -v
+      - run: npm run build
+  train:
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    defaults:
+      run:
+        working-directory: nfl-edge
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -r model/requirements.txt
+      - name: Download official nflverse data and validate chronologically
+        env:
+          PYTHONPATH: model/src
+          OMP_NUM_THREADS: '2'
+          OPENBLAS_NUM_THREADS: '2'
+        run: python model/train_validate.py --download --data-dir training-data --out artifacts
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: nfl-edge-shadow-model-${{ github.sha }}
+          path: nfl-edge/artifacts/
+          if-no-files-found: warn
+          retention-days: 14

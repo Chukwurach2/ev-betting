@@ -1,0 +1,12 @@
+node_modules/
+__pycache__/
+*.pyc
+.env
+.env.*
+!.env.example
+.vercel/
+dist/
+artifacts/
+training-data/
+*.parquet
+*.joblib
