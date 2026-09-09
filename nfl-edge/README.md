@@ -20,7 +20,7 @@ Python dependencies are pinned in `model/requirements.txt`. The build copies onl
 
 ## GitHub training
 
-The repository workflow `.github/workflows/nfl-edge.yml` runs regression checks and downloads official nflverse PBP for 2016–2025. It fits on 2016–2022 and validates on 2023–2025. Artifacts and the validation report are uploaded to the Actions run with a 14-day retention window. Jobs have bounded timeouts and no write permissions, and never deploy a model or place bets.
+The repository workflow `.github/workflows/nfl-edge.yml` runs regression checks on source pushes. A manual workflow run, or a commit message containing `[train]`, also downloads official nflverse PBP for 2016–2025. It fits on 2016–2022 and validates on 2023–2025. Artifacts and the validation report are uploaded to the Actions run with a 14-day retention window. Jobs have bounded timeouts and no write permissions, and never deploy a model or place bets.
 
 ## Vercel project
 
@@ -32,7 +32,7 @@ Keep existing project environment values. `/api/health` exposes only configurati
 
 ## Remaining production acceptance
 
-- Complete the historical-data job and inspect measured results and integrity checks.
+- Historical job completed successfully: 9,721 training drives and 4,143 validation drives. Report: `model/reports/2026-09-09-validation.json`. Overall log loss did not improve over the baseline; no model was promoted.
 - Validate probabilities for the actual offered contracts, including quarter boundaries, pushes, defensive scores and special teams. The recovered simulation is not sufficient evidence.
 - Implement and activate a protected, quota-aware odds/inference publisher with durable checkpoint deduplication and frozen snapshots in Neon. Required checkpoints are T-24, T-3, T-90 and a last pregame observation; late jobs must record missed checkpoints, never backdate quotes.
 - Verify the actual provider key, mapped live markets, same-book paired de-vigging, quote freshness and NY book eligibility.
@@ -40,3 +40,5 @@ Keep existing project environment values. `/api/health` exposes only configurati
 - Monitor failures and missed checkpoints; evaluate all shadow/recommendation observations separately from selected personal bets.
 
 No claim of profitability, historical ROI or production validation is made by this release.
+
+Latest live checks: The Odds API key authenticated via the free events endpoint. A bounded build-time check now requests at most one Q1-total market response and writes `odds-check.json`; this is diagnostic coverage, not an actionable pick. Its paired prices retain their provider timestamps.
