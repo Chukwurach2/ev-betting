@@ -1,0 +1,90 @@
+{
+  "artifact_hashes": {
+    "defaults.json": "9328b4cc47498710047a3f93c186072a2252a738f63c370e341d1a3388f51676",
+    "duration_model.joblib": "2f1c86f399ae19c9fbbedb726a7d5f992eee88a76d6304ee4bcadca379987279",
+    "outcome_model.joblib": "1d08c31c659c91ed2c892cbd0d07c90c277e1785650e3c72829bf14e7c624f12",
+    "states.json": "8ccc500511e26d2f215549012260ad6b55c31620be1d402449335c1ba21e49b8"
+  },
+  "baseline_log_loss": 1.3778511880653699,
+  "baseline_td_brier_score": 0.18572596429971597,
+  "created_at": "2026-09-09T15:56:06.808518+00:00",
+  "data_hashes": {
+    "2016": "95eba04e2145e3c1c8ca502f2a3a76cfb0a5990680c3fb480f02a74a45f54a3b",
+    "2017": "84eacd963c1fdd45965f6222c62e9329a7f3412f029d92c1ac5e34a1bb4d3710",
+    "2018": "2e6f2dce7c7ebd46e985cabe0c17eb72b39a77f98cb4478409294f50b5820150",
+    "2019": "60c3067017db2d28a78f66a79b657268be8578d9a5288e6a827efdcd7fe42540",
+    "2020": "8889f5d8782b5c5dce3c3644acdc0322b228a7e9cb13fa36cbac250e260e9f60",
+    "2021": "333ad34378e5339d5172717cc83378e908daf02c8699416ab3e17c2ec10f78d8",
+    "2022": "931121d8897779d7944e2a293e92ed8799c8e5cceef84096ac42339003fedc09",
+    "2023": "bd3484731408def6b0ec93225bba2bd7b2c65769ca707a2b9444d891abdc6776",
+    "2024": "3fd2896bc0b911b615142d2f1fabae54a4bbba5ab7b73b28187b118ef8af6a3b",
+    "2025": "c6ecedd6d678cc37ed316b23ef84ee1ec6abb69c514bb11868a7ebd5a367df29"
+  },
+  "feature_audit_checks": [
+    "future_truncation_invariance",
+    "fixed_cold_start_priors",
+    "disjoint_chronological_split",
+    "exclude_unstamped_weather_and_closing_lines"
+  ],
+  "feature_availability_audit": true,
+  "feature_columns": [
+    "is_home",
+    "drive_index",
+    "opening_drive",
+    "off_fd_td_rate",
+    "off_fd_score_rate",
+    "off_q1_td_rate",
+    "off_q1_score_rate",
+    "off_q1_epa",
+    "off_q1_success",
+    "off_q1_duration",
+    "off_q1_plays",
+    "def_fd_td_rate",
+    "def_fd_score_rate",
+    "def_q1_td_rate",
+    "def_q1_score_rate",
+    "def_q1_epa",
+    "def_q1_success",
+    "def_q1_duration",
+    "def_q1_plays"
+  ],
+  "limitations": [
+    "No historical executable odds validation",
+    "Drive labels do not validate Q1 simulation",
+    "Simulation omits defensive/special-teams scores and exact extra points",
+    "No automatic production promotion"
+  ],
+  "multiclass_log_loss": 1.3780357507882688,
+  "production_validated": false,
+  "role": "challenger",
+  "runtime": {
+    "python": "3.12.14",
+    "sklearn": "1.6.1"
+  },
+  "state_cutoff": "2025 regular season",
+  "td_brier_score": 0.18432652583795367,
+  "train_drives": 9721,
+  "train_seasons": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022
+  ],
+  "training_cutoff": "2022 regular season",
+  "validation_drives": 4143,
+  "validation_seasons": [
+    2023,
+    2024,
+    2025
+  ],
+  "version_name": "nfl-edge-v2.5-drive-shadow",
+  "source_commit": "08641fd2806927191ac09d331a2a512591cdfe8a",
+  "workflow_run_id": 34373337142,
+  "workflow_status": "success",
+  "artifact_id": 10112864172,
+  "market_validation_status": "not_completed",
+  "promotion_reason": "Overall multiclass log loss did not improve over historical-frequency baseline; quarter-market validation and live publisher are incomplete."
+}
