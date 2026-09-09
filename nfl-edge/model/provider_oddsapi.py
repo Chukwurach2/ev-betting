@@ -27,31 +27,36 @@ def _key(api_key=None):
     if not k: raise RuntimeError('THE_ODDS_API_KEY missing')
     return k
 
-def fetch_events(api_key=None, timeout=20):
+def _get(url, params, timeout):
     import requests
+    try:
+        response = requests.get(url, params=params, timeout=timeout)
+        _check(response)
+        payload = response.json()
+    except (requests.RequestException, ValueError):
+        # Transport and JSON exceptions can retain the prepared request URL,
+        # including apiKey. Keep those details out of logs and run receipts.
+        raise RuntimeError('Odds provider request failed') from None
+    return payload, dict(response.headers)
+
+def fetch_events(api_key=None, timeout=20):
     url=f'{BASE}/sports/{SPORT}/events'
-    r=requests.get(url,params={'apiKey':_key(api_key),'dateFormat':'iso'},timeout=timeout)
-    _check(r)
-    return r.json(), dict(r.headers)
+    return _get(url, {'apiKey':_key(api_key),'dateFormat':'iso'}, timeout)
 
 def fetch_event_markets(event_id, api_key=None, timeout=20, bookmakers=None):
-    import requests
     url=f'{BASE}/sports/{SPORT}/events/{event_id}/markets'
     params={'apiKey':_key(api_key),'dateFormat':'iso'}
     if bookmakers: params['bookmakers']=','.join(bookmakers)
     else: params['regions']='us'
-    r=requests.get(url,params=params,timeout=timeout); _check(r)
-    return r.json(), dict(r.headers)
+    return _get(url, params, timeout)
 
 def fetch_event_odds(event_id, markets, api_key=None, timeout=20, bookmakers=None):
-    import requests
     if not markets: return {}, {}
     url=f'{BASE}/sports/{SPORT}/events/{event_id}/odds'
     params={'apiKey':_key(api_key),'markets':','.join(markets),'oddsFormat':'american','dateFormat':'iso'}
     if bookmakers: params['bookmakers']=','.join(bookmakers)
     else: params['regions']='us'
-    r=requests.get(url,params=params,timeout=timeout); _check(r)
-    return r.json(), dict(r.headers)
+    return _get(url, params, timeout)
 
 def available_supported_market_keys(markets_response):
     found=set()

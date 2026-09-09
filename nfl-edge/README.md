@@ -4,7 +4,7 @@ NFL schedule and private bet journal with bankroll, results and raw price CLV. T
 
 ## Verified scope
 
-The application provides a schedule, device journal and account-based sync implementation. The production database had 288 schedule rows and zero model versions, predictions or odds snapshots when inspected on September 9, 2026. Live authenticated cross-device acceptance remains required.
+The application provides a schedule, device journal and account-based sync implementation. On September 9, 2026, the deployed V2.5 UI loaded all 16 Week 1 games, the registered shadow model's validation metrics and the sportsbook coverage diagnostic. No model was promoted and no automated recommendations were published. Live authenticated cross-device acceptance remains required.
 
 **Automatic betting recommendations are not production-ready.** Training success alone must never change that label. This release fixes future-data leakage, removes unverified game-time/closing-line features, removes class balancing that distorts probability calibration, adds real temporal-invariance checks, compares validation against a historical-frequency baseline and fingerprints data/model artifacts. A drive model remains a shadow candidate until market-level calibration and a live publisher are validated.
 
@@ -41,4 +41,6 @@ Keep existing project environment values. `/api/health` exposes only configurati
 
 No claim of profitability, historical ROI or production validation is made by this release.
 
-Latest live checks: The Odds API key authenticated via the free events endpoint. A bounded build-time check now requests at most one Q1-total market response and writes `odds-check.json`; this is diagnostic coverage, not an actionable pick. Its paired prices retain their provider timestamps.
+Latest live checks: The Odds API key authenticated via the free events endpoint. The build-time check on September 9 at 22:45 UTC verified paired DraftKings and FanDuel Q1 totals for New England at Seattle, using one API credit. Each build requests at most one Q1-total market response and writes `odds-check.json`; this is diagnostic coverage, not an actionable pick. Its paired prices retain their provider timestamps. Both HTTP and transport failures in the Python adapter use secret-safe errors.
+
+Source is pushed to GitHub and the production site is deployed. Automatic Git-to-Vercel deployment still requires connecting the repository in the dashboard with the root-directory setting above; the deployment connector does not expose that setting. The last verified source build passed at `https://github.com/Chukwurach2/ev-betting/actions/runs/34413796122`.
