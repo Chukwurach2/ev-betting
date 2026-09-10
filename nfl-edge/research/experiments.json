@@ -1,0 +1,8 @@
+{
+  "policy_version": 1,
+  "experiments": [
+    {"id":"drive-v2.5","market_family":"early_game_drive","status":"rejected","reason":"No overall log-loss improvement","report":"model/reports/2026-09-09-validation.json"},
+    {"id":"q1-direct-v1","market_family":"quarter_totals","status":"rejected","reason":"Accuracy confidence interval crosses no improvement","report":"model/reports/2026-09-10-quarter-validation.json"},
+    {"id":"full-game-coverage-v1","market_family":"moneyline_spread_total","status":"registered","hypothesis":"Audit availability and timestamps of historical full-game prices before specifying an edge test","source":"https://raw.githubusercontent.com/nflverse/nfldata/master/data/games.csv","outcome":"Coverage only; no profitability test or model promotion"}
+  ]
+}
