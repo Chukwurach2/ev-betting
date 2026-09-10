@@ -1,0 +1,105 @@
+{
+  "version_name": "nfl-edge-q1-direct-shadow-v1",
+  "production_validated": false,
+  "training_seasons": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022
+  ],
+  "validation_seasons": [
+    2023,
+    2024,
+    2025
+  ],
+  "train_games": 1775,
+  "validation_games": 816,
+  "log_loss": 0.6151543088164015,
+  "baseline_log_loss": 0.6156351283385147,
+  "brier": 0.21255743165003732,
+  "baseline_brier": 0.2128066275838508,
+  "log_loss_delta_week_block_95ci": [
+    -0.0033348315951746985,
+    0.0024632721345509492
+  ],
+  "prediction_accuracy_gate_passed": false,
+  "by_line": [
+    {
+      "line": 3.5,
+      "games": 816,
+      "log_loss": 0.5489767776831784,
+      "baseline_log_loss": 0.5443983027558649,
+      "brier": 0.18105781566278104,
+      "baseline_brier": 0.17937267426784795
+    },
+    {
+      "line": 6.5,
+      "games": 816,
+      "log_loss": 0.619053221277614,
+      "baseline_log_loss": 0.6162353324613172,
+      "brier": 0.21374833196304102,
+      "baseline_brier": 0.21253744989441686
+    },
+    {
+      "line": 7.5,
+      "games": 816,
+      "log_loss": 0.6912507322657117,
+      "baseline_log_loss": 0.6918810470526581,
+      "brier": 0.24904326704149762,
+      "baseline_brier": 0.24936709719573288
+    },
+    {
+      "line": 9.5,
+      "games": 816,
+      "log_loss": 0.6869353648006413,
+      "baseline_log_loss": 0.6891190937152225,
+      "brier": 0.24689673789362906,
+      "baseline_brier": 0.24798817549934546
+    },
+    {
+      "line": 10.5,
+      "games": 816,
+      "log_loss": 0.5941636370666906,
+      "baseline_log_loss": 0.5973216581198404,
+      "brier": 0.20220342209960965,
+      "baseline_brier": 0.20352337214870717
+    },
+    {
+      "line": 13.5,
+      "games": 816,
+      "log_loss": 0.550546119804573,
+      "baseline_log_loss": 0.5548553359261846,
+      "brier": 0.18239501523966567,
+      "baseline_brier": 0.18405099649705442
+    }
+  ],
+  "feature_availability_audit": true,
+  "label_method": "Q1-end scoreboard marker; scores at start of play",
+  "feature_method": "Historical Q1 points only; freeze before each season/week",
+  "limitations": [
+    "Fixed half-point grid, not historical executable quotes",
+    "No historical EV, ROI, or CLV validation",
+    "No verified pregame injuries, starters or weather inputs",
+    "No automatic model promotion"
+  ],
+  "created_at": "2026-09-10T01:44:31.774054+00:00",
+  "artifact_sha256": "bc2625a5135fd0d07eac03804c386f0d2d455ceee1ab605120199f12e2ca3b61",
+  "data_sha256": {
+    "2016": "95eba04e2145e3c1c8ca502f2a3a76cfb0a5990680c3fb480f02a74a45f54a3b",
+    "2017": "84eacd963c1fdd45965f6222c62e9329a7f3412f029d92c1ac5e34a1bb4d3710",
+    "2018": "2e6f2dce7c7ebd46e985cabe0c17eb72b39a77f98cb4478409294f50b5820150",
+    "2019": "60c3067017db2d28a78f66a79b657268be8578d9a5288e6a827efdcd7fe42540",
+    "2020": "8889f5d8782b5c5dce3c3644acdc0322b228a7e9cb13fa36cbac250e260e9f60",
+    "2021": "333ad34378e5339d5172717cc83378e908daf02c8699416ab3e17c2ec10f78d8",
+    "2022": "931121d8897779d7944e2a293e92ed8799c8e5cceef84096ac42339003fedc09",
+    "2023": "bd3484731408def6b0ec93225bba2bd7b2c65769ca707a2b9444d891abdc6776",
+    "2024": "3fd2896bc0b911b615142d2f1fabae54a4bbba5ab7b73b28187b118ef8af6a3b",
+    "2025": "c6ecedd6d678cc37ed316b23ef84ee1ec6abb69c514bb11868a7ebd5a367df29"
+  },
+  "source_commit": "bf653c6d732424a3727e57976eab3eacd9c34f67",
+  "workflow_run_id": 34426607200,
+  "artifact_id": 10132914780
+}
