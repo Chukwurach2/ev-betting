@@ -8,12 +8,17 @@ SPORT='americanfootball_nfl'
 NY_BOOK_KEYS={'draftkings','fanduel'}
 
 # Only exact published/provider-discovered keys are normalized. Unknown contracts remain unsupported.
-MARKET_MAP={'totals_q1':('Q1_TOTAL', None), 'alternate_totals_q1':('Q1_TOTAL', None)}
+MARKET_MAP={
+    'totals_q1':('Q1_TOTAL', None),
+    'alternate_totals_q1':('Q1_TOTAL', None),
+    'totals':('FULL_GAME_TOTAL', None),
+    'spreads':('FULL_GAME_SPREAD', None),
+}
 
 @dataclass(frozen=True)
 class Quote:
     provider_event_id:str; market_key:str; sportsbook:str; market:str; selection:str
-    line:float|None; american_odds:int; observed_at:str; source_url:str
+    line:float|None; american_odds:int; observed_at:str; source_url:str; sportsbook_key:str
 
 def _iso(x):
     if not x: return None
@@ -51,59 +56,62 @@ def fetch_event_markets(event_id, api_key=None, timeout=20, bookmakers=None):
     return _get(url, params, timeout)
 
 def fetch_event_odds(event_id, markets, api_key=None, timeout=20, bookmakers=None):
-    if not markets: return {}, {}
+    if not markets: return {},{}
     url=f'{BASE}/sports/{SPORT}/events/{event_id}/odds'
-    params={'apiKey':_key(api_key),'markets':','.join(markets),'oddsFormat':'american','dateFormat':'iso'}
+    params={'apiKey':_key(api_key),'dateFormat':'iso','oddsFormat':'american','markets':','.join(markets)}
     if bookmakers: params['bookmakers']=','.join(bookmakers)
     else: params['regions']='us'
     return _get(url, params, timeout)
 
-def available_supported_market_keys(markets_response):
-    found=set()
-    for b in (markets_response or {}).get('bookmakers',[]):
-        if b.get('key') not in NY_BOOK_KEYS: continue
-        for m in b.get('markets') or []:
-            k=m.get('key') if isinstance(m,dict) else m
-            if k in MARKET_MAP: found.add(k)
-    return sorted(found)
+def fetch_odds(markets, api_key=None, timeout=20, bookmakers=None):
+    url=f'{BASE}/sports/{SPORT}/odds'
+    params={'apiKey':_key(api_key),'dateFormat':'iso','oddsFormat':'american','markets':','.join(markets)}
+    if bookmakers: params['bookmakers']=','.join(bookmakers)
+    else: params['regions']='us'
+    return _get(url, params, timeout)
+
+def fetch_scores(days_from=3, api_key=None, timeout=20):
+    url=f'{BASE}/sports/{SPORT}/scores'
+    return _get(url,{'apiKey':_key(api_key),'dateFormat':'iso','daysFrom':str(days_from)},timeout)
+
+def quota(headers):
+    def number(name):
+        try:return int(headers.get(name))
+        except (TypeError,ValueError):return None
+    return {'remaining':number('x-requests-remaining'),'used':number('x-requests-used'),'last':number('x-requests-last')}
 
 def normalize(event):
-    out=[]
-    event_id=str((event or {}).get('id') or '')
-    for book in (event or {}).get('bookmakers') or []:
-        bkey=book.get('key'); title=book.get('title') or bkey
-        if bkey not in NY_BOOK_KEYS: continue
-        for m in book.get('markets') or []:
-            # Event-odds responses timestamp each market independently. Do not
-            # substitute fetch time or a bookmaker-level timestamp.
-            observed=_iso(m.get('last_update'))
-            if not observed: continue
-            mkey=m.get('key'); mapped=MARKET_MAP.get(mkey)
-            if not mapped: continue
-            market,_=mapped
-            for o in m.get('outcomes') or []:
-                price=o.get('price')
-                try: price=int(price)
-                except Exception: continue
-                if isinstance(o.get('price'),bool) or float(o.get('price'))!=price or not (price<=-100 or price>=100): continue
-                point=o.get('point')
-                try: line=None if point is None else float(point)
-                except Exception: line=None
-                selection=str(o.get('name') or '')
-                # Totals require Over/Under; team totals include team name in description/selection depending provider.
-                if selection not in {'Over','Under'}: continue
-                # Integer totals need explicit push pricing, unavailable in this model.
-                if line is None or not math.isfinite(line) or line < 0 or abs(line % 1) != .5: continue
-                out.append(Quote(event_id,mkey,title,market,selection,line,price,observed,f'{BASE}/sports/{SPORT}/events/{event_id}/odds'))
-    return out
+    event_id=event.get('id') if isinstance(event,dict) else None
+    if not isinstance(event_id,str) or not event_id:return []
+    quotes=[]
+    for book in event.get('bookmakers') or []:
+        book_key=book.get('key')
+        if book_key not in NY_BOOK_KEYS:continue
+        for offered in book.get('markets') or []:
+            mapped=MARKET_MAP.get(offered.get('key'))
+            observed_at=_iso(offered.get('last_update'))
+            if not mapped or not observed_at:continue
+            market=mapped[0]
+            for side in offered.get('outcomes') or []:
+                try: price=int(side.get('price'))
+                except (TypeError,ValueError):continue
+                if isinstance(side.get('price'),bool) or price!=side.get('price') or not (price<=-100 or price>=100):continue
+                try: line=float(side.get('point'))
+                except (TypeError,ValueError):continue
+                if not math.isfinite(line) or abs(line*2-round(line*2))>1e-9:continue
+                selection=side.get('name')
+                if not isinstance(selection,str) or not selection:continue
+                if market in {'Q1_TOTAL','FULL_GAME_TOTAL'} and selection not in {'Over','Under'}:continue
+                # The rejected Q1 model does not estimate push mass, so keep its shadow
+                # contract restricted to half points. Full-game integer lines carry
+                # explicit push settlement and remain research-only.
+                if market=='Q1_TOTAL' and line.is_integer():continue
+                if market in {'Q1_TOTAL','FULL_GAME_TOTAL'} and line<0:continue
+                quotes.append(Quote(event_id,offered['key'],book.get('title') or book_key,
+                    market,selection,line,price,observed_at,
+                    f'{BASE}/sports/{SPORT}/events/{event_id}/odds',book_key))
+    return quotes
 
 def _check(response):
     if not response.ok:
-        # requests exceptions include the URL (and API key); never expose it.
-        raise RuntimeError('Odds provider HTTP '+str(response.status_code))
-
-def quota(headers):
-    def n(k):
-        try:return int(headers.get(k))
-        except Exception:return None
-    return {'remaining':n('x-requests-remaining'),'used':n('x-requests-used'),'last_cost':n('x-requests-last')}
+        raise RuntimeError(f'Odds provider request failed with HTTP {response.status_code}')

@@ -27,7 +27,6 @@ def plan(games,now):
     for game in games:
         if game.get('status','scheduled')!='scheduled': continue
         kickoff=instant(game['kickoff'])
-        # No historical mass backfill. Each run observes a bounded time range.
         if not -1440 <= (kickoff-now).total_seconds()/60 <= 1440: continue
         for name,minutes in WINDOWS:
             target=kickoff-dt.timedelta(minutes=minutes)
@@ -39,26 +38,28 @@ def plan(games,now):
             result[key]=Checkpoint(key,str(game['game_id']),kickoff,name,target,deadline,state)
     return sorted(result.values(),key=lambda c:(c.deadline,c.game_id,c.name))
 
-def collect(checkpoints,store,fetch_quotes,clock,remaining,max_requests=2,reserve=10):
-    """Store.claim must commit a UNIQUE key before any paid request.
+def collect(checkpoints,store,fetch_quotes,clock,remaining,max_requests=2,reserve=10,cost_per_request=1):
+    """Collect bounded quotes after an immutable claim.
 
-    No automatic retry of claimed work: after a crash a separate reconciliation
-    pass marks abandoned claims, avoiding duplicate provider charges.
+    cost_per_request is a conservative provider-credit budget for multi-market
+    calls. A crash never triggers an automatic paid retry.
     """
     if not isinstance(max_requests,int) or isinstance(max_requests,bool) or not 0<=max_requests<=16:
         raise ValueError('Invalid request cap')
-    used=0; counts={'captured':0,'missed':0,'duplicate':0,'deferred':0,'failed':0,'requests':0}
+    if not isinstance(cost_per_request,int) or isinstance(cost_per_request,bool) or not 1<=cost_per_request<=16:
+        raise ValueError('Invalid request cost')
+    used=0; counts={'captured':0,'missed':0,'duplicate':0,'deferred':0,'failed':0,'requests':0,'credits_budgeted':0}
     for checkpoint in checkpoints:
         now=instant(clock())
         missed=checkpoint.state=='missed' or now>=checkpoint.deadline
-        if not missed and (used>=max_requests or not isinstance(remaining,int) or remaining-used<=reserve):
+        budget_after_next=(remaining-used*cost_per_request-cost_per_request) if isinstance(remaining,int) else None
+        if not missed and (used>=max_requests or budget_after_next is None or budget_after_next<reserve):
             counts['deferred']+=1; continue
         if not store.claim(checkpoint,now): counts['duplicate']+=1; continue
         if missed:
             store.finish(checkpoint,now,'missed',[],'Checkpoint elapsed; no historical quote invented')
             counts['missed']+=1; continue
         try:
-            # Recheck AFTER the durable claim; DB delays can cross the deadline.
             if instant(clock())>=checkpoint.deadline:
                 store.finish(checkpoint,instant(clock()),'missed',[],'Deadline elapsed before request')
                 counts['missed']+=1; continue
@@ -76,8 +77,8 @@ def collect(checkpoints,store,fetch_quotes,clock,remaining,max_requests=2,reserv
             store.finish(checkpoint,ended,'captured' if valid else 'unavailable',valid,None)
             counts['captured' if valid else 'failed']+=1
         except Exception:
-            # Neither provider URLs nor database connection strings reach receipts.
             store.finish(checkpoint,instant(clock()),'failed',[],'Collection failed; inspect private runtime health')
             counts['failed']+=1
     counts['requests']=used
+    counts['credits_budgeted']=used*cost_per_request
     return counts

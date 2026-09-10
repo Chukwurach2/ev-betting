@@ -43,23 +43,32 @@ class CheckpointTests(unittest.TestCase):
         self.assertEqual(store.rows[cps[0].key]['status'],'missed')
     def test_quota_unknown_or_exhausted_does_not_claim_due_work(self):
         cps=[c for c in plan([self.game],self.now) if c.state=='due']
-        for remaining in [None,10,0]:
+        for remaining in [None,11,0]:
             store=MemoryStore()
-            counts=collect(cps,store,lambda c:self.fail('Paid request without quota'),lambda:self.now,remaining)
+            counts=collect(cps,store,lambda c:self.fail('Paid request without quota'),lambda:self.now,remaining,cost_per_request=2)
             self.assertFalse(store.rows); self.assertEqual(counts['deferred'],1)
+        store=MemoryStore()
+        counts=collect(cps,store,lambda c:[{'observed_at':self.now.isoformat()}],lambda:self.now,12,cost_per_request=2)
+        self.assertEqual(counts['credits_budgeted'],2)
     def test_reschedule_has_new_identity(self):
         old=plan([self.game],self.now)
         new=plan([{**self.game,'kickoff':self.kickoff+dt.timedelta(minutes=5)}],self.now+dt.timedelta(minutes=5))
         self.assertTrue(set(c.key for c in old).isdisjoint(c.key for c in new))
-
-    def test_same_book_exact_line_pair_is_required(self):
-        outcomes=[{'name':'Over','price':110,'point':7.5},{'name':'Under','price':-130,'point':7.5}]
-        market={'key':'totals_q1','last_update':self.now.isoformat(),'outcomes':outcomes}
-        event={'id':'g1','bookmakers':[{'key':'draftkings','title':'DraftKings','markets':[market]}]}
+    def test_same_book_exact_full_game_pairs_and_push_rules(self):
+        markets=[
+            {'key':'totals','last_update':self.now.isoformat(),'outcomes':[
+                {'name':'Over','price':110,'point':44},{'name':'Under','price':-130,'point':44}]},
+            {'key':'spreads','last_update':self.now.isoformat(),'outcomes':[
+                {'name':'Home','price':-105,'point':-3.5},{'name':'Away','price':-115,'point':3.5}]},
+        ]
+        event={'id':'g1','home_team':'Home','away_team':'Away','bookmakers':[{'key':'draftkings','title':'DraftKings','markets':markets}]}
         pairs=pair_quotes(event)
-        self.assertEqual(len(pairs),2)
-        self.assertAlmostEqual(sum(q['fair_probability'] for q in pairs),1)
-        outcomes[1]['point']=10.5
-        self.assertEqual(pair_quotes(event),[])
+        self.assertEqual(len(pairs),4)
+        self.assertEqual({q['market'] for q in pairs},{'FULL_GAME_TOTAL','FULL_GAME_SPREAD'})
+        self.assertAlmostEqual(sum(q['fair_probability'] for q in pairs if q['market']=='FULL_GAME_TOTAL'),1)
+        self.assertTrue(all(q['fair_method']=='paired_same_book_conditional_on_no_push' for q in pairs))
+        self.assertIn('push',next(q['settlement_rules'] for q in pairs if q['market']=='FULL_GAME_TOTAL'))
+        markets[1]['outcomes'][1]['point']=4.5
+        self.assertFalse(any(q['market']=='FULL_GAME_SPREAD' for q in pair_quotes(event)))
 
 if __name__=='__main__':unittest.main()

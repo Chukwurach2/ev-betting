@@ -21,16 +21,39 @@ NAMES=dict(zip(
      'San Francisco 49ers','Seattle Seahawks','Tampa Bay Buccaneers','Tennessee Titans','Washington Commanders']))
 
 def canonical(team): return {'LA':'LAR','ARI':'AZ'}.get(team,team)
+def implied(odds): return 100/(100+odds) if odds>0 else abs(odds)/(100+abs(odds))
+
+def settlement(market,line):
+    integer=float(line).is_integer()
+    if market=='FULL_GAME_TOTAL':
+        return ('Regulation plus overtime; push when final combined score equals line; book rules govern voids'
+                if integer else 'Regulation plus overtime; no push at half-point line; book rules govern voids')
+    if market=='FULL_GAME_SPREAD':
+        return ('Regulation plus overtime; push when adjusted margin equals zero; book rules govern voids'
+                if integer else 'Regulation plus overtime; no push at half-point spread; book rules govern voids')
+    return 'First quarter only; no push at half-point line; book rules govern voids'
 
 def pair_quotes(payload):
+    normalized=normalize(payload)
     groups={}
-    for q in normalize(payload): groups.setdefault((q.provider_event_id,q.market_key,q.sportsbook,q.line,q.observed_at),[]).append(q)
+    for q in normalized:
+        line=abs(q.line) if q.market=='FULL_GAME_SPREAD' else q.line
+        groups.setdefault((q.provider_event_id,q.market_key,q.sportsbook_key,line,q.observed_at),[]).append(q)
     result=[]
-    for quotes in groups.values():
-        if len(quotes)!=2 or {q.selection for q in quotes}!={'Over','Under'}:continue
-        implied=lambda odds: 100/(100+odds) if odds>0 else abs(odds)/(100+abs(odds))
-        total=sum(implied(q.american_odds) for q in quotes)
-        for q in quotes: result.append({**asdict(q),'fair_probability':implied(q.american_odds)/total,'fair_method':'same_book_paired_proportional'})
+    for (_,_,_,line,_),quotes in groups.items():
+        if len(quotes)!=2:continue
+        market=quotes[0].market
+        if market in {'Q1_TOTAL','FULL_GAME_TOTAL'}:
+            if {q.selection for q in quotes}!={'Over','Under'} or any(q.line!=line for q in quotes):continue
+        elif market=='FULL_GAME_SPREAD':
+            teams={payload.get('home_team'),payload.get('away_team')}
+            if {q.selection for q in quotes}!=teams or abs(quotes[0].line+quotes[1].line)>1e-9:continue
+        else:continue
+        denominator=sum(implied(q.american_odds) for q in quotes)
+        for q in quotes:
+            result.append({**asdict(q),'fair_probability':implied(q.american_odds)/denominator,
+                'fair_method':'paired_same_book_conditional_on_no_push',
+                'settlement_rules':settlement(market,line),'ny_licensed':True})
     return result
 
 def main():
@@ -61,12 +84,12 @@ def main():
                      and e.get('away_team')==NAMES.get(canonical(game['away_team']))
                      and instant(e['commence_time'])==checkpoint.kickoff]
             if len(matches)!=1: raise ValueError('Provider event did not match exact matchup and kickoff')
-            payload,_=fetch_event_odds(matches[0]['id'],['totals_q1'],bookmakers=['draftkings','fanduel'])
+            payload,_=fetch_event_odds(matches[0]['id'],['spreads','totals'],bookmakers=['draftkings','fanduel'])
             if payload.get('id')!=matches[0]['id'] or instant(payload['commence_time'])!=checkpoint.kickoff:
                 raise ValueError('Provider response event changed')
             return pair_quotes(payload)
         print(json.dumps({'status':'shadow_collection_only',**collect(checkpoints,store,fetch,clock,
-                         remaining=quota(headers)['remaining'],max_requests=16)}))
+                         remaining=quota(headers)['remaining'],max_requests=8,cost_per_request=2)}))
 
 if __name__=='__main__':
     try:main()
