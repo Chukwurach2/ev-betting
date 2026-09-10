@@ -1,0 +1,62 @@
+{
+  "experiment_id": "full-game-coverage-v1",
+  "completed_at": "2026-09-10T02:01:04.288278+00:00",
+  "source": {
+    "url": "https://raw.githubusercontent.com/nflverse/nfldata/master/data/games.csv",
+    "sha256": "144b181f03d672870ad25d80834598df8977f58464581f499218d490b8f1559d"
+  },
+  "workflow": {
+    "source_commit": "c99b4c698e66819418b4691972d5c7c0675efb6a",
+    "run_id": 34427694626,
+    "job_id": 102716426886,
+    "conclusion": "success",
+    "artifact_id": 10133295364,
+    "artifact_sha256": "b6ffa792e9a4ccf3ca7dceadabacf1e13bc3388e99ac2cf8f86d81dbafed188a"
+  },
+  "rows": 7548,
+  "settled_games": 7276,
+  "available_price_columns": [
+    "away_moneyline",
+    "home_moneyline",
+    "spread_line",
+    "away_spread_odds",
+    "home_spread_odds",
+    "total_line",
+    "under_odds",
+    "over_odds"
+  ],
+  "paired_price_coverage_by_season": {
+    "2006": {"settled": 267, "moneyline": 220, "spread": 220, "total": 217},
+    "2007": {"settled": 267, "moneyline": 266, "spread": 266, "total": 266},
+    "2008": {"settled": 267, "moneyline": 194, "spread": 194, "total": 194},
+    "2009": {"settled": 267, "moneyline": 253, "spread": 253, "total": 253},
+    "2010": {"settled": 267, "moneyline": 267, "spread": 267, "total": 267},
+    "2011": {"settled": 267, "moneyline": 267, "spread": 267, "total": 267},
+    "2012": {"settled": 267, "moneyline": 267, "spread": 267, "total": 267},
+    "2013": {"settled": 267, "moneyline": 267, "spread": 267, "total": 267},
+    "2014": {"settled": 267, "moneyline": 267, "spread": 267, "total": 267},
+    "2015": {"settled": 267, "moneyline": 267, "spread": 267, "total": 267},
+    "2016": {"settled": 267, "moneyline": 267, "spread": 267, "total": 267},
+    "2017": {"settled": 267, "moneyline": 266, "spread": 266, "total": 266},
+    "2018": {"settled": 267, "moneyline": 267, "spread": 267, "total": 267},
+    "2019": {"settled": 267, "moneyline": 267, "spread": 267, "total": 267},
+    "2020": {"settled": 269, "moneyline": 269, "spread": 269, "total": 269},
+    "2021": {"settled": 285, "moneyline": 285, "spread": 285, "total": 285},
+    "2022": {"settled": 284, "moneyline": 284, "spread": 284, "total": 284},
+    "2023": {"settled": 285, "moneyline": 285, "spread": 285, "total": 285},
+    "2024": {"settled": 285, "moneyline": 285, "spread": 285, "total": 285},
+    "2025": {"settled": 285, "moneyline": 285, "spread": 285, "total": 285}
+  },
+  "price_timestamp_verified": false,
+  "production_validated": false,
+  "permitted_use": [
+    "closing-line calibration baseline",
+    "coverage-aware model research"
+  ],
+  "prohibited_claims": [
+    "executable decision-time ROI",
+    "historical recommendation availability",
+    "model promotion"
+  ],
+  "limitation": "Historical line and price availability does not prove that a quote was executable at any proposed pregame decision time."
+}
