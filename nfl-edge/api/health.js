@@ -35,7 +35,10 @@ function evaluate(heartbeats, upcomingGames, nowMs) {
     }
     const s = components[name].status;
     if (s === 'stale' || s === 'missing') {
-      status = CORE.has(name) ? 'down' : 'degraded';
+      // Escalate only: a milder component must never downgrade a worse state.
+      const sev = CORE.has(name) ? 2 : 1;
+      const cur = status === 'down' ? 2 : status === 'degraded' ? 1 : 0;
+      if (sev > cur) status = sev === 2 ? 'down' : 'degraded';
     }
   }
   const remaining = heartbeats.collector?.detail?.credits_remaining;

@@ -51,6 +51,14 @@ class EvaluateTests(unittest.TestCase):
         self.assertEqual(r["status"], "down")
         self.assertEqual(r["components"]["picks"]["status"], "missing")
 
+    def test_mixed_severity_stays_down(self):
+        # Core missing (down) must not be downgraded by settlement (degraded).
+        h = fresh_all()
+        del h["collector"]
+        h["settlement"] = hb(60 * 40)
+        r = health.evaluate(h, NOW, upcoming_games=16)
+        self.assertEqual(r["status"], "down")
+
     def test_offseason_reports_idle_not_down(self):
         r = health.evaluate({}, NOW, upcoming_games=0)
         self.assertEqual(r["status"], "ok")

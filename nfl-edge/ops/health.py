@@ -33,12 +33,22 @@ CREDITS_WARN_BELOW = 60
 SEASON_WINDOW = dt.timedelta(days=45)
 
 
+# Severity order: a worse state never gets overwritten by a milder one.
+_SEVERITY = {"ok": 0, "idle": 0, "degraded": 1, "down": 2}
+
+
 def evaluate(heartbeats: dict[str, dict], now: dt.datetime,
              upcoming_games: int) -> dict:
     """Pure health logic. heartbeats maps component -> {last_ok_at, detail}."""
     in_season = upcoming_games > 0
     components: dict[str, dict] = {}
     worst = "ok"
+
+    def escalate(state: str) -> None:
+        nonlocal worst
+        if _SEVERITY[state] > _SEVERITY[worst]:
+            worst = state
+
     for name, limit in THRESHOLDS.items():
         hb = heartbeats.get(name)
         if not in_season:
@@ -52,7 +62,7 @@ def evaluate(heartbeats: dict[str, dict], now: dt.datetime,
         components[name] = {"status": status, "age_seconds":
                             None if age is None else round(age)}
         if status in ("stale", "missing"):
-            worst = "down" if name in CORE else "degraded"
+            escalate("down" if name in CORE else "degraded")
 
     credits_remaining = None
     detail = (heartbeats.get("collector") or {}).get("detail") or {}
