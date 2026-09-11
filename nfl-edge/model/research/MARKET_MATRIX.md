@@ -95,3 +95,29 @@ which edge disappeared.
 - `logistic-v1`: logistic regression on rest days, home/away, recent form.
 - `epa-v1`: play-by-play EPA features (needs nflverse pbp ingest).
 - `ensemble-v1`: only after two families independently reach Candidate.
+
+## Historical backfill (paid tier, 2026-09-12)
+
+The free tier blocks historical endpoints (403
+HISTORICAL_UNAVAILABLE_ON_FREE_USAGE_PLAN), so market-only research had
+no training data for line movement. The 20K/month paid tier unlocks
+5-minute-granularity historical snapshots since Sep 2022.
+
+`ops/backfill_history.py` (manual workflow `.github/workflows/backfill-history.yml`):
+
+- Per week: Wednesday 12:00 UTC (early), Saturday 12:00 UTC (late),
+  Sunday 15:30 UTC (~90 min before the 1pm ET slate; close proxy).
+- One bulk call per snapshot: `10 x markets x regions` credits.
+  Default (spreads,totals x us,eu) = 40/snapshot; 3 x 18 weeks x 3 seasons
+  (2022-2024) ~= 6,500 credits total.
+- Raw envelopes -> `nfl_edge_market_history`; normalized no-vig quotes ->
+  `nfl_edge_historical_quotes` (same grain as `nfl_edge_odds_quotes`,
+  source='historical_backfill'). Idempotent via ON CONFLICT DO NOTHING.
+- Fails fast on free-tier 403; 429 is a hard stop, never retried in a loop.
+
+Pinnacle (eu region) is the sharp anchor for market-only-v1. The live
+collector takes `NFL_EDGE_REGIONS` (default "us") and `NFL_EDGE_BOOKMAKERS`;
+after the tier upgrade, set `NFL_EDGE_REGIONS="us,eu"` and extend the book
+list with `pinnacle` (signal-only, ny_licensed=false), `williamhill_us`
+(Caesars) and `fanatics`. Live cost becomes 4 credits/request (2 markets x
+2 regions); widening the book list stays quota-neutral.

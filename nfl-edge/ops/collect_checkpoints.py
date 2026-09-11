@@ -9,17 +9,22 @@ from urllib.parse import urlsplit
 sys.path.insert(0,str(pathlib.Path(__file__).parents[1]/'model'))
 from checkpoints import plan,collect,instant
 from postgres_checkpoints import PostgresCheckpointStore
-from provider_oddsapi import fetch_events,fetch_event_odds,normalize,quota
+from provider_oddsapi import (fetch_events,fetch_event_odds,normalize,quota,
+                               NY_BOOK_KEYS)
 
 # Quote universe for the price-discovery engine. Widening the book list is
 # quota-NEUTRAL on The Odds API: cost is markets x regions (<=10 bookmakers
 # = 1 region equivalent), so 5 books cost the same 2 credits/request as 2.
-# Paid-only books (williamhill_us/Caesars, fanatics) need a paid tier and
-# stay out until then. Override with NFL_EDGE_BOOKMAKERS="a,b,c".
+# After upgrading to a paid tier, extend with the paid-only NY books and the
+# sharp signal book:
+#   NFL_EDGE_BOOKMAKERS="draftkings,fanduel,betmgm,betrivers,espnbet,pinnacle,williamhill_us,fanatics"
+#   NFL_EDGE_REGIONS="us,eu"   (eu is what carries pinnacle)
 BOOKMAKERS = [b.strip() for b in
               os.environ.get("NFL_EDGE_BOOKMAKERS",
                              "draftkings,fanduel,betmgm,betrivers,espnbet"
                              ).split(",") if b.strip()]
+REGIONS = os.environ.get("NFL_EDGE_REGIONS", "us")
+N_REGIONS = len([r for r in REGIONS.split(",") if r.strip()]) or 1
 
 NAMES=dict(zip(
     'AZ ATL BAL BUF CAR CHI CIN CLE DAL DEN DET GB HOU IND JAX KC LV LAC LAR MIA MIN NE NO NYG NYJ PHI PIT SF SEA TB TEN WAS'.split(),
@@ -63,7 +68,7 @@ def settlement(market,line):
     return 'First quarter only; no push at half-point line; book rules govern voids'
 
 def pair_quotes(payload):
-    normalized=normalize(payload)
+    normalized=normalize(payload, allowed_books=BOOKMAKERS)
     groups={}
     for q in normalized:
         line=abs(q.line) if q.market=='FULL_GAME_SPREAD' else q.line
@@ -82,7 +87,8 @@ def pair_quotes(payload):
         for q in quotes:
             result.append({**asdict(q),'fair_probability':implied(q.american_odds)/denominator,
                 'fair_method':'paired_same_book_conditional_on_no_push',
-                'settlement_rules':settlement(market,line),'ny_licensed':True})
+                'settlement_rules':settlement(market,line),
+                'ny_licensed':q.sportsbook_key in NY_BOOK_KEYS})
     return result
 
 def main():
@@ -120,12 +126,12 @@ def main():
                      and e.get('away_team')==NAMES.get(canonical(game['away_team']))
                      and instant(e['commence_time'])==checkpoint.kickoff]
             if len(matches)!=1: raise ValueError('Provider event did not match exact matchup and kickoff')
-            payload,_=fetch_event_odds(matches[0]['id'],['spreads','totals'],bookmakers=BOOKMAKERS)
+            payload,_=fetch_event_odds(matches[0]['id'],['spreads','totals'],bookmakers=BOOKMAKERS,regions=REGIONS)
             if payload.get('id')!=matches[0]['id'] or instant(payload['commence_time'])!=checkpoint.kickoff:
                 raise ValueError('Provider response event changed')
             return pair_quotes(payload)
         _summary = collect(checkpoints,store,fetch,clock,
-                         remaining=quota(headers)['remaining'],max_requests=8,cost_per_request=2)
+                         remaining=quota(headers)['remaining'],max_requests=8,cost_per_request=2*N_REGIONS)
         print(json.dumps({'status':'shadow_collection_only',**_summary}))
         try:
             # Best-effort pipeline heartbeat; must never break collection.

@@ -5,7 +5,12 @@ from dataclasses import dataclass
 BASE='https://api.the-odds-api.com/v4'
 SPORT='americanfootball_nfl'
 # Verified NY mobile brands should still be rechecked against NYSGC each run.
-NY_BOOK_KEYS={'draftkings','fanduel'}
+# williamhill_us (Caesars) and fanatics need a paid API tier; they are kept
+# here so the book list is tier-driven, not code-driven.
+NY_BOOK_KEYS={'draftkings','fanduel','betmgm','betrivers','espnbet',
+              'williamhill_us','fanatics'}
+# Sharp/offshore books used only as pricing signal, never as execution venues.
+SIGNAL_ONLY_BOOKS={'pinnacle'}
 
 # Only exact published/provider-discovered keys are normalized. Unknown contracts remain unsupported.
 MARKET_MAP={
@@ -55,19 +60,21 @@ def fetch_event_markets(event_id, api_key=None, timeout=20, bookmakers=None):
     else: params['regions']='us'
     return _get(url, params, timeout)
 
-def fetch_event_odds(event_id, markets, api_key=None, timeout=20, bookmakers=None):
+def fetch_event_odds(event_id, markets, api_key=None, timeout=20,
+                   bookmakers=None, regions='us'):
     if not markets: return {},{}
     url=f'{BASE}/sports/{SPORT}/events/{event_id}/odds'
     params={'apiKey':_key(api_key),'dateFormat':'iso','oddsFormat':'american','markets':','.join(markets)}
     if bookmakers: params['bookmakers']=','.join(bookmakers)
-    else: params['regions']='us'
+    params['regions']=regions
     return _get(url, params, timeout)
 
-def fetch_odds(markets, api_key=None, timeout=20, bookmakers=None):
+def fetch_odds(markets, api_key=None, timeout=20, bookmakers=None,
+               regions='us'):
     url=f'{BASE}/sports/{SPORT}/odds'
     params={'apiKey':_key(api_key),'dateFormat':'iso','oddsFormat':'american','markets':','.join(markets)}
     if bookmakers: params['bookmakers']=','.join(bookmakers)
-    else: params['regions']='us'
+    params['regions']=regions
     return _get(url, params, timeout)
 
 def fetch_scores(days_from=3, api_key=None, timeout=20):
@@ -80,13 +87,20 @@ def quota(headers):
         except (TypeError,ValueError):return None
     return {'remaining':number('x-requests-remaining'),'used':number('x-requests-used'),'last':number('x-requests-last')}
 
-def normalize(event):
+def normalize(event, allowed_books=None):
+    """Flatten one event's bookmakers/markets into Quote rows.
+
+    allowed_books: book keys to keep (default NY_BOOK_KEYS). Pass an
+    explicit set to include signal-only books (e.g. pinnacle) or to
+    widen the quote universe without touching the NY default.
+    """
+    keep = set(allowed_books) if allowed_books is not None else NY_BOOK_KEYS
     event_id=event.get('id') if isinstance(event,dict) else None
     if not isinstance(event_id,str) or not event_id:return []
     quotes=[]
     for book in event.get('bookmakers') or []:
         book_key=book.get('key')
-        if book_key not in NY_BOOK_KEYS:continue
+        if book_key not in keep:continue
         for offered in book.get('markets') or []:
             mapped=MARKET_MAP.get(offered.get('key'))
             observed_at=_iso(offered.get('last_update'))
