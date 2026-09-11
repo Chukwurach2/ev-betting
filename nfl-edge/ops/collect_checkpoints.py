@@ -11,6 +11,16 @@ from checkpoints import plan,collect,instant
 from postgres_checkpoints import PostgresCheckpointStore
 from provider_oddsapi import fetch_events,fetch_event_odds,normalize,quota
 
+# Quote universe for the price-discovery engine. Widening the book list is
+# quota-NEUTRAL on The Odds API: cost is markets x regions (<=10 bookmakers
+# = 1 region equivalent), so 5 books cost the same 2 credits/request as 2.
+# Paid-only books (williamhill_us/Caesars, fanatics) need a paid tier and
+# stay out until then. Override with NFL_EDGE_BOOKMAKERS="a,b,c".
+BOOKMAKERS = [b.strip() for b in
+              os.environ.get("NFL_EDGE_BOOKMAKERS",
+                             "draftkings,fanduel,betmgm,betrivers,espnbet"
+                             ).split(",") if b.strip()]
+
 NAMES=dict(zip(
     'AZ ATL BAL BUF CAR CHI CIN CLE DAL DEN DET GB HOU IND JAX KC LV LAC LAR MIA MIN NE NO NYG NYJ PHI PIT SF SEA TB TEN WAS'.split(),
     ['Arizona Cardinals','Atlanta Falcons','Baltimore Ravens','Buffalo Bills','Carolina Panthers','Chicago Bears',
@@ -110,7 +120,7 @@ def main():
                      and e.get('away_team')==NAMES.get(canonical(game['away_team']))
                      and instant(e['commence_time'])==checkpoint.kickoff]
             if len(matches)!=1: raise ValueError('Provider event did not match exact matchup and kickoff')
-            payload,_=fetch_event_odds(matches[0]['id'],['spreads','totals'],bookmakers=['draftkings','fanduel'])
+            payload,_=fetch_event_odds(matches[0]['id'],['spreads','totals'],bookmakers=BOOKMAKERS)
             if payload.get('id')!=matches[0]['id'] or instant(payload['commence_time'])!=checkpoint.kickoff:
                 raise ValueError('Provider response event changed')
             return pair_quotes(payload)

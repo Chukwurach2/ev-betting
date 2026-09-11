@@ -1,9 +1,12 @@
 // Bounded build-time coverage check: one free events request and at most one
 // totals_q1 request. API credentials never appear in output or error messages.
+// Book list mirrors ops/collect_checkpoints.py; widening books is
+// quota-neutral (cost = markets x regions, <=10 bookmakers = 1 region).
+const BOOKS=['draftkings','fanduel','betmgm','betrivers','espnbet'];
 export function pairedQuotes(event, now=Date.now()) {
   const rows=[];
   for(const book of event.bookmakers||[]){
-    if(!['draftkings','fanduel'].includes(book.key))continue;
+    if(!BOOKS.includes(book.key))continue;
     for(const market of book.markets||[]){
       if(market.key!=='totals_q1')continue;
       const t=Date.parse(market.last_update);
@@ -39,7 +42,7 @@ export async function verifyOdds(apiKey, fetcher=fetch){
     const now=Date.now();
     const event=events.filter(e=>Date.parse(e.commence_time)>now&&Date.parse(e.commence_time)-now<=48*3600000).sort((a,b)=>Date.parse(a.commence_time)-Date.parse(b.commence_time))[0];
     if(!event)return {...receipt,status:'no_upcoming_event',reason:'No NFL event within 48 hours'};
-    const {body,remaining,cost}=await request(base+'/'+encodeURIComponent(event.id)+'/odds',{bookmakers:'draftkings,fanduel',markets:'totals_q1',oddsFormat:'american',dateFormat:'iso'});
+    const {body,remaining,cost}=await request(base+'/'+encodeURIComponent(event.id)+'/odds',{bookmakers:BOOKS.join(','),markets:'totals_q1',oddsFormat:'american',dateFormat:'iso'});
     if(body.id!==event.id||Date.parse(body.commence_time)<=Date.now())throw Error('Event changed or started');
     const pairs=pairedQuotes(body);
     return {...receipt,status:pairs.length?'verified':'no_fresh_supported_quotes',quotes_verified:pairs.length>0,event:{id:event.id,home:event.home_team,away:event.away_team,kickoff:event.commence_time},market:'totals_q1',pairs,quota_remaining:remaining,request_cost:cost,source_url:base+'/'+event.id+'/odds'};
