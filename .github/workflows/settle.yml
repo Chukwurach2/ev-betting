@@ -22,7 +22,7 @@ jobs:
       - name: Read NFL Edge source without resolving unrelated submodules
         working-directory: .
         env:
-GH_READ_TOKEN: <redacted>
+          GH_READ_TOKEN: ${{ secrets.GH_READ_TOKEN }}
         run: |
           python3 - <<'BOOTSTRAP'
           import io, os, pathlib, tarfile, urllib.request
@@ -52,28 +52,29 @@ GH_READ_TOKEN: <redacted>
       - run: python -m pip install -r ops/requirements.txt
       - name: Verify settlement secrets
         env:
-NFL_EDGE_DATABASE_URL: <redacted>
-THE_ODDS_API_KEY: <redacted>
+          NFL_EDGE_DATABASE_URL: ${{ secrets.NFL_EDGE_DATABASE_URL }}
+          THE_ODDS_API_KEY: ${{ secrets.THE_ODDS_API_KEY }}
         run: |
           python3 - <<'EOF'
           import os
-if not os.environ.get('NFL_EDGE_DATABASE_URL') or not os.environ.get('THE_ODDS_API_KEY'):
-              print('NFL_EDGE_DATABASE_URL and THE_ODDS_API_KEY are both required for settlement.')
+          missing = [k for k in ('NFL_EDGE_DATABASE_URL', 'THE_ODDS_API_KEY') if not os.environ.get(k)]
+          if missing:
+              print('Missing required secrets:', ', '.join(missing))
               raise SystemExit(1)
           print('Settlement secrets present')
           EOF
       - name: Apply additive migrations
         env:
-NFL_EDGE_DATABASE_URL: <redacted>
+          NFL_EDGE_DATABASE_URL: ${{ secrets.NFL_EDGE_DATABASE_URL }}
         run: python ops/migrate.py
       - name: Settle shadow picks and compute CLV
         env:
-NFL_EDGE_DATABASE_URL: <redacted>
-THE_ODDS_API_KEY: <redacted>
+          NFL_EDGE_DATABASE_URL: ${{ secrets.NFL_EDGE_DATABASE_URL }}
+          THE_ODDS_API_KEY: ${{ secrets.THE_ODDS_API_KEY }}
         run: python ops/settle.py
       - name: Verify settlement state
         env:
-NFL_EDGE_DATABASE_URL: <redacted>
+          NFL_EDGE_DATABASE_URL: ${{ secrets.NFL_EDGE_DATABASE_URL }}
         run: |
           python3 - <<'EOF'
           import os, psycopg
