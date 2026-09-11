@@ -284,7 +284,7 @@ def main(argv=None):
     dsn = os.environ.get("NFL_EDGE_DATABASE_URL")
     if not dsn:
         raise SystemExit("NFL_EDGE_DATABASE_URL is required")
-    conn = psycopg.connect(dsn)
+    conn = psycopg.connect(dsn, connect_timeout=10)
     conn.autocommit = True
 
     spent = 0
@@ -301,6 +301,8 @@ def main(argv=None):
             if row:
                 skipped += 1
                 continue
+            print("fetching season=%d week=%d at=%s" %
+                  (season, week, when.isoformat()), flush=True)
             envelope, headers = fetch_snapshot(when, args.regions,
                                                args.markets, api_key)
             last = headers.get("x-requests-last")
