@@ -3,7 +3,8 @@
 Fetches completed NFL games from The Odds API scores endpoint, settles every
 open shadow pick on those games (win/loss/push, with explicit push handling
 on integer lines), and records CLV in probability points against the closing
-consensus (median no-vig fair probability from the latest pre-kickoff quotes).
+consensus (median no-vig fair probability from the latest pre-kickoff quotes
+at the pick's line).
 
 Settlement is pure arithmetic on provider data: no model output, no wagers.
 Runs once daily; a single scores request covers the recent slate.
@@ -71,18 +72,22 @@ def fetch_scores(api_key: str, days_from: int = 3) -> list[dict]:
 
 
 def closing_consensus(conn, provider_event_id: str, market: str,
-                      selection: str) -> float | None:
-    """Median no-vig fair prob across books from the latest pre-kickoff quotes."""
+                      selection: str, line: float) -> float | None:
+    """Median no-vig fair prob across books from the latest pre-kickoff
+    quotes AT THE PICK'S LINE. Line-aware: CLV is only meaningful when the
+    closing consensus is measured on the identical line the pick was made at.
+    """
     cur = conn.cursor()
     cur.execute(
         """
         SELECT DISTINCT ON (book_key) fair_probability
         FROM public.nfl_edge_odds_quotes
         WHERE provider_event_id = %s AND market = %s AND selection = %s
+          AND line = %s
           AND observed_at <= kickoff
         ORDER BY book_key, observed_at DESC
         """,
-        (provider_event_id, market, selection),
+        (provider_event_id, market, selection, line),
     )
     probs = [float(r[0]) for r in cur.fetchall()]
     if len(probs) < 2:
@@ -129,7 +134,8 @@ def settle(conn, api_key: str) -> dict:
         if result is None:
             skipped += 1
             continue
-        close = closing_consensus(conn, p["provider_event_id"], p["market"], p["selection"])
+        close = closing_consensus(conn, p["provider_event_id"], p["market"],
+                                  p["selection"], float(p["line"]))
         clv = (float(p["consensus_fair_prob"]) - close) if close is not None else None
         cur.execute(
             """

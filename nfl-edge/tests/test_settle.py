@@ -69,5 +69,44 @@ class ClvSignTests(unittest.TestCase):
         self.assertAlmostEqual(0.55 - 0.52, 0.03)
 
 
+class ClosingConsensusTests(unittest.TestCase):
+    """closing_consensus must filter to the pick's line."""
+
+    class FakeCursor:
+        def __init__(self, probs):
+            self._probs = probs
+            self.last_query = None
+            self.last_params = None
+
+        def execute(self, query, params):
+            self.last_query = query
+            self.last_params = params
+
+        def fetchall(self):
+            return [(p,) for p in self._probs]
+
+    class FakeConn:
+        def __init__(self, cursor):
+            self._cursor = cursor
+
+        def cursor(self):
+            return self._cursor
+
+    def test_line_passed_to_query(self):
+        cur = self.FakeCursor([0.50, 0.54])
+        conn = self.FakeConn(cur)
+        out = settle.closing_consensus(conn, "e1", "FULL_GAME_SPREAD",
+                                       "Kansas City Chiefs", -3.5)
+        self.assertAlmostEqual(out, 0.52)
+        self.assertIn("line = %s", cur.last_query)
+        self.assertEqual(cur.last_params[3], -3.5)
+
+    def test_needs_two_books_at_line(self):
+        cur = self.FakeCursor([0.50])
+        conn = self.FakeConn(cur)
+        self.assertIsNone(settle.closing_consensus(conn, "e1", "FULL_GAME_TOTAL",
+                                                   "Over", 45.5))
+
+
 if __name__ == "__main__":
     unittest.main()

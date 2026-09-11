@@ -40,11 +40,18 @@ class PicksMathTests(unittest.TestCase):
         self.assertEqual(picks.stake_units(10.0), picks.MAX_STAKE_UNITS)
 
     def test_pick_id_deterministic(self):
-        a = picks.pick_id_for("v1", "e", "M", "s", "b", "2026-09-12T00:00:00+00:00")
-        b = picks.pick_id_for("v1", "e", "M", "s", "b", "2026-09-12T00:00:00+00:00")
-        c = picks.pick_id_for("v1", "e", "M", "s", "b2", "2026-09-12T00:00:00+00:00")
+        a = picks.pick_id_for("v1", "e", "M", "s", "-3.5", "b", "2026-09-12T00:00:00+00:00")
+        b = picks.pick_id_for("v1", "e", "M", "s", "-3.5", "b", "2026-09-12T00:00:00+00:00")
+        c = picks.pick_id_for("v1", "e", "M", "s", "-3.5", "b2", "2026-09-12T00:00:00+00:00")
+        d = picks.pick_id_for("v1", "e", "M", "s", "-4.5", "b", "2026-09-12T00:00:00+00:00")
         self.assertEqual(a, b)
         self.assertNotEqual(a, c)
+        self.assertNotEqual(a, d)  # line is part of the identity
+
+    def test_line_key_canonical(self):
+        self.assertEqual(picks.line_key(-3.5), "-3.5")
+        self.assertEqual(picks.line_key(45.0), "45")
+        self.assertEqual(picks.line_key("47.5"), "47.5")
 
     def test_shadow_gate_rejects_other_modes(self):
         with self.assertRaises(ValueError):
@@ -133,6 +140,58 @@ class PicksBuildTests(unittest.TestCase):
 
     def test_empty_quotes_empty_picks(self):
         self.assertEqual(self.run_build([]), [])
+
+    def test_no_consensus_across_different_lines(self):
+        # Two books, same selection, DIFFERENT lines: no shared consensus,
+        # so no pick even though one book's price looks generous.
+        import datetime as dt
+        now = dt.datetime.now(dt.timezone.utc)
+        rows = [
+            ("e1", "H", "A", now, "FULL_GAME_SPREAD", "A", -3.5,
+             "DraftKings", "draftkings", 120, 0.50, now, "g1"),
+            ("e1", "H", "A", now, "FULL_GAME_SPREAD", "A", -4.5,
+             "FanDuel", "fanduel", -110, 0.50, now, "g1"),
+        ]
+        self.assertEqual(self.run_build(rows), [])
+
+    def test_consensus_only_within_same_line(self):
+        # Two books at -3.5 form a consensus; a lone book at -4.5 is ignored.
+        import datetime as dt
+        now = dt.datetime.now(dt.timezone.utc)
+        rows = [
+            ("e1", "H", "A", now, "FULL_GAME_SPREAD", "A", -3.5,
+             "DraftKings", "draftkings", -110, 0.50, now, "g1"),
+            ("e1", "H", "A", now, "FULL_GAME_SPREAD", "A", -3.5,
+             "FanDuel", "fanduel", -105, 0.50, now, "g1"),
+            ("e1", "H", "A", now, "FULL_GAME_SPREAD", "A", -4.5,
+             "Circa", "circa", 200, 0.60, now, "g1"),
+        ]
+        out = self.run_build(rows)
+        # -3.5 group: consensus .50, both books -110/-105 -> negative edge
+        # -4.5 group: single book -> no consensus. Nothing emitted.
+        self.assertEqual(out, [])
+
+    def test_line_move_splits_groups(self):
+        # Same book re-quoted at a moved line: each line needs its own
+        # two-book consensus.
+        import datetime as dt
+        now = dt.datetime.now(dt.timezone.utc)
+        rows = [
+            ("e1", "H", "A", now, "FULL_GAME_TOTAL", "Over", 45.5,
+             "DraftKings", "draftkings", -110, 0.50, now, "g1"),
+            ("e1", "H", "A", now, "FULL_GAME_TOTAL", "Over", 45.5,
+             "FanDuel", "fanduel", -110, 0.50, now, "g1"),
+            ("e1", "H", "A", now, "FULL_GAME_TOTAL", "Over", 46.5,
+             "DraftKings", "draftkings", 130, 0.45, now, "g1"),
+            ("e1", "H", "A", now, "FULL_GAME_TOTAL", "Over", 46.5,
+             "FanDuel", "fanduel", -110, 0.45, now, "g1"),
+        ]
+        out = self.run_build(rows)
+        # 45.5 group: consensus .50, -110 both -> edge .50*1.909-1 < 0
+        # 46.5 group: consensus .45, DK +130 -> edge .45*2.3-1 = .035 -> pick
+        self.assertEqual(len(out), 1)
+        self.assertEqual(out[0]["book_key"], "draftkings")
+        self.assertEqual(float(out[0]["line"]), 46.5)
 
 
 if __name__ == "__main__":

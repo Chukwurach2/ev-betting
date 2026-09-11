@@ -1,10 +1,12 @@
 """Shadow picks engine v1: cross-book consensus edge detection.
 
-For every upcoming game/market/selection with fresh quotes from at least two
-books, the engine compares each book's offered odds against the consensus
-no-vig fair probability (median across books). A positive edge above MIN_EDGE
-emits a SHADOW pick with fractional-Kelly staking. An empty pick set is a
-valid output: the engine never forces picks.
+For every upcoming game/market/selection/LINE with fresh quotes from at least
+two books, the engine compares each book's offered odds against the consensus
+no-vig fair probability (median across books at that identical line).
+Grouping is line-aware: different lines are different bets and never share a
+consensus calculation, even for the same selection. A positive edge above
+MIN_EDGE emits a SHADOW pick with fractional-Kelly staking. An empty pick set
+is a valid output: the engine never forces picks.
 
 Nothing here is a production wager. mode is hard-wired to 'shadow'; any
 attempt to write another mode raises. Promotion to challenger/production
@@ -126,9 +128,19 @@ def stake_units(kelly_frac: float) -> float:
 
 
 def pick_id_for(engine: str, event_id: str, market: str, selection: str,
-                book_key: str, observed_at: str) -> str:
-    raw = "|".join([engine, event_id, market, selection, book_key, observed_at])
+                line: str, book_key: str, observed_at: str) -> str:
+    raw = "|".join([engine, event_id, market, selection, line, book_key,
+                    observed_at])
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+
+def line_key(line) -> str:
+    """Canonical line string so grouping and pick IDs are line-aware.
+
+    Consensus is only meaningful over identical lines: a -3.5 and a -4.5
+    are different bets and must never share a consensus calculation.
+    """
+    return "%g" % float(line)
 
 
 def assert_shadow(mode: str) -> None:
@@ -165,11 +177,13 @@ def build_picks(conn) -> list[dict]:
 
     groups: dict[tuple, list[dict]] = {}
     for q in quotes:
-        key = (q["provider_event_id"], q["market"], q["selection"])
+        # Line-aware grouping: consensus is only valid over identical lines.
+        key = (q["provider_event_id"], q["market"], q["selection"],
+               line_key(q["line"]))
         groups.setdefault(key, []).append(q)
 
     picks: list[dict] = []
-    for (event_id, market, selection), qs in groups.items():
+    for (event_id, market, selection, linek), qs in groups.items():
         if len({q["book_key"] for q in qs}) < MIN_CONSENSUS_BOOKS:
             continue
         consensus = consensus_prob([float(q["fair_probability"]) for q in qs])
@@ -181,7 +195,7 @@ def build_picks(conn) -> list[dict]:
             kf = kelly_fraction(edge, dec)
             pick = {
                 "pick_id": pick_id_for(ENGINE_VERSION, event_id, market,
-                                       selection, q["book_key"],
+                                       selection, linek, q["book_key"],
                                        q["observed_at"].isoformat()),
                 "engine_version": ENGINE_VERSION,
                 "mode": MODE,
