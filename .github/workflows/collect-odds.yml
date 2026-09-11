@@ -99,7 +99,7 @@ jobs:
                   print(t, "rows:", cur.fetchone()[0])
               except Exception as e:
                   print(t, "MISSING:", str(e).splitlines()[0]); conn.rollback()
-          cur.execute("""SELECT checkpoint, count(*) FROM public.nfl_edge_checkpoints
+          cur.execute("""SELECT decision_window, count(*) FROM public.nfl_edge_checkpoints
                          GROUP BY 1 ORDER BY 1""")
           print("checkpoints by type:", cur.fetchall())
           conn.close()
