@@ -123,9 +123,19 @@ def _req(path, params, api_key, timeout=30):
 
 
 def fetch_snapshot(when, regions, markets, api_key):
-    """Fetch one historical snapshot envelope. Returns (envelope, headers)."""
+    """Fetch one historical snapshot envelope. Returns (envelope, headers).
+
+    The historical odds endpoint returns a timestamped envelope:
+    {"timestamp", "previous_timestamp", "next_timestamp", "data": [events]}.
+
+    NOTE: this must be the /historical/ path. The live /sports/{sport}/odds
+    endpoint ignores the `date` param and returns a bare list of CURRENT
+    events -- calling that here would silently mislabel live odds as
+    historical snapshots (2026-09-12: caught in the smoke test before any
+    bad rows were stored).
+    """
     payload, headers = _req(
-        "/sports/%s/odds" % SPORT,
+        "/historical/sports/%s/odds" % SPORT,
         {"apiKey": api_key,
          "date": when.isoformat().replace("+00:00", "Z"),
          "regions": regions, "markets": markets,
@@ -140,6 +150,17 @@ def _num(x):
     except (TypeError, ValueError):
         return None
     return v
+
+
+def snapshot_books(envelope):
+    """Sorted unique book keys in a snapshot (audit trail: books present)."""
+    data = envelope.get("data") if isinstance(envelope, dict) else envelope
+    books = set()
+    for game in data or []:
+        for b in game.get("bookmakers") or []:
+            if b.get("key"):
+                books.add(b["key"])
+    return sorted(books)
 
 
 def normalize_snapshot(envelope, regions, markets):
@@ -289,11 +310,14 @@ def main(argv=None):
             except (TypeError, ValueError):
                 pass
             snap_at = envelope.get("timestamp") or when.isoformat()
+            books = snapshot_books(envelope)
             conn.execute(
                 """INSERT INTO public.nfl_edge_market_history
-                   (snapshot_at, regions, markets, requested_at, payload, credits_used)
-                   VALUES (%s,%s,%s,%s,%s,%s) ON CONFLICT DO NOTHING""",
+                   (snapshot_at, regions, markets, requested_at,
+                    provider_snapshot_id, books_present, payload, credits_used)
+                   VALUES (%s,%s,%s,%s,%s,%s,%s,%s) ON CONFLICT DO NOTHING""",
                 (snap_at, args.regions, args.markets, when,
+                 when.isoformat(), books,
                  json.dumps(envelope.get("data") or []),
                  int(last) if last and str(last).isdigit() else None))
             stored_snaps += 1
@@ -310,8 +334,8 @@ def main(argv=None):
                                %(ny_licensed)s)
                        ON CONFLICT (quote_id) DO NOTHING""", q)
                 stored_quotes += 1
-            print("stored season=%d week=%d snapshot=%s quotes=%d credits_last=%s remaining=%s" %
-                  (season, week, snap_at, len(quotes), last, remaining))
+            print("stored season=%d week=%d snapshot=%s quotes=%d books=%d credits_last=%s remaining=%s" %
+                  (season, week, snap_at, len(quotes), len(books), last, remaining))
             try:
                 rem = int(remaining) if remaining else None
             except (TypeError, ValueError):

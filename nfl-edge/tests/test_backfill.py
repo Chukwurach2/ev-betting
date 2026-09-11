@@ -94,6 +94,40 @@ class NormalizeTests(unittest.TestCase):
         self.assertEqual(bh.normalize_snapshot({"data": []}, "us", "spreads"),
                          [])
 
+    def test_fetch_snapshot_uses_historical_endpoint(self):
+        # 2026-09-12 smoke test caught fetch_snapshot hitting the LIVE
+        # /sports/{sport}/odds endpoint (which ignores `date` and returns a
+        # bare list of current events) instead of /historical/. That would
+        # silently mislabel live odds as historical snapshots.
+        calls = {}
+
+        def fake_req(path, params, api_key, timeout=30):
+            calls["path"] = path
+            calls["params"] = params
+            return {"timestamp": "2024-09-04T12:00:00Z",
+                    "previous_timestamp": "2024-09-04T11:55:00Z",
+                    "next_timestamp": "2024-09-04T12:05:00Z",
+                    "data": []}, {}
+
+        orig = bh._req
+        bh._req = fake_req
+        try:
+            env, _ = bh.fetch_snapshot(
+                dt.datetime(2024, 9, 4, 12, 0, tzinfo=dt.timezone.utc),
+                "us,eu", "spreads,totals", "KEY")
+        finally:
+            bh._req = orig
+        self.assertTrue(calls["path"].startswith("/historical/"),
+                        calls["path"])
+        self.assertIn("americanfootball_nfl", calls["path"])
+        self.assertIn("date", calls["params"])
+        self.assertEqual(env["timestamp"], "2024-09-04T12:00:00Z")
+
+    def test_snapshot_books_audit(self):
+        self.assertEqual(bh.snapshot_books(_envelope()),
+                         ["draftkings", "pinnacle"])
+        self.assertEqual(bh.snapshot_books({"data": []}), [])
+
 
 if __name__ == "__main__":
     unittest.main()
