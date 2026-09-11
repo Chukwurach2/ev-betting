@@ -32,4 +32,20 @@ To run the worker in an authorized server environment, install `ops/requirements
 python ops/collect_checkpoints.py
 ```
 
-**Activation remains incomplete:** no runtime database credential or repeating worker schedule is configured. Vercel's current Hobby plan cannot provide the required frequent cron cadence. A scheduler must invoke the worker frequently enough for these windows, monitor nonzero exits and report abandoned/missed records. Do not represent a manual run or passing unit tests as an active scheduler. Live authenticated cross-device journal acceptance and market-validated inference/publication also remain outstanding.
+**Activation (2026-09-12):** the worker is scheduled via `.github/workflows/collect-odds.yml`
+(GitHub Actions cron every 15 minutes plus manual `workflow_dispatch`). Each run applies
+additive migrations (`ops/migrate.py`), syncs `ops/schedule-2026.json` into `public.games`
+(`ops/sync_schedule.py`, best-effort), then runs `ops/collect_checkpoints.py`. Runs with no
+due checkpoints spend zero provider credits. `CRON_SECRET` is configured as a Vercel
+production env var and a GitHub Actions secret, unblocking the protected `/api/odds` route.
+A Postgres trigger (`ops/migrations/002_quote_history.sql`) fans every captured checkpoint
+into the normalized, idempotent `nfl_edge_odds_quotes` history table for line-movement
+reconstruction and later CLV calculation.
+
+Two repository secrets are still required under GitHub Settings > Secrets and variables >
+Actions before scheduled runs can collect: `NFL_EDGE_DATABASE_URL` (a **direct** Neon
+connection string, not the pooler — the worker uses a session advisory lock) and
+`THE_ODDS_API_KEY`. Until both are present, runs fail fast with a clear message and spend
+nothing. Do not represent a passing workflow run as model validation: collection output
+remains shadow-only. Live authenticated cross-device journal acceptance and
+market-validated inference/publication also remain outstanding.

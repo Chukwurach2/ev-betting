@@ -34,7 +34,7 @@ Keep existing project environment values. `/api/health` exposes only configurati
 
 - Historical job completed successfully: 9,721 training drives and 4,143 validation drives. Report: `model/reports/2026-09-09-validation.json`. Overall log loss did not improve over the baseline; no model was promoted.
 - Validate probabilities for the actual offered contracts, including quarter boundaries, pushes, defensive scores and special teams. The recovered simulation is not sufficient evidence.
-- Implement and activate a protected, quota-aware odds/inference publisher with durable checkpoint deduplication and frozen snapshots in Neon. Required checkpoints are T-24, T-3, T-90 and a last pregame observation; late jobs must record missed checkpoints, never backdate quotes.
+- Implement and activate a protected, quota-aware odds/inference publisher with durable checkpoint deduplication and frozen snapshots in Neon. Required checkpoints are T-24, T-3, T-90 and a last pregame observation; late jobs must record missed checkpoints, never backdate quotes. (2026-09-12: scheduled collection implemented via `.github/workflows/collect-odds.yml`; awaiting the two Actions secrets before first live run. Shadow-only; no inference/publication yet.)
 - Verify the actual provider key, mapped live markets, same-book paired de-vigging, quote freshness and NY book eligibility.
 - Verify sign-in, create/update/reload across two sessions, and cross-account isolation. The user's own bets must not be used as test data.
 - Monitor failures and missed checkpoints; evaluate all shadow/recommendation observations separately from selected personal bets.
