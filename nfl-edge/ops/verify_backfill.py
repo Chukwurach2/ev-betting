@@ -73,14 +73,15 @@ def main(argv=None):
         params = (args.since,)
     snaps = conn.execute(
         """SELECT provider_snapshot_id, snapshot_at, requested_at, regions,
-                  markets, provider_timestamp, books_present, credits_used,
-                  payload
+                  markets, books_present, credits_used, payload
            FROM public.nfl_edge_market_history %s
            ORDER BY requested_at""" % where, params).fetchall()
     if not snaps:
         errors.append("no snapshots found in nfl_edge_market_history")
     seen_ids = set()
-    for (sid, snap_at, requested_at, regions, markets, prov_ts,
+    # snapshot_at IS the provider's returned timestamp (there is no separate
+    # provider_timestamp column); requested_at is what we asked for.
+    for (sid, snap_at, requested_at, regions, markets,
          books_present, credits_used, payload) in snaps:
         entry = {"provider_snapshot_id": sid,
                  "requested_at": str(requested_at),
@@ -92,7 +93,7 @@ def main(argv=None):
             errors.append("duplicate provider_snapshot_id: %s" % sid)
         seen_ids.add(sid)
         req = _parse_ts(requested_at)
-        ret = _parse_ts(snap_at) or _parse_ts(prov_ts)
+        ret = _parse_ts(snap_at)
         if req is None:
             errors.append("snapshot %s: requested_at unparseable" % sid)
         if ret is None:
