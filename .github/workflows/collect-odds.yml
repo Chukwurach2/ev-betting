@@ -16,6 +16,13 @@ jobs:
   collect:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      # Paid tier ($30/20K): eu region carries Pinnacle (sharp signal book,
+      # ny_licensed=false downstream); williamhill_us (Caesars) and fanatics
+      # are paid-only NY books. Book fan-out stays quota-neutral:
+      # cost = markets x regions = 2 x 2 = 4 credits per event fetch.
+      NFL_EDGE_REGIONS: us,eu
+      NFL_EDGE_BOOKMAKERS: draftkings,fanduel,betmgm,betrivers,espnbet,pinnacle,williamhill_us,fanatics
     defaults:
       run:
         working-directory: nfl-edge
