@@ -1,1 +1,1 @@
-{"name":"nfl-edge","version":"2.5.0","private":true,"type":"module","scripts":{"test":"node --test tests/*.test.mjs","test:model":"python -m unittest discover -s tests -p 'test_*.py' -v","build":"node ops/build.mjs"},"engines":{"node":"24.x"}}
+{"name":"nfl-edge","version":"2.5.0","private":true,"type":"module","scripts":{"test":"node --test tests/*.test.mjs","test:model":"python -m unittest discover -s tests -p 'test_*.py' -v","build":"node ops/build.mjs"},"engines":{"node":"24.x"},"dependencies":{"pg":"^8.13.0"}}

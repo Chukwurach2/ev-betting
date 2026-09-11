@@ -8,6 +8,9 @@
 <section class="grid3"><div class="metric"><b id="gamesN">16</b><span id="gamesLabel">Week 1 games</span></div><div class="metric"><b id="picksN">0</b><span>Qualifying picks</span></div><div class="metric"><b>-150</b><span>Minimum price</span></div></section>
 <div class="controls"><select id="weekSel" aria-label="Week"></select><button id="refreshBtn">Refresh</button><button class="primary" id="allBtn">All games</button><button id="qualBtn">Qualifying picks</button></div>
 <div class="notice"><b>Publish rule:</b> odds ≥ -150, de-vigged edge ≥ 3%, EV ≥ 4%. Eligible picks require a fresh supported sportsbook quote. Missing pregame inputs remain <b>Pending</b>; nothing is guessed.</div>
+<div class="section-title">Shadow engine picks</div>
+<div class="notice"><b>Research only — not wagers.</b> Cross-book consensus edges detected automatically every 15 minutes. <span id="shadowStatus">Loading…</span></div>
+<section id="shadowPicks" class="games"></section>
 <section id="picksList" class="games"></section>
 </div>
 <div id="view-games" class="hidden"><div class="section-title">Games</div><div class="notice">Games and snapshots load from the live database. T-24, T-3 and T-90 are approximate monitoring windows. Missing model or odds inputs are shown explicitly.</div><section id="gamesList" class="games"></section></div>
