@@ -203,3 +203,28 @@ class IntegrationWiringTests(unittest.TestCase):
                  "edge_pp": 5.0, "season": s} for s in (2020, 2021)]
         rep = standard_report([], bets, {"t": 1}, seed=7)
         self.assertIn("spread", rep["robustness"]["per_season_by_task"])
+
+
+class HoldoutTests(unittest.TestCase):
+    def _bets(self):
+        return [{"task": "spread", "p": 0.6, "y": 1, "profit_u": 0.909,
+                 "edge_pp": 5.0, "season": s}
+                for s in (2020, 2021, 2022, 2023, 2024)]
+
+    def test_no_holdout_declared_gives_none(self):
+        rep = standard_report([], self._bets(), {})
+        self.assertIsNone(rep["holdout"])
+
+    def test_holdout_section_restricted_to_declared_seasons(self):
+        rep = standard_report([], self._bets(),
+                              {"holdout_seasons": [2023, 2024]})
+        h = rep["holdout"]
+        self.assertEqual(h["seasons"], [2023, 2024])
+        self.assertEqual(h["n_bets"], 2)
+        self.assertGreater(h["roi"], 0)
+
+    def test_holdout_empty_when_no_bets_in_window(self):
+        rep = standard_report([], self._bets(),
+                              {"holdout_seasons": [1999]})
+        self.assertEqual(rep["holdout"]["n_bets"], 0)
+        self.assertIsNone(rep["holdout"]["roi"])

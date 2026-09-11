@@ -260,6 +260,32 @@ def _robustness(predictions, bets):
     return rob
 
 
+def _holdout_section(bets, holdout_seasons):
+    """Untouched-holdout economics for multiple-testing protection.
+
+    holdout_seasons: seasons NEVER used during feature/model development
+    (declared by the researcher in meta; the code cannot verify "untouched",
+    so the declaration is recorded immutably in the experiment ledger).
+    Returns None when no holdout seasons are declared, else
+    {"seasons", "n_bets", "roi", "p_roi_gt_0", "avg_edge_pp",
+     "realized_edge_pp"} computed on holdout bets only.
+    """
+    if not holdout_seasons:
+        return None
+    rows = [b for b in bets if b.get("season") in set(holdout_seasons)]
+    if not rows:
+        return {"seasons": list(holdout_seasons), "n_bets": 0,
+                "roi": None, "p_roi_gt_0": None, "avg_edge_pp": None,
+                "realized_edge_pp": None}
+    s = _betting_summary(rows)
+    ci, p_gt0 = bootstrap_roi(rows)
+    return {"seasons": list(holdout_seasons), "n_bets": s["n_bets"],
+            "roi": s["roi"], "p_roi_gt_0": p_gt0,
+            "avg_edge_pp": s["avg_edge_pp"],
+            "realized_edge_pp": s["realized_edge_pp"],
+            "roi_ci_95": ci}
+
+
 def standard_report(predictions, bets, meta, seed=7):
     """Build the canonical evaluation artifact.
 
@@ -310,4 +336,5 @@ def standard_report(predictions, bets, meta, seed=7):
         "betting": betting,
         "robustness": _robustness(predictions, bets),
         "uncertainty": uncertainty,
+        "holdout": _holdout_section(bets, (meta or {}).get("holdout_seasons")),
     }

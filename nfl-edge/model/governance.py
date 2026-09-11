@@ -34,6 +34,12 @@ DEFAULT_CONFIG = {
     "min_p_roi_gt_0": 0.9,
     "min_edge_pp": 0.0,
     "require_beats_baseline": True,
+    # Multiple-testing protection: a statistically positive but tiny edge
+    # does not promote. realized_edge_pp must clear this bar.
+    "min_effect_size_pp": 1.0,
+    # Final validation must come from seasons never used during development.
+    # evaluation["holdout"] = {"n_bets", "roi", "p_roi_gt_0"} on those seasons.
+    "min_holdout_bets": 200,
 }
 
 
@@ -199,6 +205,35 @@ def evaluate_promotion(market_key, family, version, evaluation, config=None):
         reasons.append("P(ROI>0)=%.2f %s %.2f" % (
             p_roi, ">=" if checks["p_roi_gt_0"] else "<",
             cfg["min_p_roi_gt_0"]))
+
+    # 8. minimum effect size (multiple-testing protection): a positive but
+    #    negligible realized edge does not promote.
+    realized = betting.get("realized_edge_pp")
+    if realized is None:
+        checks["effect_size"] = False
+        reasons.append("missing section: betting.realized_edge_pp")
+    else:
+        checks["effect_size"] = realized >= cfg["min_effect_size_pp"]
+        reasons.append("realized edge %+.2fpp %s %.2fpp" % (
+            realized, ">=" if checks["effect_size"] else "<",
+            cfg["min_effect_size_pp"]))
+
+    # 9. untouched holdout: the final validation window must be seasons never
+    #    used during feature/model development. Absence fails the check.
+    holdout = evaluation.get("holdout") or {}
+    hb = holdout.get("n_bets")
+    if not isinstance(hb, int) or hb < cfg["min_holdout_bets"]:
+        checks["holdout"] = False
+        reasons.append("holdout: %s (need >= %d bets on untouched seasons)"
+                       % ("none recorded" if hb is None else "%d bets" % hb,
+                          cfg["min_holdout_bets"]))
+    else:
+        hroi = holdout.get("roi")
+        checks["holdout"] = hroi is not None and hroi > 0
+        reasons.append("holdout roi %s %s 0 (%d bets)" % (
+            ("%+.3f" % hroi) if hroi is not None else "missing",
+            ">" if checks["holdout"] else "<=",
+            hb))
 
     if all(checks.values()):
         decision = "promote"

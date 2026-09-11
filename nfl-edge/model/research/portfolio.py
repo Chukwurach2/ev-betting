@@ -14,6 +14,14 @@ Documented simplifications:
   * Sizing uses fair_prob vs the offered price (edge = fair*decimal - 1);
     the precomputed edge_pp is used for filtering and ranking only.
 
+Alpha attribution (kept separate forever):
+  football   edge from game modeling the market hasn't priced (residuals)
+  market     edge from a stale/off-market quote (LOBO signal)
+  execution  edge from taking the best available line/price across books
+Candidates may carry "attribution" = {"football_pp","market_pp",
+"execution_pp"}; components must sum to edge_pp (validated, fail loud).
+Selected outputs always include the attribution (zeros when unknown).
+
 Pure functions. No I/O, no network.
 """
 from __future__ import annotations
@@ -43,6 +51,30 @@ DEFAULT_CONFIG = {
 }
 
 _MARKET_QUALITY = {"core": 1.0, "derivative": 0.7, "prop": 0.5}
+
+
+_ATTRIBUTION_KEYS = ("football_pp", "market_pp", "execution_pp")
+
+
+def _attribution(candidate):
+    """Validate and normalize the alpha attribution of a candidate.
+
+    Components must sum to edge_pp within 0.01pp; mismatch raises
+    ValueError (research integrity: never silently misattribute edge).
+    Missing attribution -> all zeros.
+    """
+    raw = candidate.get("attribution") or {}
+    vals = {k: float(raw.get(k, 0.0)) for k in _ATTRIBUTION_KEYS}
+    if raw:
+        total = sum(vals.values())
+        edge = float(candidate.get("edge_pp") or 0.0)
+        if abs(total - edge) > 0.01:
+            raise ValueError(
+                "attribution sums to %.2fpp but edge_pp is %.2fpp "
+                "(football=%.2f market=%.2f execution=%.2f)" % (
+                    total, edge, vals["football_pp"], vals["market_pp"],
+                    vals["execution_pp"]))
+    return vals
 
 
 def american_to_decimal(odds):
@@ -95,9 +127,10 @@ def select_opportunities(candidates, bankroll_u=100.0, config=None):
     if config:
         cfg.update(config)
 
-    # (a) quality filters
+    # (a) quality filters (+ attribution validation, fail loud)
     eligible = []
     for c in candidates:
+        _attribution(c)  # raises on misattributed edge
         if c.get("data_quality") != "ok":
             continue
         if (c.get("edge_pp") or 0) < cfg["min_edge_pp"]:
@@ -149,5 +182,6 @@ def select_opportunities(candidates, bankroll_u=100.0, config=None):
         out = dict(c)
         out["units"] = round(units, 4)
         out["rank"] = len(selected) + 1
+        out["attribution"] = _attribution(c)
         selected.append(out)
     return selected

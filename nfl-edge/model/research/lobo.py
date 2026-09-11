@@ -107,6 +107,9 @@ def lobo_signal(quotes, as_of, provider_event_id, market, selection, line,
         "fresh": False,
         "insufficient_data": False,
         "target_book": target_book,
+        # Alpha taxonomy: a LOBO signal is pure MARKET alpha (a stale or
+        # off-market quote), never football alpha. Kept separate forever.
+        "alpha_source": "market",
     }
     if as_of is None:
         base["insufficient_data"] = True

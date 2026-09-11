@@ -51,6 +51,31 @@ will decide this row.
    lucky year).
 6. Profitable after realistic vig (already in the sim at −110).
 7. No dependence on a single team, book, or season (leave-one-out check).
+8. **Minimum effect size**: realized edge ≥ 1.0pp. A statistically positive
+   but negligible edge does not promote (multiple-testing protection).
+9. **Untouched holdout**: ≥ 200 bets with positive ROI on seasons never
+   used during feature/model development. The holdout seasons are declared
+   in the experiment ledger (`holdout_seasons`) before the final read and
+   recorded immutably; the evaluation artifact carries matching
+   `holdout` economics. Absence fails the check — no exceptions for
+   "promising" families.
+
+## Alpha attribution (kept separate forever)
+
+Every opportunity is attributed across three independent sources, which
+must sum to the quoted edge:
+
+- **football alpha**: the model knows something about the game the market
+  hasn't priced (residual-v1 vs the closing line).
+- **market alpha**: a temporarily stale/off-market quote (LOBO signal —
+  tagged `alpha_source: "market"` at the source).
+- **execution alpha**: multiple books agree on fair value but one book
+  offers a materially better line/price (best-price selection).
+
+`select_opportunities` validates the attribution sums to `edge_pp` and
+raises on mismatch. Selected outputs always carry the attribution
+(zeros when unknown). When performance deteriorates, this tells us
+which edge disappeared.
 
 ## Data honesty
 

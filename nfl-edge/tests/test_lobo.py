@@ -143,5 +143,13 @@ class BestPriceTests(unittest.TestCase):
             [], T0, EVT, "FULL_GAME_SPREAD", "HOME", -3.0))
 
 
+class AlphaSourceTests(unittest.TestCase):
+    def test_lobo_signal_tagged_market_alpha(self):
+        s = sig(three_book(), T0 + timedelta(minutes=5), "draftkings")
+        self.assertEqual(s["alpha_source"], "market")
+        s2 = sig(three_book()[:4], T0 + timedelta(minutes=5), "draftkings")
+        self.assertEqual(s2["alpha_source"], "market")
+
+
 if __name__ == "__main__":
     unittest.main()

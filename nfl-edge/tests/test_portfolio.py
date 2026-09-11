@@ -121,5 +121,27 @@ class RankAndCapTests(unittest.TestCase):
         self.assertEqual(len(out), 1)
 
 
+class AttributionTests(unittest.TestCase):
+    def test_missing_attribution_defaults_to_zeros(self):
+        out = select_opportunities([cand()])
+        self.assertEqual(out[0]["attribution"],
+                         {"football_pp": 0.0, "market_pp": 0.0,
+                          "execution_pp": 0.0})
+
+    def test_valid_attribution_passes_through(self):
+        c = cand(attribution={"football_pp": 2.5, "market_pp": 1.5,
+                              "execution_pp": 1.0})  # sums to edge_pp 5.0
+        out = select_opportunities([c])
+        self.assertEqual(out[0]["attribution"]["football_pp"], 2.5)
+        self.assertEqual(out[0]["attribution"]["market_pp"], 1.5)
+        self.assertEqual(out[0]["attribution"]["execution_pp"], 1.0)
+
+    def test_mismatched_attribution_raises(self):
+        c = cand(attribution={"football_pp": 1.0, "market_pp": 1.0,
+                              "execution_pp": 1.0})  # 3.0 != edge_pp 5.0
+        with self.assertRaises(ValueError):
+            select_opportunities([c])
+
+
 if __name__ == "__main__":
     unittest.main()

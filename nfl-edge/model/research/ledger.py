@@ -16,15 +16,22 @@ LEDGER_VERSION = 1
 
 def make_entry(family, version, metrics, status, feature_set_hash="",
                train_window=None, val_window=None, hyperparameters=None,
-               commit_sha="", notes=""):
+               commit_sha="", notes="", holdout_seasons=None):
     """Constructor with sane defaults. metrics/status are the required core;
-    everything else documents provenance for reproducibility."""
+    everything else documents provenance for reproducibility.
+
+    holdout_seasons: seasons declared NEVER touched during development,
+    reserved for the final validation read. Recorded immutably here so the
+    declaration itself is auditable; the evaluation artifact must then carry
+    matching holdout economics for governance check 9 to pass.
+    """
     return {
         "family": family,
         "version": version,
         "feature_set_hash": feature_set_hash,
         "train_window": train_window,
         "val_window": val_window,
+        "holdout_seasons": list(holdout_seasons or []),
         "hyperparameters": dict(hyperparameters or {}),
         "commit_sha": commit_sha,
         "metrics": dict(metrics or {}),

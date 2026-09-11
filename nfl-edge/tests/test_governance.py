@@ -34,12 +34,16 @@ def passing_evaluation():
                        "beats_baseline": True, "calibration_slope": 1.0},
         },
         "betting": {"n_bets": 600, "win_rate": 0.56, "roi": 0.05,
-                    "profit_u": 30.0, "avg_edge_pp": 3.0},
+                    "profit_u": 30.0, "avg_edge_pp": 3.0,
+                    "realized_edge_pp": 2.2},
         "robustness": {"per_season": {"2021": {"roi": 0.04},
                                       "2022": {"roi": 0.06},
                                       "2023": {"roi": -0.01},
                                       "2024": {"roi": 0.08}}},
         "uncertainty": {"p_roi_gt_0": 0.95, "p_clv_gt_0": 0.93},
+        "holdout": {"seasons": [2023, 2024], "n_bets": 300, "roi": 0.04,
+                    "p_roi_gt_0": 0.93, "avg_edge_pp": 2.5,
+                    "realized_edge_pp": 1.9},
     }
 
 
@@ -134,28 +138,71 @@ if __name__ == "__main__":
 
 
 class ArtifactShapeTests(unittest.TestCase):
-    def _evaluation(self, roi, beats, slope, season_rois, p_roi):
+    def _evaluation(self, roi, beats, slope, season_rois, p_roi,
+                    realized_edge_pp=2.0, holdout=None):
         task = "spread"
-        return {
+        ev = {
             "predictive": {task: {"beats_baseline": beats,
                                   "calibration_slope": slope}},
             "betting": {"by_task": {task: {"n_bets": 600, "roi": roi,
-                                           "avg_edge_pp": 3.0}}},
+                                           "avg_edge_pp": 3.0,
+                                           "realized_edge_pp":
+                                           realized_edge_pp}}},
             "robustness": {"per_season_by_task":
                            {task: season_rois}},
             "uncertainty": {"by_task":
                             {task: {"p_roi_gt_0": p_roi}}},
         }
+        if holdout is not None:
+            ev["holdout"] = holdout
+        return ev
+
+    def _good_holdout(self):
+        return {"seasons": [2023, 2024], "n_bets": 300, "roi": 0.04,
+                "p_roi_gt_0": 0.93, "avg_edge_pp": 2.5,
+                "realized_edge_pp": 1.8}
 
     def test_prefers_per_task_slices(self):
         from model.governance import evaluate_promotion
         ev = self._evaluation(roi=0.05, beats=True, slope=1.0,
                               season_rois={2020: 0.1, 2021: 0.2, 2022: 0.05,
                                            2023: -0.01},
-                              p_roi=0.95)
+                              p_roi=0.95, holdout=self._good_holdout())
         v = evaluate_promotion("full_game_spread", "x", "v1", ev)
         self.assertEqual(v["decision"], "promote")
         self.assertTrue(all(v["checks"].values()))
+
+    def test_effect_size_gate_blocks_tiny_edge(self):
+        from model.governance import evaluate_promotion
+        ev = self._evaluation(roi=0.01, beats=True, slope=1.0,
+                              season_rois={2020: 0.02, 2021: 0.03,
+                                           2022: 0.01, 2023: 0.005},
+                              p_roi=0.95, realized_edge_pp=0.4,
+                              holdout=self._good_holdout())
+        v = evaluate_promotion("full_game_spread", "x", "v1", ev)
+        self.assertFalse(v["checks"]["effect_size"])
+        self.assertEqual(v["decision"], "hold")
+
+    def test_missing_holdout_blocks_promotion(self):
+        from model.governance import evaluate_promotion
+        ev = self._evaluation(roi=0.05, beats=True, slope=1.0,
+                              season_rois={2020: 0.1, 2021: 0.2, 2022: 0.05,
+                                           2023: -0.01},
+                              p_roi=0.95)  # no holdout declared
+        v = evaluate_promotion("full_game_spread", "x", "v1", ev)
+        self.assertFalse(v["checks"]["holdout"])
+        self.assertEqual(v["decision"], "hold")
+
+    def test_negative_holdout_blocks_promotion(self):
+        from model.governance import evaluate_promotion
+        bad = dict(self._good_holdout(), roi=-0.02)
+        ev = self._evaluation(roi=0.05, beats=True, slope=1.0,
+                              season_rois={2020: 0.1, 2021: 0.2, 2022: 0.05,
+                                           2023: -0.01},
+                              p_roi=0.95, holdout=bad)
+        v = evaluate_promotion("full_game_spread", "x", "v1", ev)
+        self.assertFalse(v["checks"]["holdout"])
+        self.assertEqual(v["decision"], "hold")
 
     def test_reject_needs_both_negative_roi_and_no_beat(self):
         from model.governance import evaluate_promotion
