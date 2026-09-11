@@ -149,5 +149,7 @@ def main():
 if __name__=='__main__':
     try:main()
     except Exception:
+        import traceback
+        traceback.print_exc()
         print(json.dumps({'status':'failed','reason':'Worker prerequisites or collection failed; no recommendations published'}))
         sys.exit(1)
