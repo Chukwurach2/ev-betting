@@ -158,7 +158,7 @@ def main(argv=None):
             groups.setdefault((ev, bk, mk, ln, str(obs)), []).append(fp)
         bad_groups = 0
         for key, fps in groups.items():
-            if len(fps) != 2 or abs(sum(fps) - 1.0) > 1e-9:
+            if len(fps) != 2 or abs(float(sum(fps)) - 1.0) > 1e-9:
                 bad_groups += 1
         entry["pair_groups"] = len(groups)
         entry["bad_pair_groups"] = bad_groups
