@@ -20,7 +20,12 @@ and checks every item on the historical-data acceptance checklist:
     fanatics -- where the provider returns them for that date)
   * no-vig pairing correctness: every
     (event, book, market, line, observed_at) group has exactly 2 quotes
-    and their fair_probability sums to 1
+    and their fair_probability sums to 1 (a stored group that does not
+    pair is a normalization bug -> error)
+  * raw-payload forensics: counts raw (event,book,market,line) groups
+    with a single provider side (dropped by normalize by design ->
+    warning, not error), plus kickoff min/max and events-with-quotes so
+    the audit can see which games a snapshot actually covers
   * idempotency: no duplicate provider_snapshot_id
 
 Fails loudly (non-zero exit) on any violation. Prints a JSON report.
@@ -154,7 +159,73 @@ def main(argv=None):
             if r[1] == "pinnacle" and r[6] is not False:
                 errors.append("snapshot %s: pinnacle quote ny_licensed=%r, "
                               "must be false" % (sid, r[6]))
+        # Raw-payload forensics, mirroring normalize_snapshot's pairing rules.
+        # Distinguishes OUR bug (stored group doesn't pair, but the raw
+        # payload had both sides) from PROVIDER gaps (raw payload had <2
+        # valid sides, so normalize correctly stored nothing). Also
+        # reports the kickoff range so the audit can see which games a
+        # snapshot actually covers.
+        raw_groups: dict = {}
+        kickoffs = []
+        data_list = (payload.get("data") if isinstance(payload, dict)
+                     else payload) or []
+        for game in data_list:
+            if not isinstance(game, dict):
+                continue
+            eid = game.get("id")
+            ct = _parse_ts(game.get("commence_time"))
+            if ct:
+                kickoffs.append(ct)
+            for book in game.get("bookmakers") or []:
+                bk = book.get("key")
+                if not bk:
+                    continue
+                for offered in book.get("markets") or []:
+                    key = offered.get("key")
+                    if key == "spreads":
+                        market = "FULL_GAME_SPREAD"
+                    elif key == "totals":
+                        market = "FULL_GAME_TOTAL"
+                    else:
+                        continue
+                    sides = []
+                    for o in offered.get("outcomes") or []:
+                        try:
+                            price = float(o.get("price"))
+                            line = float(o.get("point"))
+                        except (TypeError, ValueError):
+                            continue
+                        name = o.get("name")
+                        if not name or abs(price) < 100:
+                            continue
+                        sides.append((name, line))
+                    by_line: dict = {}
+                    for name, line in sides:
+                        if market == "FULL_GAME_SPREAD":
+                            lk = round(abs(line), 3)
+                        else:
+                            if name not in ("Over", "Under"):
+                                continue
+                            lk = round(line, 3)
+                        by_line.setdefault(lk, []).append(name)
+                    for lk, names in by_line.items():
+                        raw_groups[(eid, bk, market, lk)] = len(names)
+        entry["raw_pair_groups"] = len(raw_groups)
+        entry["raw_single_sided_groups"] = sum(
+            1 for n in raw_groups.values() if n != 2)
+        if entry["raw_single_sided_groups"]:
+            warnings.append(
+                "snapshot %s: %d raw (event,book,market,line) groups had "
+                "a single provider side (dropped by normalize by design)"
+                % (sid, entry["raw_single_sided_groups"]))
+        if kickoffs:
+            entry["kickoff_min"] = min(kickoffs).isoformat()
+            entry["kickoff_max"] = max(kickoffs).isoformat()
+            entry["events_with_quotes"] = len({r[0] for r in qrows})
         # No-vig pairing: groups of exactly 2, fair probs sum to 1.
+        # normalize_snapshot only ever emits pairs, so a stored group that
+        # does not pair is OUR bug -> hard error. (Provider single-sided
+        # outcomes never reach storage; they are counted above.)
         groups: dict = {}
         for (ev, bk, mk, ln, obs, fp, _, _) in qrows:
             groups.setdefault((ev, bk, mk, ln, str(obs)), []).append(fp)
