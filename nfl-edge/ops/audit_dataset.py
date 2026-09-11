@@ -181,45 +181,56 @@ def run_audit(conn, seasons, weeks, regions, markets):
     }
 
     # ---- quote integrity (server-side aggregation) -----------------------
-    q = conn.execute(
-        "SELECT COUNT(*) FROM public.nfl_edge_historical_quotes").fetchone()
-    total_quotes = q[0]
-    dup_q = conn.execute(
+    # Scoped to the matched snapshots ONLY: the quotes table may hold
+    # other ranges (or a backfill that is still writing), and the audit
+    # describes exactly the planned dataset, nothing else.
+    snap_times = [_parse_ts(m["snapshot_at"]) for m in matched]
+    snap_times = [t for t in snap_times if t is not None]
+    qwhere = ("WHERE observed_at = ANY(%s)" if snap_times
+              else "WHERE FALSE")
+    qp = ([snap_times] if snap_times else [])
+
+    def _one(sql):
+        return conn.execute(sql % qwhere, qp).fetchone()[0]
+
+    total_quotes = _one("SELECT COUNT(*) FROM public.nfl_edge_historical_quotes %s")
+    dup_q = _one(
         """SELECT COUNT(*) FROM (
-             SELECT quote_id FROM public.nfl_edge_historical_quotes
-             GROUP BY quote_id HAVING COUNT(*) > 1) t""").fetchone()[0]
+             SELECT quote_id FROM public.nfl_edge_historical_quotes %s
+             GROUP BY quote_id HAVING COUNT(*) > 1) t""")
     if dup_q:
         errors.append("%d duplicate quote_id(s)" % dup_q)
-    bad_price = conn.execute(
-        """SELECT COUNT(*) FROM public.nfl_edge_historical_quotes
-           WHERE american_odds IS NULL OR abs(american_odds) < 100""").fetchone()[0]
+    bad_price = _one(
+        """SELECT COUNT(*) FROM public.nfl_edge_historical_quotes %s
+           AND (american_odds IS NULL OR abs(american_odds) < 100)""")
     if bad_price:
         errors.append("%d quote(s) with malformed american_odds" % bad_price)
-    bad_line = conn.execute(
-        """SELECT COUNT(*) FROM public.nfl_edge_historical_quotes
-           WHERE line IS NULL""").fetchone()[0]
+    bad_line = _one(
+        """SELECT COUNT(*) FROM public.nfl_edge_historical_quotes %s
+           AND line IS NULL""")
     if bad_line:
         errors.append("%d quote(s) with null line" % bad_line)
-    bad_fp = conn.execute(
-        """SELECT COUNT(*) FROM public.nfl_edge_historical_quotes
-           WHERE fair_probability IS NULL
-              OR fair_probability <= 0 OR fair_probability >= 1""").fetchone()[0]
+    bad_fp = _one(
+        """SELECT COUNT(*) FROM public.nfl_edge_historical_quotes %s
+           AND (fair_probability IS NULL
+              OR fair_probability <= 0 OR fair_probability >= 1)""")
     if bad_fp:
         errors.append("%d quote(s) with impossible fair_probability" % bad_fp)
-    bad_groups = conn.execute(
+    bad_groups = _one(
         """SELECT COUNT(*) FROM (
              SELECT provider_event_id, book_key, market, line, observed_at
-             FROM public.nfl_edge_historical_quotes
+             FROM public.nfl_edge_historical_quotes %s
              GROUP BY 1,2,3,4,5
              HAVING COUNT(*) != 2 OR abs(SUM(fair_probability) - 1.0) > 1e-9
-           ) t""").fetchone()[0]
+           ) t""")
     if bad_groups:
         errors.append("%d mis-paired quote group(s)" % bad_groups)
     dist = {}
     for (mk, n, lmin, lmax, lavg, pmin, pmax) in conn.execute(
-            """SELECT market, COUNT(*), MIN(line), MAX(line), AVG(line),
+            ("""SELECT market, COUNT(*), MIN(line), MAX(line), AVG(line),
                       MIN(american_odds), MAX(american_odds)
-               FROM public.nfl_edge_historical_quotes GROUP BY market"""):
+               FROM public.nfl_edge_historical_quotes %s
+               GROUP BY market""" % qwhere), qp):
         dist[mk] = {"quotes": n, "line_min": float(lmin),
                     "line_max": float(lmax), "line_mean": float(lavg),
                     "price_min": int(pmin), "price_max": int(pmax)}
@@ -232,9 +243,10 @@ def run_audit(conn, seasons, weeks, regions, markets):
     # ---- book integrity ---------------------------------------------------
     books = {}
     for bk, nq, nsn, seasons_seen in conn.execute(
-            """SELECT book_key, COUNT(*), COUNT(DISTINCT observed_at),
+            ("""SELECT book_key, COUNT(*), COUNT(DISTINCT observed_at),
                       COUNT(DISTINCT date_trunc('year', observed_at))
-               FROM public.nfl_edge_historical_quotes GROUP BY book_key"""):
+               FROM public.nfl_edge_historical_quotes %s
+               GROUP BY book_key""" % qwhere), qp):
         books[bk] = {"quotes": nq, "snapshots_present": nsn,
                      "years_seen": seasons_seen}
     for bk in NAMED_BOOKS:

@@ -27,9 +27,11 @@ class FakeConn:
     def __init__(self, snaps):
         self.snaps = snaps
         self.autocommit = False
+        self.seen_params = []
 
     def execute(self, sql, params=()):
         snaps = self.snaps
+        self.seen_params.append(params)
 
         class Cur:
             def fetchall(inner):
@@ -47,9 +49,13 @@ class FakeConn:
 
             def fetchone(inner):
                 if "COUNT(*)" in sql:
-                    if sql.strip().endswith("nfl_edge_historical_quotes"):
-                        return (100,)
-                    return (0,)
+                    if ("GROUP BY 1,2,3,4,5" in sql
+                            or "GROUP BY quote_id" in sql
+                            or "american_odds" in sql
+                            or "line IS NULL" in sql
+                            or "fair_probability" in sql):
+                        return (0,)
+                    return (100,)
                 return None
 
             def __iter__(inner):
@@ -62,8 +68,9 @@ class FakeConn:
 
 
 def _run(snaps):
-    return ad.run_audit(FakeConn(snaps), [2024], [1], "us,eu",
-                        "spreads,totals")
+    conn = FakeConn(snaps)
+    rep = ad.run_audit(conn, [2024], [1], "us,eu", "spreads,totals")
+    return conn, rep
 
 
 class AuditLogicTests(unittest.TestCase):
@@ -83,14 +90,19 @@ class AuditLogicTests(unittest.TestCase):
         self.assertEqual(ad._pct([], 90), None)
 
     def test_full_coverage_passes(self):
-        rep = _run([_snap_row(REQ1), _snap_row(REQ2), _snap_row(REQ3)])
+        conn, rep = _run([_snap_row(REQ1), _snap_row(REQ2), _snap_row(REQ3)])
         self.assertEqual(rep["status"], "pass", rep["errors"])
         self.assertEqual(rep["coverage"]["received_snapshots"], 3)
         self.assertEqual(rep["coverage"]["missing_snapshots"], [])
         self.assertEqual(rep["quotes"]["total"], 100)
+        # quote-integrity queries are scoped to the matched snapshots
+        scoped = [p for p in conn.seen_params
+                  if p and isinstance(p[0], list)]
+        self.assertTrue(scoped)
+        self.assertEqual(len(scoped[0][0]), 3)
 
     def test_missing_snapshot_fails(self):
-        rep = _run([_snap_row(REQ1), _snap_row(REQ3)])
+        _, rep = _run([_snap_row(REQ1), _snap_row(REQ3)])
         self.assertEqual(rep["status"], "fail")
         self.assertEqual(len(rep["coverage"]["missing_snapshots"]), 1)
         self.assertTrue(any("missing" in e for e in rep["errors"]))
@@ -117,7 +129,7 @@ class AuditLogicTests(unittest.TestCase):
         self.assertIsNone(rep["books"]["named_books"]["fanduel"])
 
     def test_markdown_renders(self):
-        rep = _run([_snap_row(REQ1), _snap_row(REQ2), _snap_row(REQ3)])
+        _, rep = _run([_snap_row(REQ1), _snap_row(REQ2), _snap_row(REQ3)])
         md = ad.render_markdown(rep)
         self.assertIn("Status: PASS", md)
         self.assertIn("pinnacle: 10 quotes", md)
