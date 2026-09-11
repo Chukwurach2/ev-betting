@@ -42,6 +42,16 @@ class MigrationTests(unittest.TestCase):
         ):
             self.assertIn(clause, sql, f"003 migration missing: {clause}")
 
+    def test_settlement_migration_shape(self):
+        sql = (MIGRATIONS / "004_settlement.sql").read_text()
+        for clause in (
+            "ALTER TABLE public.nfl_edge_picks",
+            "final_home_score",
+            "clv_prob_points",
+            "settled_by",
+        ):
+            self.assertIn(clause, sql, f"004 migration missing: {clause}")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -68,3 +68,17 @@ picks.
   is not used.
 - Not a predictive model: v1 detects cross-book line edges only. A trained
   challenger model can be plugged in later behind the same gate.
+
+## Daily settlement + CLV (v1-settle)
+
+`ops/settle.py` runs daily at 06:00 UTC via `.github/workflows/settle.yml`. It
+fetches completed games from The Odds API scores endpoint (one request), then
+for every open shadow pick on those games:
+- settles win/loss/push arithmetically (integer lines push on exact margin/total),
+- records final scores,
+- computes CLV in probability points: pick-time consensus fair prob minus the
+  closing consensus fair prob (median of latest pre-kickoff quotes, >=2 books).
+
+Migration `004_settlement.sql` adds `result`, `final_home_score`,
+`final_away_score`, `clv_prob_points`, `settled_by` to `nfl_edge_picks`.
+Unresolvable selections are skipped, never guessed.
