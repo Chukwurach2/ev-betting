@@ -28,6 +28,20 @@ class MigrationTests(unittest.TestCase):
         ):
             self.assertIn(clause, sql, f"002 migration missing: {clause}")
 
+    def test_picks_migration_shape(self):
+        sql = (MIGRATIONS / "003_picks.sql").read_text()
+        for clause in (
+            "CREATE TABLE IF NOT EXISTS public.nfl_edge_picks",
+            "pick_id text PRIMARY KEY",
+            "engine_version text NOT NULL",
+            "CHECK (mode IN ('shadow', 'challenger', 'production'))",
+            "consensus_fair_prob",
+            "kelly_fraction",
+            "stake_units",
+            "ENABLE ROW LEVEL SECURITY",
+        ):
+            self.assertIn(clause, sql, f"003 migration missing: {clause}")
+
 
 if __name__ == "__main__":
     unittest.main()

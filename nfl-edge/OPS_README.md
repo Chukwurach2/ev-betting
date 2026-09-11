@@ -49,3 +49,22 @@ connection string, not the pooler — the worker uses a session advisory lock) a
 nothing. Do not represent a passing workflow run as model validation: collection output
 remains shadow-only. Live authenticated cross-device journal acceptance and
 market-validated inference/publication also remain outstanding.
+
+## Shadow picks engine (v1-consensus)
+
+`ops/picks.py` runs after collection on every scheduled tick. It reads the
+latest fresh quotes (<=30 min old, game not started) from
+`nfl_edge_odds_quotes`, takes the median no-vig fair probability across books
+as consensus, and emits a **shadow** pick for any book whose offered odds beat
+consensus by >= 2% edge. Staking is quarter-Kelly capped at 1 unit of a
+100-unit shadow bankroll. An empty pick set is normal: the engine never forces
+picks.
+
+- Ledger: `nfl_edge_picks` (migration `003_picks.sql`), deterministic pick IDs,
+  `ON CONFLICT DO NOTHING` for idempotent re-runs.
+- `mode` is hard-wired to `'shadow'`. `assert_shadow()` raises on any other
+  mode. Promotion requires the validation evidence in
+  `model/production_gate.py`; the Q1 drive model failed its accuracy gate and
+  is not used.
+- Not a predictive model: v1 detects cross-book line edges only. A trained
+  challenger model can be plugged in later behind the same gate.
