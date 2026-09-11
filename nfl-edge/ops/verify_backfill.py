@@ -124,9 +124,11 @@ def main(argv=None):
                 (errors if k == "data" else warnings).append(
                     "snapshot %s: payload missing envelope key '%s' "
                     "(pre-full-envelope row?)" % (sid, k))
-        n_events = len(payload.get("data", [])) if isinstance(payload, dict) \
-            else 0
+        n_events = (len(payload.get("data", [])) if isinstance(payload, dict)
+                    else len(payload) if isinstance(payload, list) else 0)
         entry["events"] = n_events
+        entry["payload_format"] = ("full-envelope" if isinstance(payload, dict)
+                                   and "data" in env_keys else "legacy-data-only")
         # Normalized quotes.
         qrows = conn.execute(
             """SELECT provider_event_id, book_key, market, line, observed_at,
@@ -157,14 +159,20 @@ def main(argv=None):
         for (ev, bk, mk, ln, obs, fp, _, _) in qrows:
             groups.setdefault((ev, bk, mk, ln, str(obs)), []).append(fp)
         bad_groups = 0
+        bad_detail = []
         for key, fps in groups.items():
             if len(fps) != 2 or abs(float(sum(fps)) - 1.0) > 1e-9:
                 bad_groups += 1
+                if len(bad_detail) < 5:
+                    bad_detail.append(
+                        {"event": key[0], "book": key[1], "market": key[2],
+                         "line": str(key[3]), "n": len(fps),
+                         "fair_probs": [str(f) for f in fps]})
         entry["pair_groups"] = len(groups)
         entry["bad_pair_groups"] = bad_groups
         if bad_groups:
-            errors.append("snapshot %s: %d mis-paired quote groups"
-                          % (sid, bad_groups))
+            errors.append("snapshot %s: %d mis-paired quote groups; e.g. %s"
+                          % (sid, bad_groups, json.dumps(bad_detail)))
         report["snapshots"].append(entry)
 
     report["status"] = "pass" if not errors else "fail"

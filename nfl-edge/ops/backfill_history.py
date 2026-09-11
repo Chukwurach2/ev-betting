@@ -299,6 +299,12 @@ def main(argv=None):
     ap.add_argument("--min-remaining", type=int, default=1000)
     ap.add_argument("--max-credits", type=int, default=15000)
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--recapture", action="store_true",
+                    help="delete legacy-format snapshots (payload without a "
+                         "full provider envelope) within 30 min of each "
+                         "planned requested time, with their quotes, before "
+                         "fetching. Used once to replace pre-change smoke "
+                         "rows; logged explicitly.")
     args = ap.parse_args(argv)
 
     seasons = [int(s) for s in args.seasons.split(",") if s.strip()]
@@ -336,6 +342,25 @@ def main(argv=None):
     stored_snaps = stored_quotes = skipped = 0
     try:
         for season, week, when in plan:
+            if args.recapture:
+                # Replace legacy rows (data-only payload, stored before the
+                # full-envelope change) so the frozen dataset has one format.
+                doomed = conn.execute(
+                    """SELECT snapshot_at FROM public.nfl_edge_market_history
+                       WHERE regions=%s AND markets=%s
+                         AND abs(extract(epoch from (snapshot_at - %s))) < 1800
+                         AND payload->>'timestamp' IS NULL""",
+                    (args.regions, args.markets, when)).fetchall()
+                for (old_snap,) in doomed:
+                    qn = conn.execute(
+                        """DELETE FROM public.nfl_edge_historical_quotes
+                           WHERE observed_at = %s""", (old_snap,)).rowcount
+                    conn.execute(
+                        """DELETE FROM public.nfl_edge_market_history
+                           WHERE snapshot_at = %s AND regions=%s AND markets=%s""",
+                        (old_snap, args.regions, args.markets))
+                    print("recaptured legacy snapshot %s (deleted %d quotes)"
+                          % (old_snap, qn), flush=True)
             # Skip snapshots already captured (within 30 min of request).
             row = conn.execute(
                 """SELECT snapshot_at FROM public.nfl_edge_market_history
