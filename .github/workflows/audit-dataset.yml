@@ -25,7 +25,7 @@ jobs:
       - run: python -m pip install -r nfl-edge/ops/requirements.txt
       - name: Run dataset integrity audit
         env:
-NFL_EDGE_DATABASE_URL: <redacted>
+          NFL_EDGE_DATABASE_URL: ${{ secrets.NFL_EDGE_DATABASE_URL }}
         run: |
           python nfl-edge/ops/audit_dataset.py \
             --seasons "${{ inputs.seasons }}" \
