@@ -22,7 +22,7 @@ jobs:
       - name: Read NFL Edge source without resolving unrelated submodules
         working-directory: .
         env:
-          GH_READ_TOKEN: ${{ secrets.GH_READ_TOKEN }}
+          GH_READ_TOKEN: ${{ github.token }}
         run: |
           python3 - <<'BOOTSTRAP'
           import io, os, pathlib, tarfile, urllib.request
