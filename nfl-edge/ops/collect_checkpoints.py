@@ -21,6 +21,25 @@ NAMES=dict(zip(
      'San Francisco 49ers','Seattle Seahawks','Tampa Bay Buccaneers','Tennessee Titans','Washington Commanders']))
 
 def canonical(team): return {'LA':'LAR','ARI':'AZ'}.get(team,team)
+
+def provider_event_keys(events):
+    """Signatures of provider events, for the opener gate (pure)."""
+    keys=set()
+    for e in events:
+        try:
+            keys.add((e.get('home_team'),e.get('away_team'),instant(e['commence_time'])))
+        except (ValueError,TypeError,KeyError):
+            continue
+    return keys
+
+def opener_eligible(checkpoint,game,event_keys,captured_game_ids):
+    """Pure opener gate: skip when the game already has a captured checkpoint
+    (first-seen value is gone) or the provider has no event yet (no lines to
+    capture -> retry a later run without spending or claiming)."""
+    if checkpoint.name!='Opener': return True
+    if checkpoint.game_id in captured_game_ids: return False
+    return (NAMES.get(canonical(game['home_team'])),NAMES.get(canonical(game['away_team'])),
+            instant(checkpoint.kickoff)) in event_keys
 def implied(odds): return 100/(100+odds) if odds>0 else abs(odds)/(100+abs(odds))
 
 def settlement(market,line):
@@ -70,14 +89,21 @@ def main():
             print(json.dumps({'status':'already_running'}));return
         connection.execute("SET statement_timeout='10s'")
         store=PostgresCheckpointStore(connection);store.reconcile(clock())
-        rows=connection.execute("SELECT game_id,home_team,away_team,kickoff,status FROM public.games WHERE status='scheduled' AND kickoff BETWEEN now()-interval '1 day' AND now()+interval '1 day'").fetchall()
+        rows=connection.execute("SELECT game_id,home_team,away_team,kickoff,status FROM public.games WHERE status='scheduled' AND kickoff BETWEEN now()-interval '1 day' AND now()+interval '6 days'").fetchall()
         unique={}
         for r in rows:
             k=(canonical(r['home_team']),canonical(r['away_team']),r['kickoff'])
             if k not in unique or r['game_id'].startswith('nfl-'):unique[k]=r
-        games=list(unique.values()); checkpoints=plan(games,clock())
-        events,headers=fetch_events() if any(c.state=='due' for c in checkpoints) else ([],{})
+        games=list(unique.values())
+        # The events feed is free: always consult it for quota headers and to
+        # gate opener attempts on the provider actually listing the event.
+        events,headers=fetch_events()
+        event_keys=provider_event_keys(events)
+        captured={r['game_id'] for r in connection.execute(
+            "SELECT DISTINCT game_id FROM public.nfl_edge_checkpoints WHERE status='captured'").fetchall()}
         by_id={r['game_id']:r for r in games}
+        checkpoints=[c for c in plan(games,clock())
+                     if opener_eligible(c,by_id[c.game_id],event_keys,captured)]
         def fetch(checkpoint):
             game=by_id[checkpoint.game_id]
             matches=[e for e in events if e.get('home_team')==NAMES.get(canonical(game['home_team']))

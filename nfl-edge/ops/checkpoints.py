@@ -6,6 +6,11 @@ from dataclasses import dataclass
 
 UTC=dt.timezone.utc
 WINDOWS=(('T-24',1440),('T-3',180),('T-90',90),('Close',5))
+# Opener capture: first-seen lines for games beyond the T-24 horizon, where
+# lines are softest. Planned with a per-day identity so a day with no posted
+# lines ('unavailable') is retried the next day; the collector skips games
+# that already have any captured checkpoint or no provider event yet.
+OPENER_MAX_MINUTES=8640  # 6 days
 
 def instant(value):
     t=value if isinstance(value,dt.datetime) else dt.datetime.fromisoformat(str(value).replace('Z','+00:00'))
@@ -27,15 +32,25 @@ def plan(games,now):
     for game in games:
         if game.get('status','scheduled')!='scheduled': continue
         kickoff=instant(game['kickoff'])
-        if not -1440 <= (kickoff-now).total_seconds()/60 <= 1440: continue
-        for name,minutes in WINDOWS:
-            target=kickoff-dt.timedelta(minutes=minutes)
-            deadline=min(target+dt.timedelta(minutes=15),kickoff)
-            if now<target: continue
-            state='due' if now<deadline else 'missed'
-            identity='|'.join([str(game['game_id']),kickoff.isoformat(),name])
+        mins=(kickoff-now).total_seconds()/60
+        if -1440 <= mins <= 1440:
+            for name,minutes in WINDOWS:
+                target=kickoff-dt.timedelta(minutes=minutes)
+                deadline=min(target+dt.timedelta(minutes=15),kickoff)
+                if now<target: continue
+                state='due' if now<deadline else 'missed'
+                identity='|'.join([str(game['game_id']),kickoff.isoformat(),name])
+                key=hashlib.sha256(identity.encode()).hexdigest()
+                result[key]=Checkpoint(key,str(game['game_id']),kickoff,name,target,deadline,state)
+        elif 1440 < mins <= OPENER_MAX_MINUTES:
+            # Opener: due immediately on first sight; expires when the T-24
+            # window takes over. The per-day identity retries days with no
+            # posted lines; the collector suppresses already-captured games.
+            target=now
+            deadline=kickoff-dt.timedelta(minutes=1440)
+            identity='|'.join([str(game['game_id']),kickoff.isoformat(),'Opener',now.strftime('%Y-%m-%d')])
             key=hashlib.sha256(identity.encode()).hexdigest()
-            result[key]=Checkpoint(key,str(game['game_id']),kickoff,name,target,deadline,state)
+            result[key]=Checkpoint(key,str(game['game_id']),kickoff,'Opener',target,deadline,'due')
     return sorted(result.values(),key=lambda c:(c.deadline,c.game_id,c.name))
 
 def collect(checkpoints,store,fetch_quotes,clock,remaining,max_requests=2,reserve=10,cost_per_request=1):
