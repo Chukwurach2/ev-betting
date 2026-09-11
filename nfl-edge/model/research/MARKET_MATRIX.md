@@ -17,9 +17,13 @@ shadow) → `Production` (none yet) → `Rejected` (evidence against).
 | Total | elo-v1 | 4,033 games (2010–2024) | 0.2690, no-beat | −5.8% (3,373 bets) | +10.2 perceived | −0.05 | **Rejected** |
 | Win prob | elo-v1 | 4,066 games (2010–2024) | 0.2247, BEATS | n/a (no ML odds) | n/a | 0.75 | Research |
 
-*Run: `replay-elo-v1-2010-2024.json`, edge_min=0.03, rolling-origin
-walk-forward, no lookahead. Per-season: 13/15 seasons negative ROI on both
-spread and total — a robust rejection, not noise.*
+*Run: `replay-elo-v1-2010-2024.json` (+ `evaluation_v1` standardized
+artifact, seed=7), edge_min=0.03, rolling-origin walk-forward, no lookahead.
+Bootstrap (B=1000): spread ROI 95% CI [−0.074, −0.009], P(ROI>0)=0.01;
+total ROI 95% CI [−0.092, −0.026], P(ROI>0)=0.00. The CIs sit entirely below
+zero — a statistically confident rejection. Automated governance
+(`model/governance.py`) verdict: **REJECT** on both markets (only the
+sample-size check passed). Ledger: `model/research/results/experiments.jsonl`.*
 
 ### Reading the elo-v1 rows
 

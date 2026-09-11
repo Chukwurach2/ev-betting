@@ -39,9 +39,43 @@ from model.challenger import data as data_mod
 from model.challenger.elo import cover_prob_home, over_prob
 from model.challenger.validate import (brier, calibration_slope, log_loss)
 from model.research.families import family_names, get_family
+from model.research.evaluate import standard_report
 
 BREAKEVEN_110 = 110.0 / 210.0  # 0.52381
 PROFIT_110 = 100.0 / 110.0     # 0.90909
+
+
+def _normalize_side(p_home, y_home):
+    """Normalize a (p_home, y_home) leg to the side the model prefers."""
+    return (p_home, y_home) if p_home >= 0.5 else (1.0 - p_home, 1 - y_home)
+
+
+def select_bets(candidates, edge_min):
+    """Pick flat-1u -110 wagers from model-vs-close disagreements.
+
+    candidates: (p_home, y_home) tuples, or dicts with p_home/y_home keys
+    plus optional extra keys (task, season, buckets, ...) carried through.
+    Returns bet dicts normalized to the taken side:
+    {p, y, profit_u, edge_pp, ...extra}.
+    """
+    bets = []
+    for c in candidates:
+        if isinstance(c, dict):
+            p_home, y_home = c["p_home"], c["y_home"]
+            extra = {k: v for k, v in c.items()
+                     if k not in ("p_home", "y_home")}
+        else:
+            p_home, y_home = c
+            extra = {}
+        p, y = _normalize_side(p_home, y_home)
+        if abs(p - 0.5) < edge_min:
+            continue
+        bets.append({"p": p,
+                     "y": y,
+                     "profit_u": PROFIT_110 if y == 1 else -1.0,
+                     "edge_pp": (p - BREAKEVEN_110) * 100.0,
+                     **extra})
+    return bets
 
 
 def simulate_bets(probs, edge_min):
@@ -50,19 +84,11 @@ def simulate_bets(probs, edge_min):
     probs: list of (p_home, y_home) with the HOME side as reference.
     Each leg is normalized to the taken side first. Returns economics dict.
     """
-    n = wins = 0
-    profit = 0.0
-    edge_pp_sum = 0.0
-    for p_home, y_home in probs:
-        # Normalize to the side the model prefers.
-        p, y = (p_home, y_home) if p_home >= 0.5 else (1.0 - p_home,
-                                                      1 - y_home)
-        if abs(p - 0.5) < edge_min:
-            continue
-        n += 1
-        wins += y == 1
-        profit += PROFIT_110 if y == 1 else -1.0
-        edge_pp_sum += (p - BREAKEVEN_110) * 100.0
+    bets = select_bets(probs, edge_min)
+    n = len(bets)
+    wins = sum(1 for b in bets if b["y"] == 1)
+    profit = sum(b["profit_u"] for b in bets)
+    edge_pp_sum = sum(b["edge_pp"] for b in bets)
     return {
         "n_bets": n,
         "wins": wins,
@@ -72,6 +98,33 @@ def simulate_bets(probs, edge_min):
         "win_rate": round(wins / n, 4) if n else 0.0,
         "avg_edge_pp": round(edge_pp_sum / n, 2) if n else 0.0,
     }
+
+
+def _edge_bucket(p):
+    d = abs(p - 0.5)
+    return "small" if d < 0.05 else ("med" if d < 0.10 else "large")
+
+
+def _line_bucket(line):
+    if line < -7:
+        return "<-7"
+    if line < -3:
+        return "-7..-3"
+    if line <= 3:
+        return "-3..3"
+    if line <= 7:
+        return "3..7"
+    return ">7"
+
+
+def _total_bucket(total):
+    if total < 42:
+        return "<42"
+    if total <= 46:
+        return "42-46"
+    if total <= 50:
+        return "46-50"
+    return ">50"
 
 
 def score_task(rows, base_p):
@@ -116,6 +169,8 @@ def run(family_name, test_start, test_end, edge_min=0.03, fetch=False,
     per_season = {}
     pooled = {"win": [], "spread": [], "total": []}
     pooled_bets = {"spread": [], "total": []}
+    eval_preds = []      # enriched rows for standard_report
+    bet_candidates = []  # enriched (p_home, y_home) candidates for select_bets
     home_wins = 0
     home_n = 0
 
@@ -137,7 +192,10 @@ def run(family_name, test_start, test_end, edge_min=0.03, fetch=False,
         base_win = (home_wins / home_n) if home_n else 0.57
         s_rows = {"win": [], "spread": [], "total": []}
         s_bets = {"spread": [], "total": []}
-        for g in season_games:
+        n_season_games = len(season_games)
+        for gi, g in enumerate(season_games):
+            # Early-season proxy: first third of the season's games ~ weeks 1-6.
+            early = gi * 3 < n_season_games
             pred = fam.predict(g)
             hs, aws = g["home_score"], g["away_score"]
             if pred is not None:
@@ -146,26 +204,73 @@ def run(family_name, test_start, test_end, edge_min=0.03, fetch=False,
                     y = 1 if hs > aws else 0
                     s_rows["win"].append((p, y))
                     pooled["win"].append((p, y))
+                    eval_preds.append({
+                        "task": "win", "p": p, "y": y, "base": base_win,
+                        "season": season,
+                        "favorite": None, "home": True,
+                        "line_bucket": None, "total_bucket": None,
+                        "edge_bucket": _edge_bucket(p),
+                        "early_season": early,
+                        "side": "home" if p >= 0.5 else "away",
+                    })
                 sm, st = fam.sm, fam.st
                 if g["spread_line"] is not None and sm:
+                    line = g["spread_line"]
                     margin = hs - aws
-                    if abs(margin - g["spread_line"]) > 1e-9:  # not a push
+                    if abs(margin - line) > 1e-9:  # not a push
                         p = cover_prob_home(pred["pred_margin_home"],
-                                            g["spread_line"], sm)
-                        y = 1 if margin - g["spread_line"] > 0 else 0
+                                            line, sm)
+                        y = 1 if margin - line > 0 else 0
                         s_rows["spread"].append((p, y))
                         pooled["spread"].append((p, y))
                         s_bets["spread"].append((p, y))
                         pooled_bets["spread"].append((p, y))
+                        fav = True if line > 0 else (False if line < 0
+                                                     else None)
+                        eval_preds.append({
+                            "task": "spread", "p": p, "y": y, "base": 0.5,
+                            "season": season, "favorite": fav, "home": True,
+                            "line_bucket": _line_bucket(line),
+                            "total_bucket": None,
+                            "edge_bucket": _edge_bucket(p),
+                            "early_season": early,
+                            "side": "home" if p >= 0.5 else "away",
+                        })
+                        bet_candidates.append({
+                            "p_home": p, "y_home": y, "task": "spread",
+                            "season": season, "favorite": fav,
+                            "line_bucket": _line_bucket(line),
+                            "edge_bucket": _edge_bucket(p),
+                            "early_season": early,
+                            "side": "home" if p >= 0.5 else "away",
+                        })
                 if g["total_line"] is not None and st:
+                    total_line = g["total_line"]
                     total = hs + aws
-                    if abs(total - g["total_line"]) > 1e-9:
-                        p = over_prob(pred["pred_total"], g["total_line"], st)
-                        y = 1 if total - g["total_line"] > 0 else 0
+                    if abs(total - total_line) > 1e-9:
+                        p = over_prob(pred["pred_total"], total_line, st)
+                        y = 1 if total - total_line > 0 else 0
                         s_rows["total"].append((p, y))
                         pooled["total"].append((p, y))
                         s_bets["total"].append((p, y))
                         pooled_bets["total"].append((p, y))
+                        eval_preds.append({
+                            "task": "total", "p": p, "y": y, "base": 0.5,
+                            "season": season, "favorite": None, "home": None,
+                            "line_bucket": None,
+                            "total_bucket": _total_bucket(total_line),
+                            "edge_bucket": _edge_bucket(p),
+                            "early_season": early,
+                            "side": "over" if p >= 0.5 else "under",
+                        })
+                        bet_candidates.append({
+                            "p_home": p, "y_home": y, "task": "total",
+                            "season": season,
+                            "total_bucket": _total_bucket(total_line),
+                            "edge_bucket": _edge_bucket(p),
+                            "early_season": early,
+                            "side": "over" if p >= 0.5 else "under",
+                        })
             fam.observe(g)
             if hs != aws:
                 home_n += 1
@@ -187,7 +292,7 @@ def run(family_name, test_start, test_end, edge_min=0.03, fetch=False,
     for task in ("spread", "total"):
         pooled_metrics[task]["bets"] = simulate_bets(pooled_bets[task],
                                                      edge_min)
-    return {
+    result = {
         "family": family_name,
         "ran_at": dt.datetime.now(dt.timezone.utc).isoformat(),
         "test_window": [test_start, test_end],
@@ -198,6 +303,16 @@ def run(family_name, test_start, test_end, edge_min=0.03, fetch=False,
         "per_season": per_season,
         "pooled": pooled_metrics,
     }
+    result["evaluation_v1"] = standard_report(
+        eval_preds,
+        select_bets(bet_candidates, edge_min),
+        {"family": family_name,
+         "test_window": [test_start, test_end],
+         "edge_min": edge_min,
+         "note": "rolling-origin walk-forward; predictions use only prior "
+                 "games; sigmas frozen per season"},
+        seed=7)
+    return result
 
 
 def main():
