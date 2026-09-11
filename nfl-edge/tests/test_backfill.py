@@ -128,6 +128,32 @@ class NormalizeTests(unittest.TestCase):
                          ["draftkings", "pinnacle"])
         self.assertEqual(bh.snapshot_books({"data": []}), [])
 
+    def test_validated_snapshot_time_exact(self):
+        when = dt.datetime(2024, 9, 4, 12, 0, tzinfo=dt.timezone.utc)
+        env = {"timestamp": "2024-09-04T12:00:00Z", "data": []}
+        got = bh.validated_snapshot_time(env, when)
+        self.assertEqual(got, when)
+
+    def test_validated_snapshot_time_small_drift_ok(self):
+        when = dt.datetime(2024, 9, 4, 12, 0, tzinfo=dt.timezone.utc)
+        env = {"timestamp": "2024-09-04T11:57:00Z", "data": []}
+        got = bh.validated_snapshot_time(env, when)
+        self.assertEqual(
+            got, dt.datetime(2024, 9, 4, 11, 57, tzinfo=dt.timezone.utc))
+
+    def test_validated_snapshot_time_missing_fails_loudly(self):
+        when = dt.datetime(2024, 9, 4, 12, 0, tzinfo=dt.timezone.utc)
+        with self.assertRaises(RuntimeError):
+            bh.validated_snapshot_time({"data": []}, when)
+
+    def test_validated_snapshot_time_big_drift_fails_loudly(self):
+        # Provider returned data for the wrong time: must not be silently
+        # relabeled with the requested timestamp.
+        when = dt.datetime(2024, 9, 4, 12, 0, tzinfo=dt.timezone.utc)
+        env = {"timestamp": "2024-09-04T15:30:00Z", "data": []}
+        with self.assertRaises(RuntimeError):
+            bh.validated_snapshot_time(env, when)
+
 
 if __name__ == "__main__":
     unittest.main()

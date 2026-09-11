@@ -21,6 +21,13 @@ Safety:
     not retry in a loop.
   * Idempotent: INSERT ... ON CONFLICT DO NOTHING on both tables; a
     snapshot within 30 minutes of a requested time is skipped.
+  * Timestamp integrity: the provider's returned timestamp must be present
+    and within 1 hour of the requested time, else the run fails loudly
+    instead of silently relabeling mis-timed data.
+  * Raw immutability: the FULL provider response envelope (timestamp,
+    previous_timestamp, next_timestamp, data) is persisted in payload;
+    requested_at and provider_snapshot_id record the canonical requested
+    time (the provider exposes no separate snapshot id).
   * Stops early if remaining credits drop below --min-remaining (default
     1000) or total spend exceeds --max-credits.
 
@@ -52,6 +59,44 @@ WEEK1_SUNDAY = {
 
 NY_BOOK_KEYS = {'draftkings', 'fanduel', 'betmgm', 'betrivers', 'espnbet',
                 'williamhill_us', 'fanatics'}
+
+# Maximum allowed |provider timestamp - requested timestamp|. Historical
+# snapshots are ~5-minute granularity; anything beyond an hour means the
+# provider returned data for the wrong time and we must not label it with
+# the requested time. Fail loudly instead of silently relabeling.
+TIMESTAMP_TOLERANCE_SECONDS = 3600
+
+
+def _parse_ts(value):
+    try:
+        t = dt.datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except (ValueError, TypeError):
+        return None
+    if t.tzinfo is None:
+        t = t.replace(tzinfo=dt.timezone.utc)
+    return t.astimezone(dt.timezone.utc)
+
+
+def validated_snapshot_time(envelope, requested):
+    """Return the provider's snapshot timestamp, or raise.
+
+    Refuses to store a snapshot when the provider timestamp is missing or
+    materially differs from the requested historical time: silently
+    relabeling mis-timed data would corrupt point-in-time integrity.
+    """
+    returned = _parse_ts(envelope.get("timestamp"))
+    if returned is None:
+        raise RuntimeError(
+            "refusing to store snapshot: provider timestamp missing for "
+            "requested %s" % requested.isoformat())
+    drift = abs((returned - requested).total_seconds())
+    if drift > TIMESTAMP_TOLERANCE_SECONDS:
+        raise RuntimeError(
+            "refusing to store snapshot: provider timestamp %s differs from "
+            "requested %s by %.0fs (> %ds tolerance)"
+            % (returned.isoformat(), requested.isoformat(), drift,
+               TIMESTAMP_TOLERANCE_SECONDS))
+    return returned
 
 
 class TierError(RuntimeError):
@@ -311,7 +356,7 @@ def main(argv=None):
                 spent += int(last) if last else 0
             except (TypeError, ValueError):
                 pass
-            snap_at = envelope.get("timestamp") or when.isoformat()
+            snap_at = validated_snapshot_time(envelope, when)
             books = snapshot_books(envelope)
             conn.execute(
                 """INSERT INTO public.nfl_edge_market_history
@@ -320,7 +365,7 @@ def main(argv=None):
                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s) ON CONFLICT DO NOTHING""",
                 (snap_at, args.regions, args.markets, when,
                  when.isoformat(), books,
-                 json.dumps(envelope.get("data") or []),
+                 json.dumps(envelope),
                  int(last) if last and str(last).isdigit() else None))
             stored_snaps += 1
             quotes = normalize_snapshot(envelope, args.regions, args.markets)
