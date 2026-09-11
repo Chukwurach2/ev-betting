@@ -20,6 +20,7 @@ only and must never fail the engine.
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 import statistics
 import sys
@@ -101,6 +102,65 @@ KELLY_DIVISOR = 4          # quarter-Kelly
 MAX_STAKE_UNITS = 1.0      # cap per pick, bankroll = 100 units
 FRESHNESS_MINUTES = 30     # quotes older than this are ignored
 MIN_CONSENSUS_BOOKS = 2    # books required for a consensus
+
+# Portfolio risk controls (shadow ledger; mirrored by any production engine).
+MAX_PICKS_PER_EVENT = 4      # most picks kept on one game per run
+MAX_STAKE_PER_EVENT = 1.5    # total units risked on one game per run
+MAX_STAKE_PER_RUN = 8.0      # total units risked across the run
+
+
+def apply_risk_limits(picks: list[dict]) -> tuple[list[dict], dict]:
+    """Portfolio guardrails on candidate picks.
+
+    1. Dedupe: one pick per (event, market, selection) — keep the best edge.
+       Multiple lines on the same side are highly correlated; the engine keeps
+       the single best expression of the view.
+    2. Per-event caps: at most MAX_PICKS_PER_EVENT picks and MAX_STAKE_PER_EVENT
+       units of stake on one game (greedy by edge).
+    3. Per-run cap: at most MAX_STAKE_PER_RUN units across the run.
+
+    Returns (kept_picks, stats). Pure function; never raises on sane input.
+    """
+    stats = {"candidates": len(picks), "deduped": 0, "event_capped": 0,
+             "run_capped": 0}
+    ordered = sorted(picks, key=lambda p: p["edge"], reverse=True)
+
+    # 1. dedupe by (event, market, selection)
+    seen = set()
+    deduped = []
+    for p in ordered:
+        key = (p["provider_event_id"], p["market"], p["selection"])
+        if key in seen:
+            stats["deduped"] += 1
+            continue
+        seen.add(key)
+        deduped.append(p)
+
+    # 2+3. greedy fill respecting per-event and per-run caps
+    kept: list[dict] = []
+    per_event_count: dict[str, int] = {}
+    per_event_stake: dict[str, float] = {}
+    run_stake = 0.0
+    for p in deduped:
+        ev = p["provider_event_id"]
+        stake = float(p["stake_units"])
+        if per_event_count.get(ev, 0) >= MAX_PICKS_PER_EVENT:
+            stats["event_capped"] += 1
+            continue
+        if per_event_stake.get(ev, 0.0) + stake > MAX_STAKE_PER_EVENT + 1e-9:
+            stats["event_capped"] += 1
+            continue
+        if run_stake + stake > MAX_STAKE_PER_RUN + 1e-9:
+            stats["run_capped"] += 1
+            continue
+        kept.append(p)
+        per_event_count[ev] = per_event_count.get(ev, 0) + 1
+        per_event_stake[ev] = per_event_stake.get(ev, 0.0) + stake
+        run_stake += stake
+    stats["kept"] = len(kept)
+    stats["total_stake_units"] = round(run_stake, 4)
+    kept.sort(key=lambda p: p["edge"], reverse=True)
+    return kept, stats
 
 
 def american_to_decimal(odds: int) -> float:
@@ -220,8 +280,9 @@ def build_picks(conn) -> list[dict]:
             }
             pick.update(annotate_challenger(challenger, cache, pick))
             picks.append(pick)
-    picks.sort(key=lambda p: p["edge"], reverse=True)
-    return picks
+    kept, risk_stats = apply_risk_limits(picks)
+    build_picks.last_risk_stats = risk_stats
+    return kept
 
 
 INSERT_PICK_SQL = """
@@ -267,6 +328,7 @@ def main() -> int:
     finally:
         conn.close()
     print(f"engine={ENGINE_VERSION} mode={MODE} picks={len(picks)} written={written}")
+    print(f"risk={json.dumps(getattr(build_picks, 'last_risk_stats', {}))}")
     for p in picks[:10]:
         print(f"  {p['away_team']} @ {p['home_team']} {p['market']} {p['selection']} "
               f"{p['line']} {p['book_key']} {p['american_odds']:+d} edge={p['edge']:.3f} "

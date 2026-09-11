@@ -75,7 +75,7 @@ jobs:
       - name: Sync schedule into games table
         env:
           NFL_EDGE_DATABASE_URL: ${{ secrets.NFL_EDGE_DATABASE_URL }}
-        run: python ops/sync_schedule.py
+        run: python ops/sync_schedule.py && python ops/heartbeat.py schedule_sync
       - name: Collect due checkpoints
         if: steps.secrets.outputs.has_odds_key == 'true'
         env:
@@ -88,7 +88,7 @@ jobs:
       - name: Generate shadow picks
         env:
           NFL_EDGE_DATABASE_URL: ${{ secrets.NFL_EDGE_DATABASE_URL }}
-        run: python ops/picks.py
+        run: python ops/picks.py && python ops/heartbeat.py picks
       - name: Verify database state
         env:
           NFL_EDGE_DATABASE_URL: ${{ secrets.NFL_EDGE_DATABASE_URL }}

@@ -1,20 +1,19 @@
-name: NFL Edge daily settlement
+name: NFL Edge pipeline health check
 on:
   schedule:
-    # Once daily at 06:00 UTC, after the Monday night game finishes. One
-    # scores request covers the recent slate; results and CLV are computed
-    # for shadow picks only.
-    - cron: '0 6 * * *'
+    # Independent of the 15-minute collector: verifies the pipeline actually
+    # ran by checking component heartbeats. Fails loudly when down.
+    - cron: '*/30 * * * *'
   workflow_dispatch:
 permissions:
   contents: read
 concurrency:
-  group: nfl-edge-settle
+  group: nfl-edge-health
   cancel-in-progress: false
 jobs:
-  settle:
+  health:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 10
     defaults:
       run:
         working-directory: nfl-edge
@@ -50,40 +49,16 @@ jobs:
         with:
           python-version: '3.12'
       - run: python -m pip install -r ops/requirements.txt
-      - name: Verify settlement secrets
-        env:
-          NFL_EDGE_DATABASE_URL: ${{ secrets.NFL_EDGE_DATABASE_URL }}
-          THE_ODDS_API_KEY: ${{ secrets.THE_ODDS_API_KEY }}
-        run: |
-          python3 - <<'EOF'
-          import os
-          missing = [k for k in ('NFL_EDGE_DATABASE_URL', 'THE_ODDS_API_KEY') if not os.environ.get(k)]
-          if missing:
-              print('Missing required secrets:', ', '.join(missing))
-              raise SystemExit(1)
-          print('Settlement secrets present')
-          EOF
       - name: Apply additive migrations
         env:
           NFL_EDGE_DATABASE_URL: ${{ secrets.NFL_EDGE_DATABASE_URL }}
         run: python ops/migrate.py
-      - name: Settle shadow picks and compute CLV
-        env:
-          NFL_EDGE_DATABASE_URL: ${{ secrets.NFL_EDGE_DATABASE_URL }}
-          THE_ODDS_API_KEY: ${{ secrets.THE_ODDS_API_KEY }}
-        run: python ops/settle.py && python ops/heartbeat.py settlement
-      - name: Verify settlement state
+      - name: Check pipeline health
         env:
           NFL_EDGE_DATABASE_URL: ${{ secrets.NFL_EDGE_DATABASE_URL }}
         run: |
-          python3 - <<'EOF'
-          import os, psycopg
-          conn = psycopg.connect(os.environ["NFL_EDGE_DATABASE_URL"])
-          cur = conn.cursor()
-          cur.execute("""SELECT result, count(*), round(avg(edge),4), round(avg(clv_prob_points),4)
-                         FROM public.nfl_edge_picks GROUP BY 1 ORDER BY 1""")
-          print("picks by result (count, avg edge, avg CLV pp):", cur.fetchall())
-          cur.execute("""SELECT count(*) FROM public.nfl_edge_picks WHERE result IS NULL""")
-          print("unsettled picks:", cur.fetchone()[0])
-          conn.close()
-          EOF
+          python ops/health.py
+          code=$?
+          if [ $code -ge 2 ]; then echo 'PIPELINE DOWN: a core component is stale'; exit 1; fi
+          if [ $code -eq 1 ]; then echo '::warning::Pipeline degraded (settlement stale or odds credits low)'; fi
+          exit 0

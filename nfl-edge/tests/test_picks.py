@@ -171,8 +171,7 @@ class PicksBuildTests(unittest.TestCase):
         # -4.5 group: single book -> no consensus. Nothing emitted.
         self.assertEqual(out, [])
 
-    def test_line_move_splits_groups(self):
-        # Same book re-quoted at a moved line: each line needs its own
+    def test_line_move_splits_groups(self):        # Same book re-quoted at a moved line: each line needs its own
         # two-book consensus.
         import datetime as dt
         now = dt.datetime.now(dt.timezone.utc)
@@ -192,6 +191,62 @@ class PicksBuildTests(unittest.TestCase):
         self.assertEqual(len(out), 1)
         self.assertEqual(out[0]["book_key"], "draftkings")
         self.assertEqual(float(out[0]["line"]), 46.5)
+
+
+def _mkpick(event="e1", market="FULL_GAME_SPREAD", selection="A",
+            edge=0.05, stake=0.5, line=-3.5):
+    return {"pick_id": f"{event}-{market}-{selection}-{line}",
+            "provider_event_id": event, "market": market,
+            "selection": selection, "line": line,
+            "edge": edge, "stake_units": stake}
+
+
+class RiskLimitsTests(unittest.TestCase):
+    def test_empty(self):
+        kept, stats = picks.apply_risk_limits([])
+        self.assertEqual(kept, [])
+        self.assertEqual(stats["kept"], 0)
+
+    def test_dedupe_keeps_best_edge_per_side(self):
+        ps = [_mkpick(edge=0.03, line=-3.5), _mkpick(edge=0.09, line=-4.5),
+              _mkpick(market="FULL_GAME_TOTAL", selection="Over", edge=0.04)]
+        kept, stats = picks.apply_risk_limits(ps)
+        self.assertEqual(len(kept), 2)
+        self.assertEqual(stats["deduped"], 1)
+        spread = [p for p in kept if p["market"] == "FULL_GAME_SPREAD"][0]
+        self.assertEqual(spread["line"], -4.5)  # higher edge wins
+
+    def test_per_event_stake_cap(self):
+        ps = [_mkpick(market="M1", selection="s1", edge=0.10, stake=1.0),
+              _mkpick(market="M2", selection="s2", edge=0.09, stake=1.0),
+              _mkpick(market="M3", selection="s3", edge=0.08, stake=1.0)]
+        kept, stats = picks.apply_risk_limits(ps)
+        # greedy by edge: 1.0u fits, second 1.0u would exceed 1.5u cap
+        self.assertEqual(len(kept), 1)
+        self.assertEqual(kept[0]["edge"], 0.10)
+        self.assertEqual(stats["event_capped"], 2)
+
+    def test_per_event_pick_count_cap(self):
+        ps = [_mkpick(market=f"M{i}", selection=f"s{i}", edge=0.05 + i * 0.001,
+                      stake=0.1) for i in range(6)]
+        kept, stats = picks.apply_risk_limits(ps)
+        self.assertEqual(len(kept), picks.MAX_PICKS_PER_EVENT)
+        self.assertEqual(stats["event_capped"], 2)
+
+    def test_per_run_stake_cap(self):
+        ps = [_mkpick(event=f"e{i}", edge=0.05, stake=1.0) for i in range(12)]
+        kept, stats = picks.apply_risk_limits(ps)
+        total = sum(p["stake_units"] for p in kept)
+        self.assertLessEqual(total, picks.MAX_STAKE_PER_RUN + 1e-9)
+        self.assertGreater(stats["run_capped"], 0)
+        self.assertEqual(stats["total_stake_units"], round(total, 4))
+
+    def test_sorted_by_edge_desc(self):
+        ps = [_mkpick(event=f"e{i}", edge=0.05 + (i % 3) * 0.01, stake=0.2)
+              for i in range(5)]
+        kept, _ = picks.apply_risk_limits(ps)
+        edges = [p["edge"] for p in kept]
+        self.assertEqual(edges, sorted(edges, reverse=True))
 
 
 if __name__ == "__main__":

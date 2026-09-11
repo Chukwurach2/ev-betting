@@ -1,0 +1,44 @@
+import {Client} from 'pg';
+
+// Read-only track record for the SHADOW consensus engine: settled-pick
+// aggregates, CLV, calibration buckets, and drawdown. Research output only;
+// every row is mode='shadow' by construction. Empty states when nothing is
+// settled yet — the engine never invents history.
+
+import {summarize} from '../lib/summarize.mjs';
+
+const SQL = `
+SELECT pick_id, market, selection, line, book_key, american_odds, decimal_odds,
+       consensus_fair_prob, edge, stake_units, observed_at, created_at,
+       settled_at, result, clv_prob_points, engine_version
+FROM public.nfl_edge_picks
+WHERE mode = 'shadow' AND result IN ('win', 'loss', 'push')
+ORDER BY settled_at ASC
+`;
+
+export default async function handler(req, res) {
+  res.setHeader('Cache-Control', 'private, no-store');
+  if (req.method !== 'GET') return res.status(405).json({error: 'Method not allowed'});
+  if (!process.env.NFL_EDGE_DATABASE_URL) {
+    return res.status(503).json({error: 'Database is not configured'});
+  }
+  const client = new Client({
+    connectionString: process.env.NFL_EDGE_DATABASE_URL,
+    ssl: {rejectUnauthorized: true},
+    statement_timeout: 8000,
+  });
+  try {
+    await client.connect();
+    const {rows} = await client.query(SQL);
+    return res.status(200).json({
+      mode: 'shadow',
+      engine: rows[0]?.engine_version || null,
+      disclaimer: 'Shadow research output. Not a wager recommendation.',
+      ...summarize(rows),
+    });
+  } catch {
+    return res.status(503).json({error: 'Track record unavailable'});
+  } finally {
+    await client.end().catch(() => {});
+  }
+}

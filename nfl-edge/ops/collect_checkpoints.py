@@ -88,8 +88,21 @@ def main():
             if payload.get('id')!=matches[0]['id'] or instant(payload['commence_time'])!=checkpoint.kickoff:
                 raise ValueError('Provider response event changed')
             return pair_quotes(payload)
-        print(json.dumps({'status':'shadow_collection_only',**collect(checkpoints,store,fetch,clock,
-                         remaining=quota(headers)['remaining'],max_requests=8,cost_per_request=2)}))
+        _summary = collect(checkpoints,store,fetch,clock,
+                         remaining=quota(headers)['remaining'],max_requests=8,cost_per_request=2)
+        print(json.dumps({'status':'shadow_collection_only',**_summary}))
+        try:
+            # Best-effort pipeline heartbeat; must never break collection.
+            from heartbeat import record_heartbeat
+            record_heartbeat(connection, 'collector', {
+                'credits_remaining': quota(headers).get('remaining'),
+                'checkpoints': {k: _summary.get(k) for k in
+                                ('captured', 'missed', 'duplicate', 'deferred',
+                                 'failed', 'requests', 'credits_budgeted')},
+            })
+        except Exception as e:  # noqa: BLE001 - heartbeat is advisory only
+            print(json.dumps({'heartbeat': 'failed',
+                              'reason': str(e)[:120]}))
 
 if __name__=='__main__':
     try:main()
