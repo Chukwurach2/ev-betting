@@ -1,0 +1,135 @@
+{
+ "data": {
+  "first_season": 1999,
+  "games": 7278,
+  "last_season": 2026,
+  "source": "nflverse schedules/games.csv.gz"
+ },
+ "gate": {
+  "promoted": false,
+  "reasons": [
+   "spread: does not beat the closing line (ll 0.7287 vs 0.6931, brier 0.2657 vs 0.2500)",
+   "total: does not beat the closing line (ll 0.7406 vs 0.6931, brier 0.2712 vs 0.2500)",
+   "win-prob calibration slope 0.76 outside [0.8, 1.2]"
+  ]
+ },
+ "params": {
+  "hfa": 1.2,
+  "k": 0.15,
+  "league_avg": 22.0,
+  "sigma_margin": 14.051830835483639,
+  "sigma_total": 14.38456267579568,
+  "train_end": 2021,
+  "train_games": 6137,
+  "val_window": [
+   2022,
+   2024
+  ]
+ },
+ "ratings": {
+  "def": {
+   "ARI": -7.2302,
+   "ATL": -1.0172,
+   "BAL": 0.8338,
+   "BUF": -0.2571,
+   "CAR": -0.6854,
+   "CHI": 1.7405,
+   "CIN": -4.5462,
+   "CLE": 2.3281,
+   "DAL": -8.3997,
+   "DEN": 4.9021,
+   "DET": -1.3582,
+   "GB": -1.3625,
+   "HOU": 3.8514,
+   "IND": -4.7518,
+   "JAX": 3.4161,
+   "KC": 2.0023,
+   "LA": -0.8714,
+   "LAC": 4.4321,
+   "LV": -4.0565,
+   "MIA": -3.486,
+   "MIN": 8.3192,
+   "NE": 7.737,
+   "NO": 0.2835,
+   "NYG": -1.4959,
+   "NYJ": -9.3205,
+   "OAK": -1.0267,
+   "PHI": 4.6059,
+   "PIT": 0.3784,
+   "SD": -0.0881,
+   "SEA": 10.4448,
+   "SF": 1.807,
+   "STL": 5.9145,
+   "TB": -2.4973,
+   "TEN": -6.5268,
+   "WAS": -4.0192
+  },
+  "off": {
+   "ARI": -2.0666,
+   "ATL": -0.3413,
+   "BAL": 3.7483,
+   "BUF": 7.1832,
+   "CAR": -2.0918,
+   "CHI": 2.4495,
+   "CIN": 4.5461,
+   "CLE": -5.8665,
+   "DAL": 3.8009,
+   "DEN": 1.7355,
+   "DET": 5.4865,
+   "GB": 1.6362,
+   "HOU": 3.6768,
+   "IND": 4.7067,
+   "JAX": 6.9333,
+   "KC": -4.9598,
+   "LA": 5.7091,
+   "LAC": -3.7439,
+   "LV": -7.1871,
+   "MIA": -3.655,
+   "MIN": -3.4896,
+   "NE": 2.7934,
+   "NO": -2.2647,
+   "NYG": 1.0939,
+   "NYJ": -6.6266,
+   "OAK": -6.7249,
+   "PHI": -2.0598,
+   "PIT": -1.8487,
+   "SD": -3.8542,
+   "SEA": 6.6378,
+   "SF": 5.0115,
+   "STL": -7.0425,
+   "TB": -1.5428,
+   "TEN": -1.7815,
+   "WAS": -0.0015
+  }
+ },
+ "role": "research",
+ "trained_at": "2026-09-11T17:17:20.713817+00:00",
+ "validation": {
+  "spread": {
+   "base_brier": 0.25,
+   "base_log_loss": 0.6931471805599453,
+   "beats_baseline": false,
+   "brier": 0.26574906889922734,
+   "log_loss": 0.7287439260647602,
+   "n": 826
+  },
+  "total": {
+   "base_brier": 0.25,
+   "base_log_loss": 0.6931471805599453,
+   "beats_baseline": false,
+   "brier": 0.2712066966695343,
+   "log_loss": 0.740601783541626,
+   "n": 854
+  },
+  "win": {
+   "base_brier": 0.24663074604160834,
+   "base_log_loss": 0.6863948518883891,
+   "beats_baseline": true,
+   "brier": 0.22612571312612523,
+   "calibration_slope": 0.7618745145854439,
+   "log_loss": 0.6465969622161611,
+   "n": 854
+  }
+ },
+ "version": "v1"
+}

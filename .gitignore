@@ -39,3 +39,7 @@ __pycache__/
 # One-off migration script (keep local)
 migrate_ledger_to_gsheets.py
 curl_nba.txt
+
+# Challenger model artifacts are versioned deliberately
+!nfl-edge/model/challenger/artifacts/**/model.json
+!nfl-edge/model/challenger/artifacts/**/MANIFEST

@@ -9,6 +9,11 @@ valid output: the engine never forces picks.
 Nothing here is a production wager. mode is hard-wired to 'shadow'; any
 attempt to write another mode raises. Promotion to challenger/production
 requires the validation evidence described in model/production_gate.py.
+
+The challenger model (model/challenger) annotates each pick with its own
+fair probability and predicted margin/total for research. It never emits
+picks itself: the gate has not promoted it, so annotation is informational
+only and must never fail the engine.
 """
 from __future__ import annotations
 
@@ -16,6 +21,75 @@ import hashlib
 import os
 import statistics
 import sys
+
+ENGINE_VERSION = "v1-consensus"
+MODE = "shadow"
+
+# Full team name (Odds API selection) -> canonical abbreviation.
+FULL_TO_ABBR = {
+    'Arizona Cardinals': 'AZ', 'Atlanta Falcons': 'ATL', 'Baltimore Ravens': 'BAL',
+    'Buffalo Bills': 'BUF', 'Carolina Panthers': 'CAR', 'Chicago Bears': 'CHI',
+    'Cincinnati Bengals': 'CIN', 'Cleveland Browns': 'CLE', 'Dallas Cowboys': 'DAL',
+    'Denver Broncos': 'DEN', 'Detroit Lions': 'DET', 'Green Bay Packers': 'GB',
+    'Houston Texans': 'HOU', 'Indianapolis Colts': 'IND', 'Jacksonville Jaguars': 'JAX',
+    'Kansas City Chiefs': 'KC', 'Las Vegas Raiders': 'LV', 'Los Angeles Chargers': 'LAC',
+    'Los Angeles Rams': 'LAR', 'Miami Dolphins': 'MIA', 'Minnesota Vikings': 'MIN',
+    'New England Patriots': 'NE', 'New Orleans Saints': 'NO', 'New York Giants': 'NYG',
+    'New York Jets': 'NYJ', 'Philadelphia Eagles': 'PHI', 'Pittsburgh Steelers': 'PIT',
+    'San Francisco 49ers': 'SF', 'Seattle Seahawks': 'SEA', 'Tampa Bay Buccaneers': 'TB',
+    'Tennessee Titans': 'TEN', 'Washington Commanders': 'WAS',
+}
+
+
+def load_challenger():
+    """Load the challenger artifact, or return None (annotation skipped)."""
+    try:
+        sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                        "..", "model"))
+        from challenger.infer import load_challenger as _load
+        return _load()
+    except Exception as exc:  # never break the engine for a research signal
+        print(f"challenger unavailable ({exc}); annotating picks without it")
+        return None
+
+
+def annotate_challenger(challenger, cache, pick: dict) -> dict:
+    """Fill challenger_* fields. Pure annotation; never raises."""
+    fields = {"challenger_version": None, "challenger_fair_prob": None,
+              "challenger_pred_margin": None, "challenger_pred_total": None}
+    if challenger is None:
+        return fields
+    try:
+        home, away = pick["home_team"], pick["away_team"]
+        key = (home, away)
+        if key not in cache:
+            cache[key] = challenger.predict(home, away)
+        pred = cache[key]
+        if pred is None:
+            return fields
+        fields["challenger_version"] = challenger.version
+        fields["challenger_pred_margin"] = round(pred["pred_margin_home"], 2)
+        fields["challenger_pred_total"] = round(pred["pred_total"], 2)
+        market, selection = pick["market"], pick["selection"]
+        line = float(pick["line"])
+        if market == "FULL_GAME_TOTAL" and selection in ("Over", "Under"):
+            p = challenger.cover_probability(home, away, "totals", selection, line)
+        elif market == "FULL_GAME_SPREAD":
+            abbr = FULL_TO_ABBR.get(selection)
+            if abbr is None:
+                return fields
+            side = "home" if abbr == home else "away"
+            # DB line is Odds API convention (negative => selection favored);
+            # convert to nflverse home-perspective (positive => home favored).
+            home_line = -line if side == "home" else line
+            p = challenger.cover_probability(home, away, "spreads", side,
+                                             home_line)
+        else:
+            return fields
+        fields["challenger_fair_prob"] = round(p, 6) if p is not None else None
+    except Exception:
+        pass
+    return fields
 
 ENGINE_VERSION = "v1-consensus"
 MODE = "shadow"
@@ -86,6 +160,9 @@ def build_picks(conn) -> list[dict]:
     cols = [d[0] for d in cur.description]
     quotes = [dict(zip(cols, row)) for row in cur.fetchall()]
 
+    challenger = load_challenger()
+    cache: dict = {}
+
     groups: dict[tuple, list[dict]] = {}
     for q in quotes:
         key = (q["provider_event_id"], q["market"], q["selection"])
@@ -102,7 +179,7 @@ def build_picks(conn) -> list[dict]:
             if edge < MIN_EDGE:
                 continue
             kf = kelly_fraction(edge, dec)
-            picks.append({
+            pick = {
                 "pick_id": pick_id_for(ENGINE_VERSION, event_id, market,
                                        selection, q["book_key"],
                                        q["observed_at"].isoformat()),
@@ -126,7 +203,9 @@ def build_picks(conn) -> list[dict]:
                 "stake_units": stake_units(kf),
                 "consensus_books": len({x["book_key"] for x in qs}),
                 "observed_at": q["observed_at"],
-            })
+            }
+            pick.update(annotate_challenger(challenger, cache, pick))
+            picks.append(pick)
     picks.sort(key=lambda p: p["edge"], reverse=True)
     return picks
 
@@ -136,13 +215,17 @@ INSERT INTO public.nfl_edge_picks (
   pick_id, engine_version, mode, game_id, provider_event_id, home_team,
   away_team, kickoff, market, selection, line, sportsbook, book_key,
   american_odds, decimal_odds, consensus_fair_prob, edge, kelly_fraction,
-  stake_units, consensus_books, observed_at
+  stake_units, consensus_books, observed_at,
+  challenger_version, challenger_fair_prob, challenger_pred_margin,
+  challenger_pred_total
 ) VALUES (
   %(pick_id)s, %(engine_version)s, %(mode)s, %(game_id)s, %(provider_event_id)s,
   %(home_team)s, %(away_team)s, %(kickoff)s, %(market)s, %(selection)s,
   %(line)s, %(sportsbook)s, %(book_key)s, %(american_odds)s, %(decimal_odds)s,
   %(consensus_fair_prob)s, %(edge)s, %(kelly_fraction)s, %(stake_units)s,
-  %(consensus_books)s, %(observed_at)s
+  %(consensus_books)s, %(observed_at)s,
+  %(challenger_version)s, %(challenger_fair_prob)s, %(challenger_pred_margin)s,
+  %(challenger_pred_total)s
 ) ON CONFLICT (pick_id) DO NOTHING
 """
 

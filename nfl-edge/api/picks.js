@@ -9,7 +9,9 @@ const SQL = `
 SELECT pick_id, engine_version, mode, provider_event_id, home_team, away_team,
        kickoff, market, selection, line, sportsbook, book_key, american_odds,
        decimal_odds, consensus_fair_prob, edge, kelly_fraction, stake_units,
-       consensus_books, observed_at, created_at
+       consensus_books, observed_at, created_at,
+       challenger_version, challenger_fair_prob, challenger_pred_margin,
+       challenger_pred_total
 FROM public.nfl_edge_picks
 WHERE mode = 'shadow' AND kickoff > now()
 ORDER BY created_at DESC

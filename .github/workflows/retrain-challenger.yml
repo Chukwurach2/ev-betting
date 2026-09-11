@@ -1,0 +1,44 @@
+# Weekly challenger retrain: refresh ratings on the latest nflverse data,
+# re-run the validation gate, and report. NEVER auto-promotes: a passing gate
+# only marks the artifact eligible; promotion to a pick signal remains a
+# manual, evidence-based decision (see model/challenger/validate.py).
+#
+# The freshly trained artifact is uploaded as a workflow artifact for review.
+# Committing it to the repo stays manual so a human sees the gate verdict.
+
+name: retrain-challenger
+
+on:
+  schedule:
+    - cron: "0 7 * * 1"   # Mondays 07:00 UTC, after the weekend's games settle
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  retrain:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Train challenger on latest data
+        working-directory: nfl-edge
+        run: |
+          python -m model.challenger.train --version "weekly-$(date +%Y%m%d)" --fetch | tee /tmp/challenger-train.log
+          echo "---- gate verdict ----"
+          grep -E "gate promoted|does not beat|BEATS" /tmp/challenger-train.log || true
+      - name: Run challenger tests
+        working-directory: nfl-edge
+        run: python -m unittest tests.test_challenger -v
+      - name: Upload candidate artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: challenger-weekly-${{ github.run_id }}
+          path: |
+            nfl-edge/model/challenger/artifacts/challenger-weekly-*/
+            /tmp/challenger-train.log
+          retention-days: 90
