@@ -60,7 +60,12 @@ export function evaluateVerdict(m) {
   return {
     verdict,
     reasons,
-    promotion_eligible: verdict === 'HEALTHY',
-    performance_status: verdict === 'HEALTHY' ? 'promotion_eligible' : 'diagnostic_only',
+    // Health is necessary but never sufficient for promotion. A clean week
+    // may be evaluated by the separately locked statistical gate; it does
+    // not pass that gate merely by being complete.
+    promotion_eligible: verdict === 'DEGRADED' ? false : null,
+    performance_status: verdict === 'DEGRADED'
+      ? 'diagnostic_only'
+      : 'eligible_for_gate_evaluation',
   };
 }

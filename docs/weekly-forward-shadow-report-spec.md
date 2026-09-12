@@ -69,7 +69,10 @@ is under investigation) — never bury it under performance numbers.
 A DEGRADED verdict mechanically sets `promotion_eligible=false` and
 `performance_status=diagnostic_only`. ROI, CLV, calibration, and gate-progress
 figures may still be reported for debugging, but they cannot count toward
-promotion evidence.
+promotion evidence. A HEALTHY verdict sets
+`performance_status=eligible_for_gate_evaluation` and leaves
+`promotion_eligible=null`: data quality is necessary but never sufficient
+for promotion.
 
 ## Report order
 

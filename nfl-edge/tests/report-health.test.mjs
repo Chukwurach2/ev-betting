@@ -22,8 +22,8 @@ test('clean week is HEALTHY', () => {
   assert.equal(verdict, 'HEALTHY');
   assert.deepEqual(reasons, []);
   const result = evaluateVerdict(CLEAN);
-  assert.equal(result.promotion_eligible, true);
-  assert.equal(result.performance_status, 'promotion_eligible');
+  assert.equal(result.promotion_eligible, null);
+  assert.equal(result.performance_status, 'eligible_for_gate_evaluation');
 });
 
 test('any duplicate quote group degrades', () => {
