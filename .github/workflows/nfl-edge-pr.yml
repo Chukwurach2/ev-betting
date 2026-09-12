@@ -1,0 +1,31 @@
+name: NFL Edge PR checks
+
+on:
+  pull_request:
+    paths:
+      - "nfl-edge/**"
+      - "docs/weekly-forward-shadow-report-spec.md"
+      - ".github/workflows/nfl-edge-pr.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  focused-regressions:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: nfl-edge
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Pick and migration regressions
+        run: python -m unittest tests.test_picks tests.test_migrations -v
+      - name: Weekly health contract
+        run: node --test tests/report-health.test.mjs
