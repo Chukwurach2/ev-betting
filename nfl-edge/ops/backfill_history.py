@@ -46,6 +46,9 @@ import json
 import os
 import sys
 
+sys.path.insert(0, str(__import__("pathlib").Path(__file__).resolve().parents[1]))
+from research.devig import devig_multiplicative  # tournament-selected de-vig
+
 BASE = "https://api.the-odds-api.com/v4"
 SPORT = "americanfootball_nfl"
 
@@ -267,10 +270,13 @@ def normalize_snapshot(envelope, regions, markets):
                              if {s[0] for s in v} == {"Over", "Under"}]
                     pair_lines = [(v[0][1], v) for v in pairs]
                 for line, pair in pair_lines:
-                    denom = sum(implied(p) for _, _, p in pair)
-                    if not denom:
+                    # Tournament-selected de-vig (devig-tournament-v1):
+                    # multiplicative, q_i = p_i / R.
+                    fair = devig_multiplicative(implied(pair[0][2]),
+                                                implied(pair[1][2]))
+                    if fair is None:
                         continue
-                    for name, _, price in pair:
+                    for (name, _, price), fq in zip(pair, fair):
                         qid = hashlib.sha256(
                             ("%s|%s|%s|%s|%s|%s|%s" % (
                                 snap_at, event_id, book_key, market, name,
@@ -283,7 +289,7 @@ def normalize_snapshot(envelope, regions, markets):
                             "sportsbook": title, "book_key": book_key,
                             "market": market, "selection": name,
                             "line": line, "american_odds": price,
-                            "fair_probability": implied(price) / denom,
+                            "fair_probability": fq,
                             "observed_at": snap_at,
                             "ny_licensed": book_key in NY_BOOK_KEYS,
                         })

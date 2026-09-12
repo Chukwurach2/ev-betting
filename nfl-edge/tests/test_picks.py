@@ -110,12 +110,14 @@ class PicksBuildTests(unittest.TestCase):
              "Circa", "circa", 120, 0.40, now, "g1"),
         ]
         out = self.run_build(rows)
-        # consensus median of [.50,.50,.40] = .50; circa at +120: edge=.50*2.2-1=.10
+        # LOBO consensus for circa = median of dk+fd = .50 (circa excluded
+        # from its own consensus); circa at +120: edge=.50*2.2-1=.10
         circa = [p for p in out if p["book_key"] == "circa"]
         self.assertEqual(len(circa), 1)
         self.assertGreaterEqual(circa[0]["edge"], picks.MIN_EDGE)
         self.assertEqual(circa[0]["mode"], "shadow")
-        # the -110/-105 books have negative edge vs consensus: no picks
+        self.assertEqual(circa[0]["consensus_books"], 2)
+        # the -110/-105 books have negative edge vs their LOBO consensus
         self.assertEqual(len([p for p in out if p["book_key"] != "circa"]), 0)
 
     def test_no_pick_below_threshold(self):
@@ -172,7 +174,7 @@ class PicksBuildTests(unittest.TestCase):
         self.assertEqual(out, [])
 
     def test_line_move_splits_groups(self):        # Same book re-quoted at a moved line: each line needs its own
-        # two-book consensus.
+        # three-book LOBO consensus.
         import datetime as dt
         now = dt.datetime.now(dt.timezone.utc)
         rows = [
@@ -184,13 +186,52 @@ class PicksBuildTests(unittest.TestCase):
              "DraftKings", "draftkings", 130, 0.45, now, "g1"),
             ("e1", "H", "A", now, "FULL_GAME_TOTAL", "Over", 46.5,
              "FanDuel", "fanduel", -110, 0.45, now, "g1"),
+            ("e1", "H", "A", now, "FULL_GAME_TOTAL", "Over", 46.5,
+             "BetMGM", "betmgm", -110, 0.45, now, "g1"),
         ]
         out = self.run_build(rows)
-        # 45.5 group: consensus .50, -110 both -> edge .50*1.909-1 < 0
-        # 46.5 group: consensus .45, DK +130 -> edge .45*2.3-1 = .035 -> pick
+        # 45.5 group: only two books -> no LOBO consensus, no picks.
+        # 46.5 group: LOBO consensus for DK = median(fd, mgm) = .45;
+        # DK +130 -> edge .45*2.3-1 = .035 -> pick
         self.assertEqual(len(out), 1)
         self.assertEqual(out[0]["book_key"], "draftkings")
         self.assertEqual(float(out[0]["line"]), 46.5)
+
+    def test_lobo_target_excluded_from_own_consensus(self):
+        # Four books: A and B fair .50, C and D fair .80. A offers -110.
+        # LOBO consensus for A = median(.50,.80,.80) = .80, so the stored
+        # pick must record .80 -- a non-LOBO median over all four would be .65.
+        # (Dedupe keeps the single best edge per event/market/selection.)
+        import datetime as dt
+        now = dt.datetime.now(dt.timezone.utc)
+        rows = [
+            ("e1", "H", "A", now, "FULL_GAME_SPREAD", "A", -3.5,
+             "BookA", "booka", -110, 0.50, now, "g1"),
+            ("e1", "H", "A", now, "FULL_GAME_SPREAD", "A", -3.5,
+             "BookB", "bookb", -110, 0.50, now, "g1"),
+            ("e1", "H", "A", now, "FULL_GAME_SPREAD", "A", -3.5,
+             "BookC", "bookc", -110, 0.80, now, "g1"),
+            ("e1", "H", "A", now, "FULL_GAME_SPREAD", "A", -3.5,
+             "BookD", "bookd", 105, 0.80, now, "g1"),
+        ]
+        out = self.run_build(rows)
+        self.assertEqual(len(out), 1)
+        self.assertIn(out[0]["book_key"], ("booka", "bookb"))
+        self.assertAlmostEqual(out[0]["consensus_fair_prob"], 0.80)
+        self.assertEqual(out[0]["consensus_books"], 3)
+
+    def test_two_book_group_never_emits_under_lobo(self):
+        # Two books is not enough for a leave-one-out consensus: even a
+        # huge apparent edge must not emit.
+        import datetime as dt
+        now = dt.datetime.now(dt.timezone.utc)
+        rows = [
+            ("e1", "H", "A", now, "FULL_GAME_SPREAD", "A", -3.5,
+             "DraftKings", "draftkings", -110, 0.50, now, "g1"),
+            ("e1", "H", "A", now, "FULL_GAME_SPREAD", "A", -3.5,
+             "FanDuel", "fanduel", 200, 0.50, now, "g1"),
+        ]
+        self.assertEqual(self.run_build(rows), [])
 
 
 def _mkpick(event="e1", market="FULL_GAME_SPREAD", selection="A",

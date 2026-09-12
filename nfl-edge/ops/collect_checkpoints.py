@@ -7,7 +7,9 @@ import sys
 from dataclasses import asdict
 from urllib.parse import urlsplit
 sys.path.insert(0,str(pathlib.Path(__file__).parents[1]/'model'))
+sys.path.insert(0,str(pathlib.Path(__file__).parents[1]))  # research.devig
 from checkpoints import plan,collect,instant
+from research.devig import devig_multiplicative  # tournament-selected de-vig
 from postgres_checkpoints import PostgresCheckpointStore
 from provider_oddsapi import (fetch_events,fetch_event_odds,normalize,quota,
                                NY_BOOK_KEYS)
@@ -83,9 +85,15 @@ def pair_quotes(payload):
             teams={payload.get('home_team'),payload.get('away_team')}
             if {q.selection for q in quotes}!=teams or abs(quotes[0].line+quotes[1].line)>1e-9:continue
         else:continue
-        denominator=sum(implied(q.american_odds) for q in quotes)
-        for q in quotes:
-            result.append({**asdict(q),'fair_probability':implied(q.american_odds)/denominator,
+        # Tournament-selected de-vig (devig-tournament-v1): multiplicative,
+        # q_i = p_i / R. Algebraically the same as the old inline formula,
+        # but now a single source of truth shared with research.
+        fair = devig_multiplicative(implied(quotes[0].american_odds),
+                                    implied(quotes[1].american_odds))
+        if fair is None:
+            continue
+        for q, fq in zip(quotes, fair):
+            result.append({**asdict(q),'fair_probability':fq,
                 'fair_method':'paired_same_book_conditional_on_no_push',
                 'settlement_rules':settlement(market,line),
                 'ny_licensed':q.sportsbook_key in NY_BOOK_KEYS})

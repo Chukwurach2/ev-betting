@@ -1,12 +1,16 @@
-"""Shadow picks engine v1: cross-book consensus edge detection.
+"""Shadow picks engine v1.1: cross-book consensus edge detection with strict LOBO.
 
-For every upcoming game/market/selection/LINE with fresh quotes from at least
-two books, the engine compares each book's offered odds against the consensus
-no-vig fair probability (median across books at that identical line).
-Grouping is line-aware: different lines are different bets and never share a
-consensus calculation, even for the same selection. A positive edge above
-MIN_EDGE emits a SHADOW pick with fractional-Kelly staking. An empty pick set
-is a valid output: the engine never forces picks.
+For every upcoming game/market/selection/LINE with fresh quotes, the engine
+compares each book's offered odds against the leave-one-book-out consensus
+no-vig fair probability (median across OTHER books at that identical line).
+The evaluated book never enters its own consensus: a book cannot manufacture
+an edge against itself. Grouping is line-aware: different lines are different
+bets and never share a consensus calculation, even for the same selection.
+A positive edge above MIN_EDGE emits a SHADOW pick with fractional-Kelly
+staking. An empty pick set is a valid output: the engine never forces picks.
+
+Fair probabilities are computed upstream with the tournament-selected
+multiplicative de-vig (research/devig.py); the engine consumes them read-only.
 
 Nothing here is a production wager. mode is hard-wired to 'shadow'; any
 attempt to write another mode raises. Promotion to challenger/production
@@ -25,7 +29,7 @@ import os
 import statistics
 import sys
 
-ENGINE_VERSION = "v1-consensus"
+ENGINE_VERSION = "v1.1-consensus-lobo"
 MODE = "shadow"
 
 # Full team name (Odds API selection) -> canonical abbreviation.
@@ -94,14 +98,11 @@ def annotate_challenger(challenger, cache, pick: dict) -> dict:
         pass
     return fields
 
-ENGINE_VERSION = "v1-consensus"
-MODE = "shadow"
-
 MIN_EDGE = 0.02            # minimum expected value to emit a pick
 KELLY_DIVISOR = 4          # quarter-Kelly
 MAX_STAKE_UNITS = 1.0      # cap per pick, bankroll = 100 units
 FRESHNESS_MINUTES = 30     # quotes older than this are ignored
-MIN_CONSENSUS_BOOKS = 2    # books required for a consensus
+MIN_CONSENSUS_BOOKS = 2    # OTHER books required for a LOBO consensus
 
 # Portfolio risk controls (shadow ledger; mirrored by any production engine).
 MAX_PICKS_PER_EVENT = 4      # most picks kept on one game per run
@@ -244,10 +245,20 @@ def build_picks(conn) -> list[dict]:
 
     picks: list[dict] = []
     for (event_id, market, selection, linek), qs in groups.items():
-        if len({q["book_key"] for q in qs}) < MIN_CONSENSUS_BOOKS:
+        books = {q["book_key"] for q in qs}
+        if len(books) < MIN_CONSENSUS_BOOKS + 1:
+            # Strict LOBO: every evaluated book needs at least
+            # MIN_CONSENSUS_BOOKS *other* books, so a group can only
+            # produce picks with 3+ distinct books.
             continue
-        consensus = consensus_prob([float(q["fair_probability"]) for q in qs])
         for q in qs:
+            others = [x for x in qs if x["book_key"] != q["book_key"]]
+            if len({x["book_key"] for x in others}) < MIN_CONSENSUS_BOOKS:
+                continue
+            # Leave-one-book-out consensus: the evaluated book never
+            # enters its own consensus.
+            consensus = consensus_prob(
+                [float(x["fair_probability"]) for x in others])
             dec = american_to_decimal(int(q["american_odds"]))
             edge = edge_for_quote(dec, consensus)
             if edge < MIN_EDGE:
@@ -275,7 +286,7 @@ def build_picks(conn) -> list[dict]:
                 "edge": round(edge, 6),
                 "kelly_fraction": round(kf, 6),
                 "stake_units": stake_units(kf),
-                "consensus_books": len({x["book_key"] for x in qs}),
+                "consensus_books": len({x["book_key"] for x in others}),
                 "observed_at": q["observed_at"],
             }
             pick.update(annotate_challenger(challenger, cache, pick))

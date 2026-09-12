@@ -55,6 +55,25 @@ class CheckpointTests(unittest.TestCase):
         new=plan([{**self.game,'kickoff':self.kickoff+dt.timedelta(minutes=5)}],self.now+dt.timedelta(minutes=5))
         self.assertTrue(set(c.key for c in old).isdisjoint(c.key for c in new))
 
+    def test_pair_quotes_uses_multiplicative_devig(self):
+        # Over +110 / Under -130: p_over=100/210, p_under=130/230,
+        # R=p_over+p_under; fair = p/R (tournament-selected multiplicative).
+        markets = [
+            {'key': 'totals', 'last_update': self.now.isoformat(), 'outcomes': [
+                {'name': 'Over', 'price': 110, 'point': 44},
+                {'name': 'Under', 'price': -130, 'point': 44}]},
+        ]
+        event = {'id': 'g2', 'home_team': 'Home', 'away_team': 'Away',
+                 'bookmakers': [{'key': 'draftkings', 'title': 'DraftKings',
+                                  'markets': markets}]}
+        pairs = pair_quotes(event)
+        self.assertEqual(len(pairs), 2)
+        p_over, p_under = 100 / 210, 130 / 230
+        r = p_over + p_under
+        got = {q['selection']: q['fair_probability'] for q in pairs}
+        self.assertAlmostEqual(got['Over'], p_over / r)
+        self.assertAlmostEqual(got['Under'], p_under / r)
+
     def test_same_book_exact_full_game_pairs_and_push_rules(self):
         markets=[
             {'key':'totals','last_update':self.now.isoformat(),'outcomes':[
