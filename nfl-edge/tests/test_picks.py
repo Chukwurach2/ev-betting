@@ -62,6 +62,7 @@ class PicksMathTests(unittest.TestCase):
 
     def test_engine_constants_sane(self):
         self.assertEqual(picks.MODE, "shadow")
+        self.assertEqual(picks.ENGINE_VERSION, "v1.2-consensus-lobo-4pct-15m")
         self.assertGreaterEqual(picks.MIN_EDGE, 0.01)
         self.assertGreaterEqual(picks.MIN_CONSENSUS_BOOKS, 2)
         self.assertGreater(picks.FRESHNESS_MINUTES, 0)
