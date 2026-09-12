@@ -1,4 +1,4 @@
-"""Shadow picks engine v1.1: cross-book consensus edge detection with strict LOBO.
+"""Shadow picks engine v1.2: cross-book consensus edge detection with strict LOBO.
 
 For every upcoming game/market/selection/LINE with fresh quotes, the engine
 compares each book's offered odds against the leave-one-book-out consensus
@@ -29,7 +29,7 @@ import os
 import statistics
 import sys
 
-ENGINE_VERSION = "v1.1-consensus-lobo"
+ENGINE_VERSION = "v1.2-consensus-lobo-4pct-15m"
 MODE = "shadow"
 
 # Full team name (Odds API selection) -> canonical abbreviation.
