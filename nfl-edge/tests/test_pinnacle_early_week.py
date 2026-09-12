@@ -25,7 +25,8 @@ from research.pinnacle_early_week import (  # noqa: E402
 
 UTC = timezone.utc
 KICKOFF = datetime(2024, 9, 8, 17, 0, tzinfo=UTC)  # Sunday
-WED_EARLY = datetime(2024, 9, 4, 12, 0, tzinfo=UTC)  # Wednesday 12:00 UTC
+WED_EARLY = datetime(2024, 9, 4, 11, 55, tzinfo=UTC)  # Wednesday ~11:55 UTC
+# (provider returns snapshots at ~11:55; the stored observed_at keeps it)
 SAT_LATE = datetime(2024, 9, 7, 12, 0, tzinfo=UTC)  # close proxy
 
 

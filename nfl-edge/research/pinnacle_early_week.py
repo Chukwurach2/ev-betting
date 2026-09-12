@@ -90,8 +90,11 @@ def early_week_units(game_series, markets=DEFAULT_MARKETS):
             close_snap = pre[-1]
             lo = ko - dt.timedelta(days=EARLY_WINDOW_DAYS)
             hi = ko - dt.timedelta(hours=EARLY_MIN_HOURS)
-            cands = [s for s in pre
-                     if s.weekday() == 2 and s.hour == 12 and lo <= s <= hi]
+            # Wednesday snapshots of the cadence. NOTE: the provider returns
+            # snapshots at ~11:55 UTC, stored as-is; matching on weekday only
+            # (an earlier hour==12 filter silently matched nothing — fixed
+            # 2026-09-12 after the first run returned zero units).
+            cands = [s for s in pre if s.weekday() == 2 and lo <= s <= hi]
             chosen = None
             for s in sorted(cands):  # earliest first
                 pin = series[s].get(PINNACLE)
@@ -222,6 +225,12 @@ def decide_early_week(analysis, alpha=ALPHA, practical_clv=PRACTICAL_CLV):
 
 def run_pinnacle_early_week(quotes, markets=DEFAULT_MARKETS):
     game_series = build_game_series(quotes, markets=markets)
+    # Loud guard: the Wednesday cadence must exist in the data at all.
+    wedges = [s for g in game_series.values()
+              for m in g.get("series", {}).values() for s in m
+              if s.weekday() == 2]
+    if not wedges:
+        raise SystemExit("error: no Wednesday snapshots in dataset")
     units, diag = early_week_units(game_series, markets=markets)
     analysis = analyze_early_week(units)
     verdict, detail = decide_early_week(analysis)
