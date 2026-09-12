@@ -98,10 +98,11 @@ def annotate_challenger(challenger, cache, pick: dict) -> dict:
         pass
     return fields
 
-MIN_EDGE = 0.02            # minimum expected value to emit a pick
+MIN_EDGE = 0.04            # minimum expected value to emit a shadow pick
+MIN_AMERICAN_ODDS = -150    # user-authorized price floor; never accept worse
 KELLY_DIVISOR = 4          # quarter-Kelly
 MAX_STAKE_UNITS = 1.0      # cap per pick, bankroll = 100 units
-FRESHNESS_MINUTES = 30     # quotes older than this are ignored
+FRESHNESS_MINUTES = 15     # provider-source quotes older than this are ignored
 MIN_CONSENSUS_BOOKS = 2    # OTHER books required for a LOBO consensus
 
 # Portfolio risk controls (shadow ledger; mirrored by any production engine).
@@ -220,9 +221,11 @@ FROM public.nfl_edge_odds_quotes q
 LEFT JOIN public.games g
   ON g.home_team = q.home_team AND g.away_team = q.away_team
  AND g.kickoff = q.kickoff
-WHERE q.collected_at > now() - make_interval(mins => %s)
+WHERE q.observed_at > now() - make_interval(mins => %s)
+  AND q.observed_at <= now()
+  AND q.collected_at >= q.observed_at
   AND q.kickoff > now()
-ORDER BY q.provider_event_id, q.market, q.selection, q.book_key, q.collected_at DESC
+ORDER BY q.provider_event_id, q.market, q.selection, q.book_key, q.observed_at DESC
 """
 
 
@@ -252,6 +255,11 @@ def build_picks(conn) -> list[dict]:
             # produce picks with 3+ distinct books.
             continue
         for q in qs:
+            # Preserve the executable price floor even in SHADOW. An old or
+            # materially worse quote must never become a candidate merely
+            # because cross-book consensus looks favorable.
+            if int(q["american_odds"]) < MIN_AMERICAN_ODDS:
+                continue
             others = [x for x in qs if x["book_key"] != q["book_key"]]
             if len({x["book_key"] for x in others}) < MIN_CONSENSUS_BOOKS:
                 continue
