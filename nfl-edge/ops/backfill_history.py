@@ -382,11 +382,15 @@ def main(argv=None):
                     print("recaptured legacy snapshot %s (deleted %d quotes)"
                           % (old_snap, qn), flush=True)
             # Skip snapshots already captured (within 30 min of request).
+            # A receipt WITHOUT any stored quotes is an incomplete capture
+            # (e.g. the 2026-09-12 moneyline pilot hit a CHECK violation
+            # mid-insert) and is redone rather than skipped.
             row = conn.execute(
-                """SELECT snapshot_at FROM public.nfl_edge_market_history
-                   WHERE regions=%s AND markets=%s
-                     AND abs(extract(epoch from (snapshot_at - %s))) < 1800
-                   LIMIT 1""",
+                """SELECT mh.snapshot_at FROM public.nfl_edge_market_history mh
+                   WHERE mh.regions=%s AND mh.markets=%s
+                     AND abs(extract(epoch from (mh.snapshot_at - %s))) < 1800
+                     AND EXISTS (SELECT 1 FROM public.nfl_edge_historical_quotes q
+                                 WHERE q.observed_at = mh.snapshot_at)""",
                 (args.regions, args.markets, when)).fetchone()
             if row:
                 skipped += 1
