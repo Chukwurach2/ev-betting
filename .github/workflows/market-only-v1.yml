@@ -1,0 +1,85 @@
+name: NFL Edge market-only-v1
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: nfl-edge-market-only-v1
+  cancel-in-progress: false
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: nfl-edge
+    steps:
+      - name: Read NFL Edge source without resolving unrelated submodules
+        working-directory: .
+        env:
+          GH_READ_TOKEN: <redacted>
+        run: |
+          python3 - <<'BOOTSTRAP'
+          import io, os, pathlib, tarfile, urllib.request
+          url = 'https://api.github.com/repos/' + os.environ['GITHUB_REPOSITORY'] + '/tarball/' + os.environ['GITHUB_SHA']
+          request = urllib.request.Request(url, headers={'Authorization': 'Bearer ' + os.environ['GH_READ_TOKEN'], 'Accept': 'application/vnd.github+json'})
+          with urllib.request.urlopen(request, timeout=60) as response:
+              data = response.read()
+          count = 0
+          with tarfile.open(fileobj=io.BytesIO(data), mode='r:gz') as archive:
+              for member in archive:
+                  relative = pathlib.PurePosixPath(*pathlib.PurePosixPath(member.name).parts[1:])
+                  if not member.isfile() or not relative.parts or relative.parts[0] != 'nfl-edge':
+                      continue
+                  if '..' in relative.parts or relative.is_absolute():
+                      raise ValueError('Unsafe archive member')
+                  target = pathlib.Path(str(relative))
+                  target.parent.mkdir(parents=True, exist_ok=True)
+                  target.write_bytes(archive.extractfile(member).read())
+                  count += 1
+          if not count:
+              raise ValueError('NFL Edge source missing')
+          print('Loaded', count, 'NFL Edge source files from the exact workflow commit')
+          BOOTSTRAP
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -r ops/requirements.txt
+      - name: Verify database secret
+        env:
+          NFL_EDGE_DATABASE_URL: <redacted>
+        run: |
+          if [ -z "$NFL_EDGE_DATABASE_URL" ]; then
+            echo "NFL_EDGE_DATABASE_URL is missing. Add it under GitHub Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+      - name: Pre-results null-simulation gate (must be CALIBRATED)
+        run: |
+          python research/market_only_v1.py --null-sim --out /tmp/nullsim.json | tee /tmp/nullsim.log
+          grep -q "CALIBRATED" /tmp/nullsim.log || { echo "NULL SIMULATION MISCALIBRATED - refusing real-data run"; exit 1; }
+      - name: Run market-only-v1 (read-only, zero API credits)
+        env:
+          NFL_EDGE_DATABASE_URL: <redacted>
+        run: |
+          python research/market_only_v1.py --out /tmp/market-only-v1.json
+          python - <<'SUMMARY'
+          import json
+          r = json.load(open('/tmp/market-only-v1.json'))
+          print('verdict:', r['verdict'])
+          print('n_units:', r['n_units'], 'seasons:', r['seasons'])
+          print('rmse_model=%.6f rmse_bwed=%.6f rmse_bsat=%.6f'
+                % (r['rmse_model'], r['rmse_bwed'], r['rmse_bsat']))
+          pt = r['primary_test']
+          print('primary: mean_se_diff=%+.6f n=%d z=%+.3f p_one_sided=%.4g'
+                % (pt['mean_se_diff'], pt['n'], pt['z'], pt['p_one_sided']))
+          for s, ps in sorted(r['per_season'].items()):
+              print('  season %s: n=%d rmse_model=%.6f rmse_bsat=%.6f'
+                    % (s, ps['n'], ps['rmse_model'], ps['rmse_bsat']))
+          SUMMARY
+      - name: Upload market-only-v1 results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: market-only-v1
+          path: /tmp/market-only-v1.json
+          retention-days: 90
