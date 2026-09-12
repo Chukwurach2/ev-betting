@@ -41,6 +41,24 @@
       "source": "frozen 2022-2024 historical dataset, fingerprint 43f853a44bf93937d85149ca5fd7241b, 162 snapshots, 291586 quotes, 825 canonical games",
       "outcome": "Track A: no book significant after Holm (best FanDuel p=0.102); pooled agree rate 0.526 (+2.6pp, p=0.0125) too small to trade; reverse falsification clean. Track B: lagging fraction 0.348, p=0.995 \u2014 no stale-price mechanism; superseded naive t-test would have falsely reported p~2.6e-176. Both tracks: no edge found.",
       "role": "SHADOW"
+    },
+    {
+      "id": "market-only-v1",
+      "market_family": "full_game_spread_total",
+      "status": "completed_no_edge_found",
+      "hypothesis": "Ridge model on Wed/Sat market features predicts closing consensus fair prob better than carry-forward (leave-one-season-out, one paired test).",
+      "source": "frozen 2022-2024 historical dataset, fingerprint 43f853a44bf93937d85149ca5fd7241b, 704 complete (game, market) units",
+      "outcome": "Primary test significant (p=3.0e-06) and model beats Sat carry-forward in 3/3 seasons, but RMSE gain 0.000928 (0.09pp) is far below the preregistered 0.003 practical bar. Verdict: no_edge. The Sat consensus is already nearly optimal.",
+      "role": "SHADOW"
+    },
+    {
+      "id": "residual-v1",
+      "market_family": "full_game_spread_total",
+      "status": "completed_no_edge_found",
+      "hypothesis": "Challenger v1 residual r = chal_fair - f_sat predicts closing move (OLS move ~ r, one-sided slope test). Challenger audited point-in-time safe: train_end=2021, static ratings.",
+      "source": "frozen 2022-2024 historical dataset, fingerprint 43f853a44bf93937d85149ca5fd7241b, 704 units with challenger predictions",
+      "outcome": "Primary test not significant (slope +0.0010, p=0.1218); per-season slopes all ~+0.001. Verdict: no_edge. Stale 2021 ratings disagree wildly with market (mean |r|=0.36) but carry no information about closing movement. Consistent with the challenger's gate refusal.",
+      "role": "SHADOW"
     }
   ]
 }
