@@ -113,6 +113,15 @@ jobs:
           cur.execute("""SELECT decision_window, count(*) FROM public.nfl_edge_checkpoints
                          GROUP BY 1 ORDER BY 1""")
           print("checkpoints by type:", cur.fetchall())
+          cur.execute("""SELECT status, count(*),
+                         sum(jsonb_array_length(quotes)) FROM public.nfl_edge_checkpoints
+                         GROUP BY 1 ORDER BY 1""")
+          print("checkpoints by status (count, total quotes):", cur.fetchall())
+          cur.execute("""SELECT count(*) FROM public.nfl_edge_checkpoints
+                         WHERE status='captured'
+                         AND NOT EXISTS (SELECT 1 FROM public.nfl_edge_odds_quotes q
+                                         WHERE q.checkpoint_key = nfl_edge_checkpoints.checkpoint_key)""")
+          print("captured checkpoints not yet materialized:", cur.fetchone()[0])
           cur.execute("""SELECT mode, count(*), round(avg(edge),4) FROM public.nfl_edge_picks
                          GROUP BY 1 ORDER BY 1""")
           print("picks by mode:", cur.fetchall())
