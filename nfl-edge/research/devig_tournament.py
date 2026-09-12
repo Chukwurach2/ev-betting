@@ -126,6 +126,8 @@ def _ref_other_selections(market, home_team, away_team):
         return home_team, away_team
     if market == TOTAL:
         return "Over", "Under"
+    if market == "FULL_GAME_MONEYLINE":
+        return home_team, away_team
     return None, None
 
 

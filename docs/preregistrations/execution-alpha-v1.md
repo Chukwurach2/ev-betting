@@ -89,3 +89,20 @@ ex-post benchmark). Zero API credits; read-only Neon. A positive finding
 selects the hypothesis for FORWARD-SHADOW validation only — the mandatory
 promotion gate remains positive CLV against actual closing lines on forward
 data. Historical results never promote.
+
+## Amendment A1 (PRE-RESULTS correction — no real data viewed)
+
+The A1-template calibration test (null-DGP simulation during
+implementation) showed the preregistered null DGP was miscalibrated: with
+sigma estimated by population stdev over the 2-6 books in a cell, the
+null mean sat systematically below the observed statistic (false
+rejection rate 59% at alpha=0.05 on pure-noise data). Root cause: small-n
+downward bias of the stdev estimator, which shrinks the simulated
+best-of-B maximum.
+
+Correction: sigma in the null DGP is the UNBIASED cross-book std — sample
+stdev (ddof=1) divided by the c4(n) small-sample correction,
+c4(n) = sqrt(2/(n-1)) * Gamma(n/2)/Gamma((n-1)/2). After the fix the
+calibration test passes (null rejection rate within [0, 0.12] over 100
+noise replicates; a planted +0.025 systematic book edge is detected).
+Everything else in the preregistration is unchanged.

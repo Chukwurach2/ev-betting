@@ -238,6 +238,8 @@ def normalize_snapshot(envelope, regions, markets):
                     market = "FULL_GAME_SPREAD"
                 elif key == "totals":
                     market = "FULL_GAME_TOTAL"
+                elif key == "h2h":
+                    market = "FULL_GAME_MONEYLINE"
                 else:
                     continue
                 sides = []
@@ -245,14 +247,26 @@ def normalize_snapshot(envelope, regions, markets):
                     price = _num(o.get("price"))
                     line = _num(o.get("point"))
                     name = o.get("name")
-                    if price is None or line is None or not name:
+                    if market == "FULL_GAME_MONEYLINE":
+                        # Moneyline outcomes carry no point; line stored as 0.
+                        if price is None or not name:
+                            continue
+                        line = 0.0
+                    elif price is None or line is None or not name:
                         continue
                     if abs(price) < 100:
                         continue
                     sides.append((name, line, int(price)))
                 # Pair by line: spreads pair team lines that are opposites,
-                # totals pair Over/Under on the same line.
-                if market == "FULL_GAME_SPREAD":
+                # totals pair Over/Under on the same line, moneyline pairs
+                # the two team outcomes at line 0.
+                if market == "FULL_GAME_MONEYLINE":
+                    if {s[0] for s in sides} == {home, away} and len(sides) == 2:
+                        pairs = [sides]
+                    else:
+                        pairs = []
+                    pair_lines = [(0.0, v) for v in pairs]
+                elif market == "FULL_GAME_SPREAD":
                     by_line = {}
                     for name, line, price in sides:
                         by_line.setdefault(round(abs(line), 3), []).append(

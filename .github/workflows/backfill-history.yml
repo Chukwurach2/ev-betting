@@ -18,6 +18,10 @@ on:
         description: 'Stop after spending this many credits'
         required: false
         default: '15000'
+      markets:
+        description: 'Odds API markets (e.g. spreads,totals or h2h)'
+        required: false
+        default: 'spreads,totals'
       recapture:
         description: 'Set to true to delete legacy-format (data-only payload) snapshots in range and re-fetch them with the current code'
         required: false
@@ -94,5 +98,6 @@ jobs:
             --seasons "${{ inputs.seasons }}" \
             --weeks "${{ inputs.weeks }}" \
             --regions "${{ inputs.regions }}" \
+            --markets "${{ inputs.markets }}" \
             --max-credits "${{ inputs.max_credits }}" \
             $([ "${{ inputs.recapture }}" = "true" ] && echo "--recapture")

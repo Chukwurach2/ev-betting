@@ -127,11 +127,12 @@ def _all_pairs_at_snapshot(ev_quotes, market, snap, home_team, away_team):
     return out
 
 
-def build_game_series(quotes):
+def build_game_series(quotes, markets=None):
     """Group quotes into canonical games with per-book fair-prob series.
 
     Returns dict: game_key -> {
         "home_team": str, "away_team": str,
+        "kickoff": median aware-UTC kickoff across the game's quotes,
         "series": {market: {snapshot: {book: (line, f_ref)}}},
         "line_pairs": {market: {snapshot: {book: [(line, f_ref), ...]}}},
     }
@@ -140,7 +141,9 @@ def build_game_series(quotes):
     Snapshots are aware UTC datetimes sorted ascending. observed_at/kickoff
     are normalized to aware datetimes (CSV input carries ISO strings).
     Quotes that fail canonical keying or yield no valid pair are skipped.
+    `markets` defaults to (FULL_GAME_SPREAD, FULL_GAME_TOTAL).
     """
+    markets = tuple(markets) if markets else MARKETS
     normed = []
     for q in quotes:
         nq = dict(q)
@@ -157,8 +160,10 @@ def build_game_series(quotes):
     for gkey, gquotes in by_game.items():
         home = gquotes[0].get("home_team")
         away = gquotes[0].get("away_team")
+        kos = sorted(q["kickoff"] for q in gquotes if q.get("kickoff"))
+        kickoff = kos[len(kos) // 2] if kos else None
         series, line_pairs = {}, {}
-        for market in MARKETS:
+        for market in markets:
             snaps = sorted({
                 q.get("observed_at")
                 for q in gquotes
@@ -183,6 +188,7 @@ def build_game_series(quotes):
                 line_pairs[market] = per_snap_all
         if series:
             games[gkey] = {"home_team": home, "away_team": away,
+                           "kickoff": kickoff,
                            "series": series, "line_pairs": line_pairs}
     return games
 
