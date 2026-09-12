@@ -1,5 +1,7 @@
 import {Client} from 'pg';
 
+const ENGINE_VERSION = 'v1.2-consensus-lobo-4pct-15m';
+
 // Public read-only feed of the latest SHADOW picks from the consensus edge
 // engine. These are research outputs, never production wagers: every row is
 // mode='shadow' by construction (see ops/picks.py assert_shadow).
@@ -13,7 +15,7 @@ SELECT pick_id, engine_version, mode, provider_event_id, home_team, away_team,
        challenger_version, challenger_fair_prob, challenger_pred_margin,
        challenger_pred_total
 FROM public.nfl_edge_picks
-WHERE mode = 'shadow' AND kickoff > now()
+WHERE mode = 'shadow' AND engine_version = $1 AND kickoff > now()
 ORDER BY created_at DESC
 LIMIT 100
 `;
@@ -31,10 +33,10 @@ export default async function handler(req, res) {
   });
   try {
     await client.connect();
-    const {rows} = await client.query(SQL);
+    const {rows} = await client.query(SQL, [ENGINE_VERSION]);
     return res.status(200).json({
       mode: 'shadow',
-      engine: rows[0]?.engine_version || null,
+      engine: ENGINE_VERSION,
       count: rows.length,
       disclaimer: 'Shadow research output. Not a wager recommendation.',
       picks: rows,
