@@ -34,6 +34,10 @@ export default async function handler(req, res) {
       mode: 'shadow',
       engine: rows[0]?.engine_version || null,
       disclaimer: 'Shadow research output. Not a wager recommendation.',
+      // Raw settled rows power the weekly forward-shadow report (7-day
+      // windows, CLV confidence intervals, gate progress). Shadow research
+      // data only; no PII.
+      picks: rows,
       ...summarize(rows),
     });
   } catch {
