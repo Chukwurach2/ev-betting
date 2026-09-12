@@ -143,6 +143,15 @@ def implied(odds):
     return 100.0 / (100.0 + odds) if odds > 0 else abs(odds) / (100.0 + abs(odds))
 
 
+# API market key -> stored FULL_GAME_* market value(s), mirroring
+# normalize_snapshot. Used by the skip-incomplete check.
+_MARKET_VALUES = {
+    "spreads": ("FULL_GAME_SPREAD",),
+    "totals": ("FULL_GAME_TOTAL",),
+    "h2h": ("FULL_GAME_MONEYLINE",),
+}
+
+
 def _req(path, params, api_key, timeout=30):
     import requests
     try:
@@ -382,16 +391,22 @@ def main(argv=None):
                     print("recaptured legacy snapshot %s (deleted %d quotes)"
                           % (old_snap, qn), flush=True)
             # Skip snapshots already captured (within 30 min of request).
-            # A receipt WITHOUT any stored quotes is an incomplete capture
-            # (e.g. the 2026-09-12 moneyline pilot hit a CHECK violation
-            # mid-insert) and is redone rather than skipped.
+            # A receipt WITHOUT any stored quotes for the requested markets
+            # is an incomplete capture (e.g. the 2026-09-12 moneyline pilot
+            # hit a CHECK violation mid-insert; the frozen spread/total
+            # quotes at the same snapshot_at must NOT satisfy this) and is
+            # redone rather than skipped.
+            expected_markets = []
+            for _m in args.markets.split(","):
+                expected_markets.extend(_MARKET_VALUES.get(_m.strip(), ()))
             row = conn.execute(
                 """SELECT mh.snapshot_at FROM public.nfl_edge_market_history mh
                    WHERE mh.regions=%s AND mh.markets=%s
                      AND abs(extract(epoch from (mh.snapshot_at - %s))) < 1800
                      AND EXISTS (SELECT 1 FROM public.nfl_edge_historical_quotes q
-                                 WHERE q.observed_at = mh.snapshot_at)""",
-                (args.regions, args.markets, when)).fetchone()
+                                 WHERE q.observed_at = mh.snapshot_at
+                                   AND q.market = ANY(%s))""",
+                (args.regions, args.markets, when, expected_markets)).fetchone()
             if row:
                 skipped += 1
                 continue
