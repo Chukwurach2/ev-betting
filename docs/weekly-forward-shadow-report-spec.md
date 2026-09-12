@@ -17,7 +17,8 @@ HEALTH verdict; performance numbers are always read in its light.
 Implementation: `nfl-edge/api/report-health.js`; verdict logic in
 `nfl-edge/lib/report-health.mjs` (pure, unit-tested). All metrics are computed
 from existing tables — checkpoints, `nfl_edge_odds_quotes`, `nfl_edge_picks` —
-never fabricated.
+never fabricated. Pick-level performance and health metrics are restricted to
+current engine `${VERSION}`; rows from other engine versions are never pooled.
 
 ## Required metrics (every report, every week)
 
@@ -87,3 +88,5 @@ for promotion.
 - 2026-09-12: initial spec (user-directed: health alongside performance).
 - 2026-09-12: DEGRADED performance is mechanically diagnostic-only and not
   promotion-eligible.
+- 2026-09-12: engine-scoped reporting added; threshold changes start a new
+  forward window and prior engine versions cannot be aggregated.
