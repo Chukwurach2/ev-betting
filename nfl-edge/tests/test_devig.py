@@ -34,6 +34,7 @@ from research.devig import (
 from research.devig_tournament import (
     _holm_bonferroni,
     _paired_test,
+    canonical_game_keys,
     run_tournament,
 )
 
@@ -176,7 +177,7 @@ class TestTournamentCore(unittest.TestCase):
         # 3 held-out books x 1 prediction snapshot = 3 cells
         self.assertEqual(len(cells), 3)
         self.assertEqual(results["n_cells"], 3)
-        self.assertEqual(results["n_events"], 1)
+        self.assertEqual(results["n_games"], 1)
         books = sorted(c["book"] for c in cells)
         self.assertEqual(books, ["draftkings", "fanduel", "pinnacle"])
         for c in cells:
@@ -251,7 +252,7 @@ class TestTournamentCore(unittest.TestCase):
     def test_decision_no_significant_difference(self):
         quotes = self._three_book_quotes()
         results, _ = run_tournament(quotes)
-        # only one event -> paired test has n=1 -> p_raw None -> no winner
+        # only one game -> paired test has n=1 -> p_raw None -> no winner
         self.assertEqual(results["decision"], "no method significantly better")
         for p in results["pairwise_tests"]:
             self.assertIsNone(p["p_raw"])
@@ -271,6 +272,90 @@ class TestTournamentCore(unittest.TestCase):
         self.assertGreater(z, 10)
         self.assertLess(p, 1e-10)
         self.assertIsNone(_paired_test([1.0]))
+
+
+class TestCanonicalGameIdentity(unittest.TestCase):
+    """Regression tests for the event-identity audit (2026-09-12): the
+    provider re-issues event ids for the same real game across snapshots,
+    so provider_event_id must NOT be the unit of analysis."""
+
+    def _spread_pair(self, quotes, book, snap, evt, kickoff,
+                     home="KC", away="BUF"):
+        _two_sided(quotes, book, snap, "FULL_GAME_SPREAD",
+                   home, -110, away, -110, home=home, away=away, evt=evt)
+        for qq in quotes:
+            if qq["provider_event_id"] == evt and qq["observed_at"] == snap:
+                qq["kickoff"] = kickoff
+
+    def test_provider_id_churn_merges_to_one_game(self):
+        """Same game under two provider ids (disjoint snapshots) is one
+        game, and cells span both ids' snapshots."""
+        s1, s2 = T0, T0 + timedelta(days=3)
+        ko = T0 + timedelta(days=6)
+        quotes = []
+        for b in ("pinnacle", "draftkings", "fanduel"):
+            self._spread_pair(quotes, b, s1, "id-old", ko)
+            self._spread_pair(quotes, b, s2, "id-new", ko)
+        results, cells = run_tournament(quotes)
+        self.assertEqual(results["n_games"], 1)
+        self.assertEqual(len({c["game_id"] for c in cells}), 1)
+        # both provider ids are recorded on the merged cells
+        for c in cells:
+            self.assertEqual(sorted(c["provider_event_ids"]),
+                             ["id-new", "id-old"])
+        # 3 books x 1 prediction snapshot = 3 cells (not 6)
+        self.assertEqual(len(cells), 3)
+
+    def test_kickoff_flex_move_stays_one_game(self):
+        """A flex-scheduling kickoff move (~24h) does not split the game."""
+        s1, s2 = T0, T0 + timedelta(days=3)
+        quotes = []
+        for b in ("pinnacle", "draftkings", "fanduel"):
+            self._spread_pair(quotes, b, s1, "id-flex",
+                              T0 + timedelta(days=6))
+            self._spread_pair(quotes, b, s2, "id-flex",
+                              T0 + timedelta(days=7))
+        results, _ = run_tournament(quotes)
+        self.assertEqual(results["n_games"], 1)
+
+    def test_divisional_rematch_is_two_games(self):
+        """Same teams meeting again weeks later is a different game."""
+        s1, s2 = T0, T0 + timedelta(days=3)
+        quotes = []
+        for b in ("pinnacle", "draftkings", "fanduel"):
+            self._spread_pair(quotes, b, s1, "id-w3",
+                              T0 + timedelta(days=6))
+            self._spread_pair(quotes, b, s2, "id-w3",
+                              T0 + timedelta(days=6))
+        s3, s4 = T0 + timedelta(weeks=10), T0 + timedelta(weeks=10, days=3)
+        for b in ("pinnacle", "draftkings", "fanduel"):
+            self._spread_pair(quotes, b, s3, "id-w13",
+                              T0 + timedelta(weeks=10, days=6))
+            self._spread_pair(quotes, b, s4, "id-w13",
+                              T0 + timedelta(weeks=10, days=6))
+        results, _ = run_tournament(quotes)
+        self.assertEqual(results["n_games"], 2)
+
+    def test_game_key_deterministic(self):
+        s1 = T0
+        ko = T0 + timedelta(days=6)
+        quotes = []
+        self._spread_pair(quotes, "pinnacle", s1, "id-x", ko)
+        k1 = canonical_game_keys(quotes)
+        k2 = canonical_game_keys(list(reversed(quotes)))
+        self.assertEqual(set(k1.values()), set(k2.values()))
+
+    def test_quotes_missing_identity_are_excluded(self):
+        s1, s2 = T0, T0 + timedelta(days=3)
+        quotes = []
+        for b in ("pinnacle", "draftkings", "fanduel"):
+            self._spread_pair(quotes, b, s1, "id-ok", T0 + timedelta(days=6))
+            self._spread_pair(quotes, b, s2, "id-ok", T0 + timedelta(days=6))
+        bad = dict(quotes[0])
+        bad["kickoff"] = None
+        quotes.append(bad)
+        results, _ = run_tournament(quotes)
+        self.assertEqual(results["n_games"], 1)
 
 
 if __name__ == "__main__":

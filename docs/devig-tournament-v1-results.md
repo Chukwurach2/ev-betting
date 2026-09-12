@@ -18,6 +18,7 @@ Mean log-loss vs settled outcomes could not be computed: the historical tables (
 ## Confirmatory round (preregistered): closing-convergence MSE, LOBO
 
 - **Events:** 937 · **cells:** 108,761 per method (complete-case; every cell has all three methods)
+  - *Audit correction (2026-09-12):* the 937 "events" were keyed on unstable provider ids; canonical game identity gives 825 games (816 regular-season + 9 playoff-weekend listings). Re-run with fixed keying: 812 games, 109,985 cells, decision unchanged. See "Event-identity audit" below.
 - Consensus: method-specific, leave-one-book-out, ≥2 other books at the latest closing snapshot. Strict: target book never enters its own consensus (tested).
 - Inference: paired event-level t-tests (n=937 events), 3 pairwise comparisons, Holm-Bonferroni family-wise α=0.05.
 
@@ -53,6 +54,29 @@ The win is statistically decisive but practically small: multiplicative's RMSE i
 2. **Calibration tables** in the artifact are convergence-to-close diagnostics (mean de-vigged prob vs mean closing consensus per decile), not outcome calibration. ~40% of cells sit exactly at 0.50/0.50 (the −110/−110 mass).
 3. **Shin equivalence:** Shin was excluded from the candidate set because it is algebraically identical to additive for two-outcome markets (numerical check: max difference ~2.8e-16). Not a missing comparison.
 4. The `z` column in pairwise tests is the paired t-statistic (n=937, t≈z).
+
+## Event-identity audit (2026-09-12) — root cause found and fixed
+
+**Root cause:** The Odds API re-issues `provider_event_id` for the same real game between snapshots. The tournament keyed directly on that unstable id, so one game was split into multiple longitudinal series: 1,040 distinct provider ids, 375 of them with multiple kickoff timestamps (seconds-to-days of jitter, plus flex-schedule moves). Zero provider ids span two (home, away) pairs — the ids are team-consistent, just temporally unstable. Grouping by (home, away, kickoff day) shows 847 apparent games with 206 having two provider ids, and **no** game/snapshot ever contains two ids simultaneously: a clean temporal id handoff, not same-snapshot double ingestion. Example: Chiefs–Chargers 2022-09-16 appears under one id for snapshots 2022-09-07→11, then a replacement id on 2022-09-14.
+
+**Fix (committed, tested):** canonical game identity = `(home_team, away_team)` + kickoff-proximity clustering (7-day gap starts a new game). The threshold is data-validated, not arbitrary: within-game kickoff gaps are all ≤48h (flex moves); between-game gaps are all ≥528h (22 days). `run_tournament` now groups by canonical game, keeps every `observed_at` as a distinct snapshot observation, and records `provider_event_ids` on each cell for provenance. The held-out book still never enters its own consensus (strict LOBO unchanged).
+
+**Reconciliation (read-only Neon queries, frozen dataset):**
+
+| unit | count |
+|---|---|
+| distinct provider ids | 1,040 |
+| tournament "events" (old keying) | 937 |
+| canonical games (new keying) | 825 |
+| phantom splits from id churn (937 − 825) | 112 |
+| of which: regular-season games | 816 = 272 × 3 seasons, exact |
+| of which: distinct Wild Card-weekend listings (2025-01-12 kickoffs, present in late 2024 snapshots) | 9 |
+
+No canonical game mixes two (home, away) pairs. The 9 extra games are genuinely distinct listings (6 actual + 3 speculative playoff matchups), not duplication.
+
+**Re-run of the tournament core (local, read-only, zero credits) with the fixed keying:** 812 games with ≥1 complete-case cell, 109,985 cells (vs 108,761 before — merging ids unlocked old-id prediction snapshots against replacement-id closing snapshots). Decision **unchanged**: multiplicative still beats both alternatives after Holm correction (additive−multiplicative p≈2.7e-78; additive−power p≈1.4e-50; multiplicative−power p≈3.3e-66). RMSE: multiplicative 0.011995, additive 0.012589, power 0.012918 — same ranking, same small practical effect (~0.06 probability points).
+
+**Regression tests:** 5 new tests in `nfl-edge/tests/test_devig.py` (`TestCanonicalGameIdentity`): id-churn merge to one game with both ids on cells, flex kickoff move stays one game, divisional rematch stays two games, key determinism, un-keyable quotes excluded. Full suite: 274 passed (2 pre-existing sklearn collection errors in unrelated files, unchanged).
 
 ## Ledger
 

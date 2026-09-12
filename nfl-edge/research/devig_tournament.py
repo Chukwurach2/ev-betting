@@ -5,7 +5,16 @@ Frozen dataset: 2022-2024 weeks 1-18, fingerprint
 43f853a44bf93937d85149ca5fd7241b (docs/dataset-freeze.md).
 
 Protocol summary (see preregistration for the full text):
-- For each event/market, the latest snapshot is the closing snapshot;
+- Unit of analysis is the canonical GAME, not the provider's event id:
+  The Odds API re-issues event ids for the same real game across
+  snapshots (and kickoff times jitter / move with flex scheduling), so
+  provider_event_id is not a stable game identity. Canonical identity
+  is (home_team, away_team) + kickoff-proximity clustering: quotes whose
+  kickoffs are within GAME_CLUSTER_GAP of each other belong to one game.
+  Measured on the frozen dataset: within-game kickoff gaps are all
+  <= 48h (flex moves), between-game gaps are all >= 528h (22 days), so
+  the 7-day threshold separates them with wide margin on both sides.
+- For each game/market, the latest snapshot is the closing snapshot;
   earlier snapshots are prediction snapshots.
 - For each (prediction snapshot, held-out book) cell with a valid
   two-sided pair, each candidate de-vig method's fair probability f for
@@ -16,7 +25,7 @@ Protocol summary (see preregistration for the full text):
   yield valid probabilities for the prediction pair and every
   consensus pair.
 - Decision metric: mean squared error vs closing consensus. Inference on
-  event-level mean SEs: paired tests on the 3 pairwise differences,
+  game-level mean SEs: paired tests on the 3 pairwise differences,
   Holm-Bonferroni at family-wise alpha 0.05. A method wins iff it beats
   BOTH others significantly; otherwise "no method significantly better".
 
@@ -49,6 +58,67 @@ ALPHA = 0.05
 SPREAD = "FULL_GAME_SPREAD"
 TOTAL = "FULL_GAME_TOTAL"
 MARKETS = (SPREAD, TOTAL)
+
+# Canonical game-identity clustering. The provider re-issues event ids
+# for the same real game across snapshots, and kickoff times jitter by
+# minutes (data feed) or move by hours/days (flex scheduling), so
+# provider_event_id is NOT a stable game identity. Canonical identity is
+# (home_team, away_team) plus kickoff-proximity clustering: a gap larger
+# than this between consecutive kickoffs of one team pair starts a new
+# game. Measured on the frozen dataset (2026-09-12 audit): within-game
+# kickoff gaps are all <= 48h, between-game gaps are all >= 528h, so the
+# 7-day threshold separates them with wide margin on both sides. NFL
+# teams never meet twice within 7 days.
+GAME_CLUSTER_GAP = dt.timedelta(days=7)
+
+
+def _as_utc(kickoff):
+    """Normalize a kickoff value to an aware datetime."""
+    if isinstance(kickoff, dt.datetime):
+        return kickoff if kickoff.tzinfo else kickoff.replace(
+            tzinfo=dt.timezone.utc)
+    if isinstance(kickoff, str):
+        s = kickoff.replace("Z", "+00:00")
+        try:
+            parsed = dt.datetime.fromisoformat(s)
+        except ValueError:
+            return None
+        return parsed if parsed.tzinfo else parsed.replace(
+            tzinfo=dt.timezone.utc)
+    return None
+
+
+def canonical_game_keys(quotes):
+    """Assign each quote a canonical game key.
+
+    Returns dict mapping id(quote) -> game key string. Quotes missing
+    home/away/kickoff are skipped (absent from the map).
+    """
+    by_pair: dict[tuple, list] = collections.defaultdict(list)
+    for q in quotes:
+        home, away = q.get("home_team"), q.get("away_team")
+        ko = _as_utc(q.get("kickoff"))
+        if not home or not away or ko is None:
+            continue
+        by_pair[(home, away)].append((ko, id(q)))
+    key_of: dict[int, str] = {}
+    for (home, away), items in by_pair.items():
+        items.sort(key=lambda t: t[0])
+        cluster_idx = 0
+        cluster_start = items[0][0]
+        prev = items[0][0]
+        stamp = {}
+        for ko, qid in items:
+            if ko - prev > GAME_CLUSTER_GAP:
+                cluster_idx += 1
+                cluster_start = ko
+            stamp[qid] = (cluster_idx, cluster_start)
+            prev = ko
+        for _, qid in items:
+            idx, start = stamp[qid]
+            key_of[qid] = "%s|%s|%s#%d" % (
+                home, away, start.strftime("%Y%m%d"), idx)
+    return key_of
 
 
 def _ref_other_selections(market, home_team, away_team):
@@ -114,9 +184,9 @@ def _pairs_at_snapshot(ev_quotes, market, snap, home_team, away_team):
     return {b: _select_pair(tr, all_lines) for b, tr in triples.items()}
 
 
-def _event_market_cells(event_id, ev_quotes, market, home_team, away_team,
-                        methods):
-    """LOBO cells for one (event, market). Each cell carries per-method
+def _game_market_cells(game_id, ev_quotes, market, home_team, away_team,
+                       methods):
+    """LOBO cells for one (game, market). Each cell carries per-method
     squared errors of the held-out book's fair prob vs the closing LOBO
     consensus (same method, other books only)."""
     snaps = sorted({q["observed_at"] for q in ev_quotes
@@ -126,6 +196,8 @@ def _event_market_cells(event_id, ev_quotes, market, home_team, away_team,
     close = snaps[-1]
     pair_close = _pairs_at_snapshot(ev_quotes, market, close,
                                     home_team, away_team)
+    provider_ids = sorted({q.get("provider_event_id") for q in ev_quotes
+                           if q.get("provider_event_id")})
     cells = []
     for s in snaps[:-1]:
         pair_s = _pairs_at_snapshot(ev_quotes, market, s,
@@ -163,7 +235,8 @@ def _event_market_cells(event_id, ev_quotes, market, home_team, away_team,
                 continue
             snap_iso = s.isoformat() if hasattr(s, "isoformat") else str(s)
             cells.append({
-                "event_id": event_id,
+                "game_id": game_id,
+                "provider_event_ids": provider_ids,
                 "market": market,
                 "snapshot": snap_iso,
                 "book": b,
@@ -177,7 +250,7 @@ def _event_market_cells(event_id, ev_quotes, market, home_team, away_team,
 
 def _paired_test(diffs):
     """Two-sided paired test via normal approximation (valid at the
-    observed event counts; numerically identical to the paired t at
+    observed game counts; numerically identical to the paired t at
     n >> 30). Returns (mean_diff, z, p_value) or None if n < 2."""
     n = len(diffs)
     if n < 2:
@@ -210,17 +283,22 @@ def run_tournament(quotes, methods=None):
     JSON-serializable, cells are the per-cell records."""
     methods = dict(methods or DEVIG_METHODS)
     mnames = sorted(methods)
-    by_event: dict = collections.defaultdict(list)
+    # Unit of analysis: the canonical game (see canonical_game_keys).
+    # provider_event_id is unstable across snapshots and must NOT be
+    # used as the grouping key.
+    quotes = list(quotes)
+    key_of = canonical_game_keys(quotes)
+    by_game: dict = collections.defaultdict(list)
     for q in quotes:
-        if q.get("market") in MARKETS:
-            by_event[q.get("provider_event_id")].append(q)
+        if q.get("market") in MARKETS and id(q) in key_of:
+            by_game[key_of[id(q)]].append(q)
     cells = []
-    for event_id, ev_quotes in by_event.items():
+    for game_id, ev_quotes in by_game.items():
         q0 = ev_quotes[0]
         home_team, away_team = q0.get("home_team"), q0.get("away_team")
         for market in MARKETS:
-            cells.extend(_event_market_cells(
-                event_id, ev_quotes, market, home_team, away_team, methods))
+            cells.extend(_game_market_cells(
+                game_id, ev_quotes, market, home_team, away_team, methods))
     # per-method aggregates over cells
     method_stats = {}
     for m in mnames:
@@ -230,24 +308,24 @@ def run_tournament(quotes, methods=None):
             "mean_se": statistics.fmean(ses) if ses else None,
             "rmse": math.sqrt(statistics.fmean(ses)) if ses else None,
         }
-    # event-level mean SEs for inference (absorbs within-event correlation)
-    per_event: dict = collections.defaultdict(lambda: {m: [] for m in mnames})
+    # game-level mean SEs for inference (absorbs within-game correlation)
+    per_game: dict = collections.defaultdict(lambda: {m: [] for m in mnames})
     for c in cells:
         for m in mnames:
-            per_event[c["event_id"]][m].append(c["se"][m])
-    event_means = {e: {m: statistics.fmean(v[m]) for m in mnames}
-                   for e, v in per_event.items()}
-    # pairwise comparisons on event-level differences
+            per_game[c["game_id"]][m].append(c["se"][m])
+    game_means = {g: {m: statistics.fmean(v[m]) for m in mnames}
+                  for g, v in per_game.items()}
+    # pairwise comparisons on game-level differences
     pairs = []
     for i in range(len(mnames)):
         for j in range(i + 1, len(mnames)):
             a, b = mnames[i], mnames[j]
-            diffs = [event_means[e][a] - event_means[e][b]
-                     for e in event_means]
+            diffs = [game_means[g][a] - game_means[g][b]
+                     for g in game_means]
             t = _paired_test(diffs)
             pairs.append({
                 "a": a, "b": b,
-                "n_events": len(diffs),
+                "n_games": len(diffs),
                 "mean_diff_a_minus_b": t[0] if t else None,
                 "z": t[1] if t else None,
                 "p_raw": t[2] if t else None,
@@ -308,11 +386,11 @@ def run_tournament(quotes, methods=None):
         "dataset_fingerprint": DATASET_FINGERPRINT,
         "methods": mnames,
         "n_cells": len(cells),
-        "n_events": len(event_means),
+        "n_games": len(game_means),
         "method_stats": method_stats,
         "pairwise_tests": pairs,
         "multiple_testing": "Holm-Bonferroni, family-wise alpha=0.05, "
-                            "3 pairwise comparisons on event-level mean SEs",
+                            "3 pairwise comparisons on game-level mean SEs",
         "decision": decision,
         "primary_metric_note": "Mean log-loss vs settled outcomes is "
             "DECLARED UNTESTABLE this round: settled outcomes are not "

@@ -27,10 +27,10 @@
     {
       "id": "devig-tournament-v1",
       "market_family": "full_game_spread_total",
-      "status": "completed_method_selected_shadow_only",
+      "status": "completed_method_selected_shadow_only_audited",
       "hypothesis": "One of multiplicative/additive/power de-vig converges significantly closer to the method-specific LOBO closing consensus (paired t-tests, Holm-Bonferroni)",
       "source": "frozen 2022-2024 historical dataset, fingerprint 43f853a44bf93937d85149ca5fd7241b, 162 snapshots, 291586 quotes",
-      "outcome": "multiplicative wins both pairwise comparisons (Holm p ~1e-75 vs additive, ~1e-63 vs power); selects the de-vig formula for forward-shadow calibration only. Primary metric (log-loss vs settled outcomes) untestable: no outcomes stored for the historical dataset. Nothing promoted from SHADOW.",
+      "outcome": "multiplicative wins both pairwise comparisons (Holm p ~1e-75 vs additive, ~1e-63 vs power); selects the de-vig formula for forward-shadow calibration only. Primary metric (log-loss vs settled outcomes) untestable: no outcomes stored for the historical dataset. Nothing promoted from SHADOW. Identity audit 2026-09-12: 937 provider-id \"events\" = 825 canonical games (816 regular-season + 9 playoff-weekend listings) + 112 phantom splits from provider id churn. Fixed keying ((home,away) + 7-day kickoff clustering); local re-run: 812 games, 109,985 cells, decision unchanged (multiplicative). 5 regression tests added.",
       "report": "docs/devig-tournament-v1-results.md"
     }
   ]
