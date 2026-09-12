@@ -52,10 +52,6 @@ class MigrationTests(unittest.TestCase):
         ):
             self.assertIn(clause, sql, f"004 migration missing: {clause}")
 
-
-if __name__ == "__main__":
-    unittest.main()
-
     def test_taken_fair_prob_migration_shape(self):
         sql = (MIGRATIONS / "011_taken_fair_prob.sql").read_text()
         for clause in (
@@ -63,3 +59,16 @@ if __name__ == "__main__":
             "taken_fair_prob",
         ):
             self.assertIn(clause, sql, f"011 migration missing: {clause}")
+
+    def test_pick_checkpoint_key_migration_shape(self):
+        sql = (MIGRATIONS / "012_pick_checkpoint_key.sql").read_text()
+        for clause in (
+            "ALTER TABLE public.nfl_edge_picks",
+            "checkpoint_key",
+            "REFERENCES public.nfl_edge_checkpoints",
+        ):
+            self.assertIn(clause, sql, f"012 migration missing: {clause}")
+
+
+if __name__ == "__main__":
+    unittest.main()

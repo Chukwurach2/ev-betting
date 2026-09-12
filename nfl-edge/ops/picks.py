@@ -215,7 +215,7 @@ LATEST_QUOTES_SQL = """
 SELECT DISTINCT ON (q.provider_event_id, q.market, q.selection, q.book_key)
   q.provider_event_id, q.home_team, q.away_team, q.kickoff, q.market,
   q.selection, q.line, q.sportsbook, q.book_key, q.american_odds,
-  q.fair_probability, q.observed_at, g.game_id
+  q.fair_probability, q.observed_at, q.checkpoint_key, g.game_id
 FROM public.nfl_edge_odds_quotes q
 LEFT JOIN public.games g
   ON g.home_team = q.home_team AND g.away_team = q.away_team
@@ -289,6 +289,7 @@ def build_picks(conn) -> list[dict]:
                 "stake_units": stake_units(kf),
                 "consensus_books": len({x["book_key"] for x in others}),
                 "observed_at": q["observed_at"],
+                "checkpoint_key": q["checkpoint_key"],
             }
             pick.update(annotate_challenger(challenger, cache, pick))
             picks.append(pick)
@@ -302,7 +303,7 @@ INSERT INTO public.nfl_edge_picks (
   pick_id, engine_version, mode, game_id, provider_event_id, home_team,
   away_team, kickoff, market, selection, line, sportsbook, book_key,
   american_odds, decimal_odds, consensus_fair_prob, taken_fair_prob, edge,
-  kelly_fraction, stake_units, consensus_books, observed_at,
+  kelly_fraction, stake_units, consensus_books, observed_at, checkpoint_key,
   challenger_version, challenger_fair_prob, challenger_pred_margin,
   challenger_pred_total
 ) VALUES (
@@ -310,7 +311,7 @@ INSERT INTO public.nfl_edge_picks (
   %(home_team)s, %(away_team)s, %(kickoff)s, %(market)s, %(selection)s,
   %(line)s, %(sportsbook)s, %(book_key)s, %(american_odds)s, %(decimal_odds)s,
   %(consensus_fair_prob)s, %(taken_fair_prob)s, %(edge)s, %(kelly_fraction)s,
-  %(stake_units)s, %(consensus_books)s, %(observed_at)s,
+  %(stake_units)s, %(consensus_books)s, %(observed_at)s, %(checkpoint_key)s,
   %(challenger_version)s, %(challenger_fair_prob)s, %(challenger_pred_margin)s,
   %(challenger_pred_total)s
 ) ON CONFLICT (pick_id) DO NOTHING

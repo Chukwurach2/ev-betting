@@ -90,7 +90,7 @@ class PicksBuildTests(unittest.TestCase):
 
     COLS = ["provider_event_id", "home_team", "away_team", "kickoff", "market",
             "selection", "line", "sportsbook", "book_key", "american_odds",
-            "fair_probability", "observed_at", "game_id"]
+            "fair_probability", "observed_at", "checkpoint_key", "game_id"]
 
     def run_build(self, rows):
         import datetime as dt
@@ -102,12 +102,12 @@ class PicksBuildTests(unittest.TestCase):
         now = dt.datetime.now(dt.timezone.utc)
         rows = [
             ("e1", "H", "A", now, "FULL_GAME_SPREAD", "A", -3.5,
-             "DraftKings", "draftkings", -110, 0.50, now, "g1"),
+             "DraftKings", "draftkings", -110, 0.50, now, "ck1", "g1"),
             ("e1", "H", "A", now, "FULL_GAME_SPREAD", "A", -3.5,
-             "FanDuel", "fanduel", -105, 0.50, now, "g1"),
+             "FanDuel", "fanduel", -105, 0.50, now, "ck1", "g1"),
             # third book way off market: +120 on a 50%-fair selection
             ("e1", "H", "A", now, "FULL_GAME_SPREAD", "A", -3.5,
-             "Circa", "circa", 120, 0.40, now, "g1"),
+             "Circa", "circa", 120, 0.40, now, "ck1", "g1"),
         ]
         out = self.run_build(rows)
         # LOBO consensus for circa = median of dk+fd = .50 (circa excluded
@@ -125,9 +125,9 @@ class PicksBuildTests(unittest.TestCase):
         now = dt.datetime.now(dt.timezone.utc)
         rows = [
             ("e1", "H", "A", now, "FULL_GAME_TOTAL", "Over", 47.5,
-             "DraftKings", "draftkings", -110, 0.52, now, "g1"),
+             "DraftKings", "draftkings", -110, 0.52, now, "ck1", "g1"),
             ("e1", "H", "A", now, "FULL_GAME_TOTAL", "Over", 47.5,
-             "FanDuel", "fanduel", -105, 0.50, now, "g1"),
+             "FanDuel", "fanduel", -105, 0.50, now, "ck1", "g1"),
         ]
         self.assertEqual(self.run_build(rows), [])
 
@@ -136,7 +136,7 @@ class PicksBuildTests(unittest.TestCase):
         now = dt.datetime.now(dt.timezone.utc)
         rows = [
             ("e1", "H", "A", now, "FULL_GAME_SPREAD", "A", -3.5,
-             "DraftKings", "draftkings", 200, 0.60, now, "g1"),
+             "DraftKings", "draftkings", 200, 0.60, now, "ck1", "g1"),
         ]
         self.assertEqual(self.run_build(rows), [])
 
@@ -150,9 +150,9 @@ class PicksBuildTests(unittest.TestCase):
         now = dt.datetime.now(dt.timezone.utc)
         rows = [
             ("e1", "H", "A", now, "FULL_GAME_SPREAD", "A", -3.5,
-             "DraftKings", "draftkings", 120, 0.50, now, "g1"),
+             "DraftKings", "draftkings", 120, 0.50, now, "ck1", "g1"),
             ("e1", "H", "A", now, "FULL_GAME_SPREAD", "A", -4.5,
-             "FanDuel", "fanduel", -110, 0.50, now, "g1"),
+             "FanDuel", "fanduel", -110, 0.50, now, "ck1", "g1"),
         ]
         self.assertEqual(self.run_build(rows), [])
 
@@ -162,11 +162,11 @@ class PicksBuildTests(unittest.TestCase):
         now = dt.datetime.now(dt.timezone.utc)
         rows = [
             ("e1", "H", "A", now, "FULL_GAME_SPREAD", "A", -3.5,
-             "DraftKings", "draftkings", -110, 0.50, now, "g1"),
+             "DraftKings", "draftkings", -110, 0.50, now, "ck1", "g1"),
             ("e1", "H", "A", now, "FULL_GAME_SPREAD", "A", -3.5,
-             "FanDuel", "fanduel", -105, 0.50, now, "g1"),
+             "FanDuel", "fanduel", -105, 0.50, now, "ck1", "g1"),
             ("e1", "H", "A", now, "FULL_GAME_SPREAD", "A", -4.5,
-             "Circa", "circa", 200, 0.60, now, "g1"),
+             "Circa", "circa", 200, 0.60, now, "ck1", "g1"),
         ]
         out = self.run_build(rows)
         # -3.5 group: consensus .50, both books -110/-105 -> negative edge
@@ -179,15 +179,15 @@ class PicksBuildTests(unittest.TestCase):
         now = dt.datetime.now(dt.timezone.utc)
         rows = [
             ("e1", "H", "A", now, "FULL_GAME_TOTAL", "Over", 45.5,
-             "DraftKings", "draftkings", -110, 0.50, now, "g1"),
+             "DraftKings", "draftkings", -110, 0.50, now, "ck1", "g1"),
             ("e1", "H", "A", now, "FULL_GAME_TOTAL", "Over", 45.5,
-             "FanDuel", "fanduel", -110, 0.50, now, "g1"),
+             "FanDuel", "fanduel", -110, 0.50, now, "ck1", "g1"),
             ("e1", "H", "A", now, "FULL_GAME_TOTAL", "Over", 46.5,
-             "DraftKings", "draftkings", 130, 0.45, now, "g1"),
+             "DraftKings", "draftkings", 130, 0.45, now, "ck1", "g1"),
             ("e1", "H", "A", now, "FULL_GAME_TOTAL", "Over", 46.5,
-             "FanDuel", "fanduel", -110, 0.45, now, "g1"),
+             "FanDuel", "fanduel", -110, 0.45, now, "ck1", "g1"),
             ("e1", "H", "A", now, "FULL_GAME_TOTAL", "Over", 46.5,
-             "BetMGM", "betmgm", -110, 0.45, now, "g1"),
+             "BetMGM", "betmgm", -110, 0.45, now, "ck1", "g1"),
         ]
         out = self.run_build(rows)
         # 45.5 group: only two books -> no LOBO consensus, no picks.
@@ -206,13 +206,13 @@ class PicksBuildTests(unittest.TestCase):
         now = dt.datetime.now(dt.timezone.utc)
         rows = [
             ("e1", "H", "A", now, "FULL_GAME_SPREAD", "A", -3.5,
-             "BookA", "booka", -110, 0.50, now, "g1"),
+             "BookA", "booka", -110, 0.50, now, "ck1", "g1"),
             ("e1", "H", "A", now, "FULL_GAME_SPREAD", "A", -3.5,
-             "BookB", "bookb", -110, 0.50, now, "g1"),
+             "BookB", "bookb", -110, 0.50, now, "ck1", "g1"),
             ("e1", "H", "A", now, "FULL_GAME_SPREAD", "A", -3.5,
-             "BookC", "bookc", -110, 0.80, now, "g1"),
+             "BookC", "bookc", -110, 0.80, now, "ck1", "g1"),
             ("e1", "H", "A", now, "FULL_GAME_SPREAD", "A", -3.5,
-             "BookD", "bookd", 105, 0.80, now, "g1"),
+             "BookD", "bookd", 105, 0.80, now, "ck1", "g1"),
         ]
         out = self.run_build(rows)
         self.assertEqual(len(out), 1)
@@ -227,9 +227,9 @@ class PicksBuildTests(unittest.TestCase):
         now = dt.datetime.now(dt.timezone.utc)
         rows = [
             ("e1", "H", "A", now, "FULL_GAME_SPREAD", "A", -3.5,
-             "DraftKings", "draftkings", -110, 0.50, now, "g1"),
+             "DraftKings", "draftkings", -110, 0.50, now, "ck1", "g1"),
             ("e1", "H", "A", now, "FULL_GAME_SPREAD", "A", -3.5,
-             "FanDuel", "fanduel", 200, 0.50, now, "g1"),
+             "FanDuel", "fanduel", 200, 0.50, now, "ck1", "g1"),
         ]
         self.assertEqual(self.run_build(rows), [])
 
@@ -307,14 +307,33 @@ if __name__ == "__main__":
         now = dt.datetime.now(dt.timezone.utc)
         rows = [
             ("e1", "H", "A", now, "FULL_GAME_SPREAD", "A", -3.5,
-             "DraftKings", "draftkings", -110, 0.50, now, "g1"),
+             "DraftKings", "draftkings", -110, 0.50, now, "ck1", "g1"),
             ("e1", "H", "A", now, "FULL_GAME_SPREAD", "A", -3.5,
-             "FanDuel", "fanduel", -105, 0.50, now, "g1"),
+             "FanDuel", "fanduel", -105, 0.50, now, "ck1", "g1"),
             ("e1", "H", "A", now, "FULL_GAME_SPREAD", "A", -3.5,
-             "Circa", "circa", 120, 0.40, now, "g1"),
+             "Circa", "circa", 120, 0.40, now, "ck1", "g1"),
         ]
         out = self.run_build(rows)
         circa = [p for p in out if p["book_key"] == "circa"]
         self.assertEqual(len(circa), 1)
         self.assertAlmostEqual(circa[0]["taken_fair_prob"], 0.40)
         self.assertIn("taken_fair_prob", picks.INSERT_PICK_SQL)
+
+    def test_pick_stores_checkpoint_key(self):
+        # Picks must carry the checkpoint whose quotes fed them so the
+        # weekly report can attribute picks to decision windows.
+        import datetime as dt
+        now = dt.datetime.now(dt.timezone.utc)
+        rows = [
+            ("e1", "H", "A", now, "FULL_GAME_SPREAD", "A", -3.5,
+             "DraftKings", "draftkings", -110, 0.50, now, "ck1", "g1"),
+            ("e1", "H", "A", now, "FULL_GAME_SPREAD", "A", -3.5,
+             "FanDuel", "fanduel", -105, 0.50, now, "ck1", "g1"),
+            ("e1", "H", "A", now, "FULL_GAME_SPREAD", "A", -3.5,
+             "Circa", "circa", 120, 0.40, now, "ck1", "g1"),
+        ]
+        out = self.run_build(rows)
+        circa = [p for p in out if p["book_key"] == "circa"]
+        self.assertEqual(len(circa), 1)
+        self.assertEqual(circa[0]["checkpoint_key"], "ck1")
+        self.assertIn("checkpoint_key", picks.INSERT_PICK_SQL)
