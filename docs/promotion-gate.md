@@ -42,7 +42,7 @@ proxies (model-implied closes, stale snapshots) do not count.
    any forward evaluation and cannot be re-fit to make a result pass.
 
 7. **Execution realism.** Picks must be generatable at quote time under the
-   live freshness rule (quotes ≤ 30 min old at generation). The evaluated
+   live freshness rule (provider `observed_at` ≤ 15 min old at generation). The evaluated
    book's own quote is excluded from its consensus (strict LOBO) — a strategy
    may never take an edge against itself.
 
@@ -82,3 +82,13 @@ price's fair prob is stored on the pick at generation time (`taken_fair_prob`).
 No gate parameters (200, 0.01, 1.0pp, 8 weeks) were changed — only the metric
 was corrected to measure what it claims to measure. No forward picks existed
 under the old definition, so no data was reinterpreted.
+
+### 2026-09-12 — repaired execution contract starts a new engine version
+
+The source-freshness and executable-price contract is now enforced as provider
+`observed_at` no more than 15 minutes old, American odds at least -150, and
+expected value at least 4%. These repaired thresholds are identified as
+`v1.2-consensus-lobo-4pct-15m`. Performance, health, and public shadow feeds must filter to this
+exact engine version; evidence from earlier engine versions cannot be pooled.
+The forward evaluation count restarts at zero. No prior picks existed, so no
+forward evidence was discarded or reinterpreted.
