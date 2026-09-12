@@ -220,9 +220,9 @@ FROM public.nfl_edge_odds_quotes q
 LEFT JOIN public.games g
   ON g.home_team = q.home_team AND g.away_team = q.away_team
  AND g.kickoff = q.kickoff
-WHERE q.observed_at > now() - make_interval(mins => %s)
+WHERE q.collected_at > now() - make_interval(mins => %s)
   AND q.kickoff > now()
-ORDER BY q.provider_event_id, q.market, q.selection, q.book_key, q.observed_at DESC
+ORDER BY q.provider_event_id, q.market, q.selection, q.book_key, q.collected_at DESC
 """
 
 

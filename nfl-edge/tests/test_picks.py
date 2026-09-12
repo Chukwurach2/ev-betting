@@ -292,3 +292,10 @@ class RiskLimitsTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+    def test_freshness_uses_collection_time(self):
+        # The checkpoint collector may capture a price whose provider
+        # last_update is hours old; freshness must be judged by when WE
+        # saw the price (collected_at), not the book's last move.
+        self.assertIn("q.collected_at > now()", picks.LATEST_QUOTES_SQL)
+        self.assertIn("q.collected_at DESC", picks.LATEST_QUOTES_SQL)
