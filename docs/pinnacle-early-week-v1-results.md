@@ -29,10 +29,14 @@ changed; the re-run below is the valid one.
 
 ## Exploratory observation (NOT preregistered — do not trade)
 
-Agreement is significantly BELOW 0.5 (two-sided p ≈ 4e-5): early Pinnacle
-deviations tend to REVERSE by the close. If pursued, "fade the early
-Pinnacle deviation" needs its own preregistration and forward-shadow
-validation — it is a new hypothesis, not a finding.
+Agreement is significantly BELOW 0.5 (two-sided p ≈ 2e-5): early Pinnacle
+deviations tend to REVERSE by the close. HOWEVER, this does not imply a
+"fade Pinnacle" edge: the consensus-priced WITH-lean strategy's mean CLV is
++0.0005, so the mechanical fade's implied mean CLV is −0.0005 — also zero.
+The pattern is "Pinnacle usually wrong-small, occasionally right-big"
+(direction loses 62.5% of the time but magnitudes offset), which nets to
+no tradeable edge. No follow-up preregistration is warranted on CLV
+grounds; the directional curiosity alone is not a betting strategy.
 
 ## Bottom line
 
