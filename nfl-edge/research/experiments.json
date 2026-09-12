@@ -32,6 +32,15 @@
       "source": "frozen 2022-2024 historical dataset, fingerprint 43f853a44bf93937d85149ca5fd7241b, 162 snapshots, 291586 quotes",
       "outcome": "multiplicative wins both pairwise comparisons (Holm p ~1e-75 vs additive, ~1e-63 vs power); selects the de-vig formula for forward-shadow calibration only. Primary metric (log-loss vs settled outcomes) untestable: no outcomes stored for the historical dataset. Nothing promoted from SHADOW. Identity audit 2026-09-12: 937 provider-id \"events\" = 825 canonical games (816 regular-season + 9 playoff-weekend listings) + 112 phantom splits from provider id churn. Fixed keying ((home,away) + 7-day kickoff clustering); local re-run: 812 games, 109,985 cells, decision unchanged (multiplicative). 5 regression tests added.",
       "report": "docs/devig-tournament-v1-results.md"
+    },
+    {
+      "id": "market-alpha-v1",
+      "market_family": "full_game_spread_total",
+      "status": "completed_no_edge_found",
+      "hypothesis": "Pinnacle leads followers (Track A); stale cross-book quotes beat the close via a lagging mechanism (Track B). Preregistered with Amendment A1 (pre-results) replacing Track B's miscalibrated t-test with a directional lag test.",
+      "source": "frozen 2022-2024 historical dataset, fingerprint 43f853a44bf93937d85149ca5fd7241b, 162 snapshots, 291586 quotes, 825 canonical games",
+      "outcome": "Track A: no book significant after Holm (best FanDuel p=0.102); pooled agree rate 0.526 (+2.6pp, p=0.0125) too small to trade; reverse falsification clean. Track B: lagging fraction 0.348, p=0.995 \u2014 no stale-price mechanism; superseded naive t-test would have falsely reported p~2.6e-176. Both tracks: no edge found.",
+      "role": "SHADOW"
     }
   ]
 }
