@@ -27,14 +27,21 @@ jobs:
         env:
           NFL_EDGE_DATABASE_URL: ${{ secrets.NFL_EDGE_DATABASE_URL }}
         run: |
+          # Capture the audit exit code first, then always print the report,
+          # and fail the step at the end if the audit failed (never mask it).
           python nfl-edge/ops/audit_dataset.py \
             --seasons "${{ inputs.seasons }}" \
             --weeks "${{ inputs.weeks }}" \
             --out /tmp/dataset_audit.json \
-            --markdown /tmp/dataset_audit.md || echo "audit exited $?"
+            --markdown /tmp/dataset_audit.md
+          AUDIT_STATUS=$?
           echo "=== JSON (errors/warnings) ==="
           python -c "import json; r=json.load(open('/tmp/dataset_audit.json')); print('status:', r['status']); [print('E:', e[:200]) for e in r['errors']]; [print('W:', w[:160]) for w in r['warnings'][:10]]"
           cat /tmp/dataset_audit.md
+          if [ "$AUDIT_STATUS" -ne 0 ]; then
+            echo "audit failed with exit code $AUDIT_STATUS"
+          fi
+          exit "$AUDIT_STATUS"
       - name: Upload audit artifact
         if: always()
         uses: actions/upload-artifact@v4
