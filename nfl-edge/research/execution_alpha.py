@@ -220,10 +220,51 @@ def decide_execution(analysis, null_means, alpha=ALPHA,
     return "no_edge", detail
 
 
+def moneyline_quality_gate(game_series):
+    """Pilot Phase 2 quality gate: >=50% of games have >=3 books with
+    moneyline pairs in their closing snapshot. Returns (passed, frac, n)."""
+    n_games = 0
+    n_ok = 0
+    for gkey, g in game_series.items():
+        ko = g.get("kickoff")
+        series = g.get("series", {}).get(MONEYLINE, {})
+        lp = g.get("line_pairs", {}).get(MONEYLINE, {})
+        if not series:
+            continue
+        snaps = sorted(series)
+        pre = [s for s in snaps if ko is None or s < ko]
+        if not pre:
+            continue
+        close_snap = pre[-1]
+        n_books = len(lp.get(close_snap) or {})
+        n_games += 1
+        if n_books >= 3:
+            n_ok += 1
+    frac = (n_ok / n_games) if n_games else 0.0
+    return frac >= 0.5, frac, n_games
+
+
 def run_execution_alpha(quotes, markets=DEFAULT_MARKETS, n_null=N_NULL,
-                        seed=20260912):
+                        seed=20260912, prereg_path=PREREG_PATH):
     """Full pipeline on quote dicts. Returns JSON-serializable results."""
     game_series = build_game_series(quotes, markets=markets)
+    if markets == (MONEYLINE,):
+        passed, frac, n = moneyline_quality_gate(game_series)
+        if not passed:
+            return {
+                "preregistration": prereg_path,
+                "dataset_fingerprint": DATASET_FINGERPRINT,
+                "generated_at": dt.datetime.now(dt.timezone.utc).isoformat(),
+                "role": "SHADOW",
+                "markets": list(markets),
+                "n_games": len(game_series),
+                "verdict": "infeasible_for_analysis",
+                "verdict_detail": {
+                    "reason": "pilot quality gate failed",
+                    "frac_games_close_ge3books": frac,
+                    "n_games": n,
+                },
+            }, game_series
     cells = execution_cells(game_series, markets=markets)
     analysis = analyze_execution(cells)
     rng = random.Random(seed)
@@ -244,7 +285,7 @@ def run_execution_alpha(quotes, markets=DEFAULT_MARKETS, n_null=N_NULL,
         exec_diag["share_edge_top5pct_games"] = (
             sum(top5) / sum(ge) if sum(ge) else None)
     return {
-        "preregistration": PREREG_PATH,
+        "preregistration": prereg_path,
         "dataset_fingerprint": DATASET_FINGERPRINT,
         "generated_at": dt.datetime.now(dt.timezone.utc).isoformat(),
         "role": "SHADOW",
@@ -263,6 +304,7 @@ def main():
     ap.add_argument("--database-url", default=os.environ.get("NFL_EDGE_DATABASE_URL"))
     ap.add_argument("--csv", default=None)
     ap.add_argument("--markets", default=",".join(DEFAULT_MARKETS))
+    ap.add_argument("--prereg", default=PREREG_PATH)
     ap.add_argument("--n-null", type=int, default=N_NULL)
     ap.add_argument("--seed", type=int, default=20260912)
     ap.add_argument("--skip-freeze-check", action="store_true")
@@ -307,7 +349,8 @@ def main():
         raise SystemExit("error: freeze check failed")
     markets = tuple(args.markets.split(","))
     results, _ = run_execution_alpha(quotes, markets=markets,
-                                     n_null=args.n_null, seed=args.seed)
+                                     n_null=args.n_null, seed=args.seed,
+                                     prereg_path=args.prereg)
     with open(args.out, "w") as f:
         json.dump(results, f, default=str)
     print("wrote %s (verdict=%s)" % (args.out, results["verdict"]), flush=True)

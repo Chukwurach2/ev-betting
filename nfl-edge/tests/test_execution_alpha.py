@@ -168,5 +168,43 @@ class TestMoneylinePath(unittest.TestCase):
         self.assertIn(results["verdict"], ("execution_edge", "no_edge"))
 
 
+class TestMoneylineQualityGate(unittest.TestCase):
+    def _gs(self, n_games, books_at_close):
+        from datetime import datetime, timezone
+        ko = datetime(2024, 9, 8, 17, 0, tzinfo=timezone.utc)
+        s1 = datetime(2024, 9, 4, 11, 55, tzinfo=timezone.utc)
+        s2 = datetime(2024, 9, 7, 11, 55, tzinfo=timezone.utc)
+        gs = {}
+        for i in range(n_games):
+            gs[("H%d" % i, "A%d" % i)] = {
+                "kickoff": ko,
+                "series": {"FULL_GAME_MONEYLINE": {s1: 1, s2: 1}},
+                "line_pairs": {"FULL_GAME_MONEYLINE": {
+                    s2: {("b%d" % b): [(0.0, 0.5)] for b in range(books_at_close)}}},
+            }
+        return gs
+
+    def test_gate_passes(self):
+        from research.execution_alpha import moneyline_quality_gate
+        passed, frac, n = moneyline_quality_gate(self._gs(10, 5))
+        self.assertTrue(passed)
+        self.assertEqual(frac, 1.0)
+
+    def test_gate_fails(self):
+        from research.execution_alpha import moneyline_quality_gate
+        passed, frac, n = moneyline_quality_gate(self._gs(10, 2))
+        self.assertFalse(passed)
+        self.assertEqual(frac, 0.0)
+
+    def test_gate_blocks_analysis(self):
+        def fair(i, j, b):
+            return 0.60
+        q = make_world(35, ["b1", "b2"], fair,
+                       markets=("FULL_GAME_MONEYLINE",))
+        results, _ = run_execution_alpha(q, markets=("FULL_GAME_MONEYLINE",),
+                                         n_null=9, seed=5)
+        self.assertEqual(results["verdict"], "infeasible_for_analysis")
+
+
 if __name__ == "__main__":
     unittest.main()
