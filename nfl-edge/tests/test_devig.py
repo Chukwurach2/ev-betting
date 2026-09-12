@@ -14,6 +14,15 @@ import unittest
 from datetime import datetime, timedelta, timezone
 
 sys.path.insert(0, str(pathlib.Path(__file__).parents[1]))
+
+# Landmine: nfl-edge/model/research is a *separate* package that some test
+# modules (e.g. test_challenger) expose as top-level ``research`` by putting
+# nfl-edge/model on sys.path. If it was already imported and cached, evict it
+# so the bare ``research`` name below resolves to this directory (nfl-edge is
+# first on sys.path here). ``model.research`` itself is untouched.
+for _mod in [m for m in sys.modules if m == "research" or m.startswith("research.")]:
+    del sys.modules[_mod]
+
 from research.devig import (
     DEVIG_METHODS,
     devig_additive,
