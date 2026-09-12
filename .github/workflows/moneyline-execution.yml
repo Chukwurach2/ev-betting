@@ -17,7 +17,7 @@ jobs:
       - name: Read NFL Edge source without resolving unrelated submodules
         working-directory: .
         env:
-GH_READ_TOKEN: <redacted>
+          GH_READ_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           python3 - <<'BOOTSTRAP'
           import io, os, pathlib, tarfile, urllib.request
@@ -55,7 +55,7 @@ GH_READ_TOKEN: <redacted>
           fi
       - name: Run Moneyline Execution v1 (SHADOW research only)
         env:
-NFL_EDGE_DATABASE_URL: <redacted>
+          NFL_EDGE_DATABASE_URL: ${{ secrets.NFL_EDGE_DATABASE_URL }}
         run: |
           python research/execution_alpha.py --markets FULL_GAME_MONEYLINE --prereg docs/preregistrations/moneyline-pilot-v1.md --out /tmp/moneyline-execution-v1.json
       - name: Upload results
