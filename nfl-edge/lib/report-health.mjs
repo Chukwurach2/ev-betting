@@ -56,5 +56,11 @@ export function evaluateVerdict(m) {
       reasons.push(`${((1 - validRate) * 100).toFixed(1)}% of settled picks missing exact-line closes (>${((1 - CLOSE_VALID_MIN) * 100).toFixed(0)}% allowed)`);
     }
   }
-  return {verdict: reasons.length === 0 ? 'HEALTHY' : 'DEGRADED', reasons};
+  const verdict = reasons.length === 0 ? 'HEALTHY' : 'DEGRADED';
+  return {
+    verdict,
+    reasons,
+    promotion_eligible: verdict === 'HEALTHY',
+    performance_status: verdict === 'HEALTHY' ? 'promotion_eligible' : 'diagnostic_only',
+  };
 }

@@ -21,12 +21,18 @@ test('clean week is HEALTHY', () => {
   const {verdict, reasons} = evaluateVerdict(CLEAN);
   assert.equal(verdict, 'HEALTHY');
   assert.deepEqual(reasons, []);
+  const result = evaluateVerdict(CLEAN);
+  assert.equal(result.promotion_eligible, true);
+  assert.equal(result.performance_status, 'promotion_eligible');
 });
 
 test('any duplicate quote group degrades', () => {
   const {verdict, reasons} = evaluateVerdict({...CLEAN, duplicate_quote_groups: 1});
   assert.equal(verdict, 'DEGRADED');
   assert.ok(reasons.some((r) => r.includes('duplicate quote')));
+  const result = evaluateVerdict({...CLEAN, duplicate_quote_groups: 1});
+  assert.equal(result.promotion_eligible, false);
+  assert.equal(result.performance_status, 'diagnostic_only');
 });
 
 test('any duplicate pick group degrades', () => {

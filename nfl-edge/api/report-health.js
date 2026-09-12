@@ -96,7 +96,7 @@ export default async function handler(req, res) {
 
     const planned = cp.reduce((a, r) => a + r.planned, 0);
     const captured = cp.reduce((a, r) => a + r.captured, 0);
-    const {verdict, reasons} = evaluateVerdict({
+    const {verdict, reasons, promotion_eligible, performance_status} = evaluateVerdict({
       planned_checkpoints: planned,
       captured_checkpoints: captured,
       duplicate_quote_groups: dupQuotes,
@@ -113,6 +113,8 @@ export default async function handler(req, res) {
       disclaimer: 'Shadow research output. Not a wager recommendation.',
       verdict,
       verdict_reasons: reasons,
+      promotion_eligible,
+      performance_status,
       checkpoints: {
         by_window: cp.map((r) => ({...r, capture_rate: r.planned > 0 ? r.captured / r.planned : null})),
         overall: {

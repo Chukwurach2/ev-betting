@@ -66,6 +66,11 @@ All violated conditions are listed as `verdict_reasons`. A DEGRADED report
 must name the failing metric and the suspected cause (or state that the cause
 is under investigation) — never bury it under performance numbers.
 
+A DEGRADED verdict mechanically sets `promotion_eligible=false` and
+`performance_status=diagnostic_only`. ROI, CLV, calibration, and gate-progress
+figures may still be reported for debugging, but they cannot count toward
+promotion evidence.
+
 ## Report order
 
 1. Week range + HEALTH verdict line (with reasons if DEGRADED).
@@ -77,3 +82,5 @@ is under investigation) — never bury it under performance numbers.
 ## Amendments
 
 - 2026-09-12: initial spec (user-directed: health alongside performance).
+- 2026-09-12: DEGRADED performance is mechanically diagnostic-only and not
+  promotion-eligible.

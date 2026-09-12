@@ -69,6 +69,16 @@ class MigrationTests(unittest.TestCase):
         ):
             self.assertIn(clause, sql, f"012 migration missing: {clause}")
 
+    def test_historical_outcomes_migration_shape(self):
+        sql = (MIGRATIONS / "013_historical_outcomes.sql").read_text()
+        for clause in (
+            "CREATE TABLE IF NOT EXISTS public.nfl_edge_historical_outcomes",
+            "nflverse_game_id text PRIMARY KEY",
+            "source_sha256",
+            "ENABLE ROW LEVEL SECURITY",
+        ):
+            self.assertIn(clause, sql, f"013 migration missing: {clause}")
+
 
 if __name__ == "__main__":
     unittest.main()
