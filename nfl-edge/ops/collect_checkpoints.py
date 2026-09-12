@@ -1,5 +1,6 @@
 """One bounded shadow-quote collection run. No model promotion or wager output."""
 import datetime as dt
+import hashlib
 import json
 import os
 import pathlib
@@ -99,6 +100,58 @@ def pair_quotes(payload):
                 'ny_licensed':q.sportsbook_key in NY_BOOK_KEYS})
     return result
 
+def materialize_quotes(connection):
+    """Fan captured checkpoint quotes out into nfl_edge_odds_quotes.
+
+    The live collector stores quotes as a jsonb array on the checkpoint row;
+    the picks engine and settlement CLV read the normalized
+    nfl_edge_odds_quotes table (migration 002 designed it for exactly this
+    fan-out, but no code ever performed it -- so the forward shadow loop was
+    silently starved of quotes). Idempotent: quote_id is a deterministic
+    hash, so re-runs and the one-time backfill of old checkpoints insert
+    nothing twice. Best-effort: a failure here must never break collection;
+    the next run retries anything missed.
+    """
+    rows = connection.execute(
+        """
+        SELECT c.checkpoint_key, c.game_id, c.kickoff, c.quotes,
+               g.home_team, g.away_team
+        FROM public.nfl_edge_checkpoints c
+        JOIN public.games g ON g.game_id = c.game_id
+        WHERE c.status = 'captured'
+          AND NOT EXISTS (SELECT 1 FROM public.nfl_edge_odds_quotes q
+                          WHERE q.checkpoint_key = c.checkpoint_key)
+        """).fetchall()
+    attempted = 0
+    for r in rows:
+        for q in (r["quotes"] or []):
+            qid = hashlib.sha256("|".join([
+                r["checkpoint_key"], str(q.get("provider_event_id")),
+                str(q.get("market")), str(q.get("selection")),
+                str(q.get("line")), str(q.get("sportsbook_key")),
+                str(q.get("observed_at"))]).encode()).hexdigest()
+            connection.execute(
+                """
+                INSERT INTO public.nfl_edge_odds_quotes
+                  (quote_id, checkpoint_key, provider_event_id, home_team,
+                   away_team, kickoff, sportsbook, book_key, market,
+                   selection, line, american_odds, fair_probability,
+                   observed_at, settlement_rules, ny_licensed)
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                ON CONFLICT (quote_id) DO NOTHING
+                """,
+                (qid, r["checkpoint_key"], q.get("provider_event_id"),
+                 r["home_team"], r["away_team"], r["kickoff"],
+                 q.get("sportsbook"), q.get("sportsbook_key"),
+                 q.get("market"), q.get("selection"), q.get("line"),
+                 q.get("american_odds"), q.get("fair_probability"),
+                 q.get("observed_at"), q.get("settlement_rules"),
+                 q.get("ny_licensed")))
+            attempted += 1
+    return {"checkpoints_materialized": len(rows),
+            "quote_rows_attempted": attempted}
+
+
 def main():
     import psycopg
     from psycopg.rows import dict_row
@@ -140,6 +193,12 @@ def main():
             return pair_quotes(payload)
         _summary = collect(checkpoints,store,fetch,clock,
                          remaining=quota(headers)['remaining'],max_requests=8,cost_per_request=2*N_REGIONS)
+        try:
+            # Fan captured checkpoints out to the normalized quotes table the
+            # picks engine and settlement read. Backfills old checkpoints too.
+            _summary['materialize'] = materialize_quotes(connection)
+        except Exception as e:  # noqa: BLE001 - best effort; next run retries
+            _summary['materialize'] = {'failed': str(e)[:120]}
         print(json.dumps({'status':'shadow_collection_only',**_summary}))
         try:
             # Best-effort pipeline heartbeat; must never break collection.

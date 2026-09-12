@@ -139,3 +139,73 @@ class OpenerTests(unittest.TestCase):
              if c.name=='T-24'][0]
         game12={**self.game}
         self.assertTrue(opener_eligible(t24,game12,set(),{'g-open'}))
+class FakeConnection:
+    """Minimal stand-in for the psycopg connection used by materialize_quotes."""
+    def __init__(self, pending):
+        self.pending = pending  # rows returned by the SELECT
+        self.inserts = []       # (sql, params) for INSERTs
+    def execute(self, sql, params=None):
+        if "nfl_edge_checkpoints c" in sql:
+            return FakeResult(self.pending)
+        self.inserts.append((sql, params))
+        return FakeResult([])
+class FakeResult:
+    def __init__(self, rows): self._rows = rows
+    def fetchall(self): return self._rows
+
+def _quote_row(**kw):
+    q = {"provider_event_id": "ev1", "market": "FULL_GAME_SPREAD",
+         "selection": "Kansas City Chiefs", "line": -3.0,
+         "american_odds": -110, "fair_probability": 0.5238,
+         "observed_at": "2026-09-12T12:00:00+00:00",
+         "sportsbook": "DraftKings", "sportsbook_key": "draftkings",
+         "settlement_rules": "rules", "ny_licensed": True}
+    q.update(kw)
+    return q
+
+class MaterializeTests(unittest.TestCase):
+    def test_materializes_checkpoint_quotes(self):
+        from collect_checkpoints import materialize_quotes
+        conn = FakeConnection([{
+            "checkpoint_key": "ck1", "game_id": "g1",
+            "kickoff": dt.datetime(2026, 9, 13, 17, 0, tzinfo=dt.timezone.utc),
+            "quotes": [_quote_row(), _quote_row(sportsbook_key="fanduel",
+                                                sportsbook="FanDuel")],
+            "home_team": "Kansas City Chiefs", "away_team": "Buffalo Bills"}])
+        out = materialize_quotes(conn)
+        self.assertEqual(out["checkpoints_materialized"], 1)
+        self.assertEqual(len(conn.inserts), 2)
+        params = conn.inserts[0][1]
+        # column order: quote_id, checkpoint_key, provider_event_id,
+        # home_team, away_team, kickoff, sportsbook, book_key, market,
+        # selection, line, american_odds, fair_probability, observed_at,
+        # settlement_rules, ny_licensed
+        self.assertEqual(params[1], "ck1")
+        self.assertEqual(params[3], "Kansas City Chiefs")
+        self.assertEqual(params[4], "Buffalo Bills")
+        self.assertEqual(params[7], "draftkings")
+        self.assertEqual(params[8], "FULL_GAME_SPREAD")
+        self.assertAlmostEqual(params[12], 0.5238)
+        # deterministic quote_id: same inputs -> same id (idempotent)
+        conn2 = FakeConnection(conn.pending)
+        from collect_checkpoints import materialize_quotes as m2
+        m2(conn2)
+        self.assertEqual(conn.inserts[0][1][0], conn2.inserts[0][1][0])
+        self.assertNotEqual(conn.inserts[0][1][0], conn.inserts[1][1][0])
+
+    def test_skips_already_materialized_checkpoints(self):
+        from collect_checkpoints import materialize_quotes
+        conn = FakeConnection([])  # NOT EXISTS filtered everything
+        out = materialize_quotes(conn)
+        self.assertEqual(out["checkpoints_materialized"], 0)
+        self.assertEqual(conn.inserts, [])
+
+    def test_empty_quotes_array_materializes_checkpoint(self):
+        from collect_checkpoints import materialize_quotes
+        conn = FakeConnection([{
+            "checkpoint_key": "ck2", "game_id": "g2",
+            "kickoff": dt.datetime(2026, 9, 13, 17, 0, tzinfo=dt.timezone.utc),
+            "quotes": [], "home_team": "A", "away_team": "B"}])
+        out = materialize_quotes(conn)
+        self.assertEqual(out["checkpoints_materialized"], 1)
+        self.assertEqual(conn.inserts, [])
