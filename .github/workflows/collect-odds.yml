@@ -2,10 +2,11 @@ name: NFL Edge odds checkpoint collector
 on:
   schedule:
     # Checkpoint windows are 15 minutes wide (T-24, T-3, T-90, Close), so the
-    # worker runs at least that often. Runs with no due checkpoints spend zero
-    # provider credits: only the free events endpoint is consulted, and only
-    # when a checkpoint is actually due.
-    - cron: '*/15 * * * *'
+    # worker gets three scheduled opportunities inside each window. The
+    # two-minute offset avoids the top-of-hour congestion where scheduled
+    # Actions are most likely to be delayed. Runs with no due checkpoints
+    # spend zero provider credits: only the free events endpoint is consulted.
+    - cron: '2-59/5 * * * *'
   workflow_dispatch:
 permissions:
   contents: read
