@@ -139,6 +139,31 @@ class OpenerTests(unittest.TestCase):
              if c.name=='T-24'][0]
         game12={**self.game}
         self.assertTrue(opener_eligible(t24,game12,set(),{'g-open'}))
+    def test_opener_accepts_stale_first_seen_quotes(self):
+        # Opener at 3 days out; provider last updated the line 6 hours ago.
+        # The old window-freshness filter rejected this (nothing was ever
+        # "first seen"); the opener path must capture it.
+        now = self.kickoff - dt.timedelta(days=3)
+        cps = [c for c in plan([self.game], now) if c.name == 'Opener']
+        self.assertTrue(cps)
+        store = MemoryStore()
+        stale = (now - dt.timedelta(hours=6)).isoformat()
+        collect(cps, store,
+                lambda c: [{'observed_at': stale}],
+                lambda: now, 100)
+        self.assertEqual(store.rows[cps[0].key]['status'], 'captured')
+        self.assertEqual(len(store.rows[cps[0].key]['quotes']), 1)
+
+    def test_opener_rejects_future_observed_quotes(self):
+        now = self.kickoff - dt.timedelta(days=3)
+        cps = [c for c in plan([self.game], now) if c.name == 'Opener']
+        store = MemoryStore()
+        future = (now + dt.timedelta(hours=1)).isoformat()
+        collect(cps, store,
+                lambda c: [{'observed_at': future}],
+                lambda: now, 100)
+        self.assertEqual(store.rows[cps[0].key]['status'], 'unavailable')
+
 class FakeConnection:
     """Minimal stand-in for the psycopg connection used by materialize_quotes."""
     def __init__(self, pending):
@@ -209,3 +234,4 @@ class MaterializeTests(unittest.TestCase):
         out = materialize_quotes(conn)
         self.assertEqual(out["checkpoints_materialized"], 1)
         self.assertEqual(conn.inserts, [])
+

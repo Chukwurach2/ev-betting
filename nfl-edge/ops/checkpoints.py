@@ -87,7 +87,15 @@ def collect(checkpoints,store,fetch_quotes,clock,remaining,max_requests=2,reserv
             valid=[]
             for q in quotes:
                 observed=instant(q['observed_at'])
-                if checkpoint.target<=observed<=ended and (ended-observed).total_seconds()<=900:
+                if checkpoint.name=='Opener':
+                    # First-seen capture: the provider's last_update IS the
+                    # record, however long ago the line was posted. Applying
+                    # the window freshness filter here would reject exactly
+                    # what opener capture exists to record (nothing would
+                    # ever count as "first seen").
+                    if observed<=ended:
+                        valid.append(q)
+                elif checkpoint.target<=observed<=ended and (ended-observed).total_seconds()<=900:
                     valid.append(q)
             store.finish(checkpoint,ended,'captured' if valid else 'unavailable',valid,None)
             counts['captured' if valid else 'failed']+=1
