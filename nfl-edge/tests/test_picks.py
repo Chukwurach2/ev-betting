@@ -299,3 +299,22 @@ if __name__ == "__main__":
         # saw the price (collected_at), not the book's last move.
         self.assertIn("q.collected_at > now()", picks.LATEST_QUOTES_SQL)
         self.assertIn("q.collected_at DESC", picks.LATEST_QUOTES_SQL)
+
+    def test_pick_stores_taken_fair_prob(self):
+        # The taken quote's de-vigged fair prob must be stored so settlement
+        # can compute CLV as close-minus-taken (not consensus-minus-close).
+        import datetime as dt
+        now = dt.datetime.now(dt.timezone.utc)
+        rows = [
+            ("e1", "H", "A", now, "FULL_GAME_SPREAD", "A", -3.5,
+             "DraftKings", "draftkings", -110, 0.50, now, "g1"),
+            ("e1", "H", "A", now, "FULL_GAME_SPREAD", "A", -3.5,
+             "FanDuel", "fanduel", -105, 0.50, now, "g1"),
+            ("e1", "H", "A", now, "FULL_GAME_SPREAD", "A", -3.5,
+             "Circa", "circa", 120, 0.40, now, "g1"),
+        ]
+        out = self.run_build(rows)
+        circa = [p for p in out if p["book_key"] == "circa"]
+        self.assertEqual(len(circa), 1)
+        self.assertAlmostEqual(circa[0]["taken_fair_prob"], 0.40)
+        self.assertIn("taken_fair_prob", picks.INSERT_PICK_SQL)

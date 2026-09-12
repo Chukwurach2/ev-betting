@@ -71,6 +71,19 @@ def fetch_scores(api_key: str, days_from: int = 3) -> list[dict]:
         return json.load(resp)
 
 
+def clv_prob_points(close: float | None, taken_fair_prob) -> float | None:
+    """Closing-line value in probability points.
+
+    Closing fair prob MINUS the taken price's fair prob, at the identical
+    line. Positive means the pick beat the closing line. Either side missing
+    (no closing quotes, or a legacy pick without a stored taken price)
+    yields NULL rather than an invented number.
+    """
+    if close is None or taken_fair_prob is None:
+        return None
+    return close - float(taken_fair_prob)
+
+
 def closing_consensus(conn, provider_event_id: str, market: str,
                       selection: str, line: float) -> float | None:
     """Median no-vig fair prob across books from the latest pre-kickoff
@@ -116,7 +129,7 @@ def settle(conn, api_key: str) -> dict:
     cur.execute(
         """
         SELECT pick_id, provider_event_id, market, selection, line,
-               consensus_fair_prob
+               consensus_fair_prob, taken_fair_prob
         FROM public.nfl_edge_picks
         WHERE result IS NULL
         """)
@@ -136,7 +149,13 @@ def settle(conn, api_key: str) -> dict:
             continue
         close = closing_consensus(conn, p["provider_event_id"], p["market"],
                                   p["selection"], float(p["line"]))
-        clv = (float(p["consensus_fair_prob"]) - close) if close is not None else None
+        # CLV in probability points: closing fair prob MINUS the taken
+        # price's fair prob, at the identical line. Positive means the pick
+        # beat the closing line. (The pick-time consensus is NOT the entry
+        # price; consensus-minus-close has the wrong sign in the canonical
+        # slow-book scenario.)
+        taken = p.get("taken_fair_prob")
+        clv = clv_prob_points(close, taken)
         cur.execute(
             """
             UPDATE public.nfl_edge_picks

@@ -19,9 +19,10 @@ proxies (model-implied closes, stale snapshots) do not count.
    reconstructed picks do not count.
 
 2. **Positive CLV vs actual closing lines.** Mean `clv_prob_points`
-   (pick fair prob − closing consensus fair prob at the pick's line) > 0 with
-   a one-sided t-test p < 0.01. If multiple engine versions or markets were
-   evaluated during the window, Holm correction applies across all of them.
+   (closing consensus fair prob − taken price fair prob, both de-vigged, at
+   the pick's exact line) > 0 with a one-sided t-test p < 0.01. If multiple
+   engine versions or markets were evaluated during the window, Holm
+   correction applies across all of them.
 
 3. **Practical effect size.** Mean CLV ≥ +1.0 probability point. A
    statistically significant but tiny edge does not pass — the bar is set
@@ -59,3 +60,25 @@ proxies (model-implied closes, stale snapshots) do not count.
 - Historical backtests, no matter how strong, can never satisfy this gate.
   Only forward shadow evidence counts.
 - "No bet" remains the standing position until this gate is met in full.
+
+## Amendments
+
+### 2026-09-12 — CLV definition corrected (consensus−close → close−taken)
+
+The original contract defined CLV as pick-time consensus fair prob minus
+closing fair prob. Audit found this has the wrong sign in the canonical
+slow-book scenario and is perverse in general: when the market moves in favor
+of the selection after the pick (the bet was good), consensus−close goes
+negative; when the market proves the pick-time consensus wrong in the bet's
+favor, it goes positive. It measures consensus drift, not the price advantage
+of the taken bet.
+
+Corrected definition (applied in ops/settle.py, migration 011): CLV =
+closing consensus fair prob − taken price's de-vigged fair prob, at the
+identical line. Positive means the pick beat the closing line. This matches
+the industry-standard favorable-price convention the gate's "positive forward
+CLV against actual observed closing lines" requirement intends. The taken
+price's fair prob is stored on the pick at generation time (`taken_fair_prob`).
+No gate parameters (200, 0.01, 1.0pp, 8 weeks) were changed — only the metric
+was corrected to measure what it claims to measure. No forward picks existed
+under the old definition, so no data was reinterpreted.

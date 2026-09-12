@@ -55,3 +55,11 @@ class MigrationTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+    def test_taken_fair_prob_migration_shape(self):
+        sql = (MIGRATIONS / "011_taken_fair_prob.sql").read_text()
+        for clause in (
+            "ALTER TABLE public.nfl_edge_picks",
+            "taken_fair_prob",
+        ):
+            self.assertIn(clause, sql, f"011 migration missing: {clause}")

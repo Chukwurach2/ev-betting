@@ -283,6 +283,7 @@ def build_picks(conn) -> list[dict]:
                 "american_odds": int(q["american_odds"]),
                 "decimal_odds": round(dec, 4),
                 "consensus_fair_prob": round(consensus, 6),
+                "taken_fair_prob": round(float(q["fair_probability"]), 6),
                 "edge": round(edge, 6),
                 "kelly_fraction": round(kf, 6),
                 "stake_units": stake_units(kf),
@@ -300,16 +301,16 @@ INSERT_PICK_SQL = """
 INSERT INTO public.nfl_edge_picks (
   pick_id, engine_version, mode, game_id, provider_event_id, home_team,
   away_team, kickoff, market, selection, line, sportsbook, book_key,
-  american_odds, decimal_odds, consensus_fair_prob, edge, kelly_fraction,
-  stake_units, consensus_books, observed_at,
+  american_odds, decimal_odds, consensus_fair_prob, taken_fair_prob, edge,
+  kelly_fraction, stake_units, consensus_books, observed_at,
   challenger_version, challenger_fair_prob, challenger_pred_margin,
   challenger_pred_total
 ) VALUES (
   %(pick_id)s, %(engine_version)s, %(mode)s, %(game_id)s, %(provider_event_id)s,
   %(home_team)s, %(away_team)s, %(kickoff)s, %(market)s, %(selection)s,
   %(line)s, %(sportsbook)s, %(book_key)s, %(american_odds)s, %(decimal_odds)s,
-  %(consensus_fair_prob)s, %(edge)s, %(kelly_fraction)s, %(stake_units)s,
-  %(consensus_books)s, %(observed_at)s,
+  %(consensus_fair_prob)s, %(taken_fair_prob)s, %(edge)s, %(kelly_fraction)s,
+  %(stake_units)s, %(consensus_books)s, %(observed_at)s,
   %(challenger_version)s, %(challenger_fair_prob)s, %(challenger_pred_margin)s,
   %(challenger_pred_total)s
 ) ON CONFLICT (pick_id) DO NOTHING

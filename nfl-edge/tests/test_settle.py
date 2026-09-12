@@ -64,9 +64,24 @@ class TotalSettlementTests(unittest.TestCase):
 
 
 class ClvSignTests(unittest.TestCase):
-    def test_clv_definition(self):
-        # pick fair .55, close fair .52 -> beat the close by 3pp
-        self.assertAlmostEqual(0.55 - 0.52, 0.03)
+    def test_beat_the_close_is_positive(self):
+        # Took +120 (taken fair .4545), closed at fair .50 -> +4.55pp.
+        self.assertAlmostEqual(settle.clv_prob_points(0.50, 0.4545), 0.0455)
+
+    def test_worse_than_close_is_negative(self):
+        # Took -150 (taken fair .60), closed at fair .55 -> -5pp.
+        self.assertAlmostEqual(settle.clv_prob_points(0.55, 0.60), -0.05)
+
+    def test_missing_inputs_yield_null(self):
+        self.assertIsNone(settle.clv_prob_points(None, 0.50))
+        self.assertIsNone(settle.clv_prob_points(0.50, None))
+
+    def test_old_consensus_minus_close_convention_rejected(self):
+        # Regression: the pre-2026-09-12 convention (pick-time consensus
+        # minus close) has the wrong sign in the canonical slow-book case:
+        # consensus .50, took +120, close .55. Old convention: .50-.55=-.05
+        # (claims a bad beat); correct CLV: .55-.4545=+.0955 (beat the close).
+        self.assertGreater(settle.clv_prob_points(0.55, 0.4545), 0)
 
 
 class ClosingConsensusTests(unittest.TestCase):
