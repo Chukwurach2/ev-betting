@@ -39,7 +39,7 @@
       "status": "completed_no_edge_found",
       "hypothesis": "Pinnacle leads followers (Track A); stale cross-book quotes beat the close via a lagging mechanism (Track B). Preregistered with Amendment A1 (pre-results) replacing Track B's miscalibrated t-test with a directional lag test.",
       "source": "frozen 2022-2024 historical dataset, fingerprint 43f853a44bf93937d85149ca5fd7241b, 162 snapshots, 291586 quotes, 825 canonical games",
-      "outcome": "Track A: no book significant after Holm (best FanDuel p=0.102); pooled agree rate 0.526 (+2.6pp, p=0.0125) too small to trade; reverse falsification clean. Track B: lagging fraction 0.348, p=0.995 \u2014 no stale-price mechanism; superseded naive t-test would have falsely reported p~2.6e-176. Both tracks: no edge found.",
+      "outcome": "Track A: no book significant after Holm (best FanDuel p=0.102); pooled agree rate 0.526 (+2.6pp, p=0.0125) too small to trade; reverse falsification clean. Track B: lagging fraction 0.348, p=0.995 — no stale-price mechanism; superseded naive t-test would have falsely reported p~2.6e-176. Both tracks: no edge found.",
       "role": "SHADOW"
     },
     {
@@ -58,6 +58,46 @@
       "hypothesis": "Challenger v1 residual r = chal_fair - f_sat predicts closing move (OLS move ~ r, one-sided slope test). Challenger audited point-in-time safe: train_end=2021, static ratings.",
       "source": "frozen 2022-2024 historical dataset, fingerprint 43f853a44bf93937d85149ca5fd7241b, 704 units with challenger predictions",
       "outcome": "Primary test not significant (slope +0.0010, p=0.1218); per-season slopes all ~+0.001. Verdict: no_edge. Stale 2021 ratings disagree wildly with market (mean |r|=0.36) but carry no information about closing movement. Consistent with the challenger's gate refusal.",
+      "role": "SHADOW"
+    },
+    {
+      "id": "execution-alpha-v1",
+      "market_family": "full_game_spread_total",
+      "status": "completed_no_edge_found",
+      "hypothesis": "Best available same-snapshot price across books beats strict LOBO closing consensus beyond the mechanical best-price selection effect under a calibrated noise null.",
+      "source": "frozen 2022-2024 historical dataset, fingerprint 43f853a44bf93937d85149ca5fd7241b, 825 canonical games",
+      "outcome": "Observed mean game-level CLV +0.00647 was below the simulated mechanical-shopping null mean +0.00675; observed-vs-null p=0.998. No harvestable execution edge.",
+      "report": "docs/execution-alpha-v1-results.md",
+      "role": "SHADOW"
+    },
+    {
+      "id": "pinnacle-early-week-v1",
+      "market_family": "full_game_spread_total",
+      "status": "completed_no_signal",
+      "hypothesis": "Pinnacle's Wednesday fair-probability deviation from the cross-book consensus predicts the direction and magnitude of the closing move.",
+      "source": "frozen 2022-2024 historical dataset, fingerprint 43f853a44bf93937d85149ca5fd7241b, 325 units across 289 games",
+      "outcome": "Direction agreement 0.375 (103/275), one-sided p approximately 1.0; consensus-priced strategy mean CLV +0.0005, p=0.24. The exploratory reversal has no tradeable magnitude.",
+      "report": "docs/pinnacle-early-week-v1-results.md",
+      "role": "SHADOW"
+    },
+    {
+      "id": "moneyline-pilot-v1",
+      "market_family": "full_game_moneyline",
+      "status": "completed_no_edge_found",
+      "hypothesis": "After a capped feasibility and historical pilot, best available moneyline price beats strict LOBO closing consensus beyond a calibrated mechanical-shopping noise null.",
+      "source": "2024 moneyline pilot, 54 snapshots, 47236 normalized quotes, 281 games, 1380 best-price cells",
+      "outcome": "Observed mean per-game CLV +0.01172 cleared the zero-based practical bar but was fully explained by the simulated noise null mean +0.01156; observed-vs-null p=0.216. No edge.",
+      "report": "docs/moneyline-pilot-v1-results.md",
+      "role": "SHADOW"
+    },
+    {
+      "id": "steam-v1",
+      "market_family": "full_game_spread_total",
+      "status": "completed_no_edge_found",
+      "hypothesis": "Coordinated multi-book fair-probability moves predict continuation to the closing consensus.",
+      "source": "frozen 2022-2024 historical dataset, fingerprint 43f853a44bf93937d85149ca5fd7241b, 123 steam events across 110 games",
+      "outcome": "Closing direction agreed 45.2% (47/104, six ties), one-sided p=0.86; mean post-steam CLV +0.0002, p=0.40, below the 0.01 practical bar. No momentum edge.",
+      "report": "docs/steam-v1-results.md",
       "role": "SHADOW"
     }
   ]

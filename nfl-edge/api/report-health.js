@@ -1,5 +1,7 @@
 import {Client} from 'pg';
 
+const ENGINE_VERSION = 'v1.2-consensus-lobo-4pct-15m';
+
 // Pipeline-health companion to /api/performance for the weekly forward-shadow
 // report. Read-only aggregates over the last 7 days; no row-level data.
 // Exists so a "great" CLV week cannot hide a partial-data week: every weekly
@@ -34,19 +36,22 @@ const Q_CLOSES = `
 SELECT count(*)::int AS settled,
        count(*) FILTER (WHERE clv_prob_points IS NOT NULL)::int AS with_close
 FROM public.nfl_edge_picks
-WHERE mode = 'shadow' AND result IN ('win','loss','push')
+WHERE mode = 'shadow' AND engine_version = $1
+  AND result IN ('win','loss','push')
   AND settled_at >= now() - interval '7 days'`;
 
 const Q_QUOTE_AGE = `
 SELECT EXTRACT(EPOCH FROM (created_at - observed_at)) AS age_s
 FROM public.nfl_edge_picks
-WHERE mode = 'shadow' AND created_at >= now() - interval '7 days'`;
+WHERE mode = 'shadow' AND engine_version = $1
+  AND created_at >= now() - interval '7 days'`;
 
 const Q_PICKS_BREAKDOWN = `
 SELECT p.market, p.book_key, c.decision_window AS window, count(*)::int AS n
 FROM public.nfl_edge_picks p
 LEFT JOIN public.nfl_edge_checkpoints c ON c.checkpoint_key = p.checkpoint_key
-WHERE p.mode = 'shadow' AND p.created_at >= now() - interval '7 days'
+WHERE p.mode = 'shadow' AND p.engine_version = $1
+  AND p.created_at >= now() - interval '7 days'
 GROUP BY p.market, p.book_key, c.decision_window
 ORDER BY n DESC`;
 
@@ -61,14 +66,15 @@ SELECT count(*)::int AS n FROM (
 const Q_DUP_PICKS = `
 SELECT count(*)::int AS n FROM (
   SELECT 1 FROM public.nfl_edge_picks
-  WHERE mode = 'shadow' AND created_at >= now() - interval '7 days'
+  WHERE mode = 'shadow' AND engine_version = $1
+    AND created_at >= now() - interval '7 days'
   GROUP BY provider_event_id, market, selection, line, book_key, observed_at
   HAVING count(*) > 1
 ) d`;
 
 const Q_SETTLE_ANOMALIES = `
 SELECT count(*)::int AS n FROM public.nfl_edge_picks
-WHERE mode = 'shadow'
+WHERE mode = 'shadow' AND engine_version = $1
   AND ((result IS NOT NULL AND settled_at IS NULL)
        OR (settled_at IS NOT NULL AND settled_at < created_at))`;
 
@@ -87,16 +93,16 @@ export default async function handler(req, res) {
     await client.connect();
     const cp = (await client.query(Q_CHECKPOINTS)).rows;
     const lags = (await client.query(Q_MAT_LAG)).rows.map((r) => Number(r.lag_s));
-    const closes = (await client.query(Q_CLOSES)).rows[0] || {settled: 0, with_close: 0};
-    const ages = (await client.query(Q_QUOTE_AGE)).rows.map((r) => Number(r.age_s));
-    const breakdown = (await client.query(Q_PICKS_BREAKDOWN)).rows;
+    const closes = (await client.query(Q_CLOSES, [ENGINE_VERSION])).rows[0] || {settled: 0, with_close: 0};
+    const ages = (await client.query(Q_QUOTE_AGE, [ENGINE_VERSION])).rows.map((r) => Number(r.age_s));
+    const breakdown = (await client.query(Q_PICKS_BREAKDOWN, [ENGINE_VERSION])).rows;
     const dupQuotes = Number((await client.query(Q_DUP_QUOTES)).rows[0]?.n || 0);
-    const dupPicks = Number((await client.query(Q_DUP_PICKS)).rows[0]?.n || 0);
-    const anomalies = Number((await client.query(Q_SETTLE_ANOMALIES)).rows[0]?.n || 0);
+    const dupPicks = Number((await client.query(Q_DUP_PICKS, [ENGINE_VERSION])).rows[0]?.n || 0);
+    const anomalies = Number((await client.query(Q_SETTLE_ANOMALIES, [ENGINE_VERSION])).rows[0]?.n || 0);
 
     const planned = cp.reduce((a, r) => a + r.planned, 0);
     const captured = cp.reduce((a, r) => a + r.captured, 0);
-    const {verdict, reasons} = evaluateVerdict({
+    const {verdict, reasons, promotion_eligible, performance_status} = evaluateVerdict({
       planned_checkpoints: planned,
       captured_checkpoints: captured,
       duplicate_quote_groups: dupQuotes,
@@ -108,11 +114,14 @@ export default async function handler(req, res) {
 
     return res.status(200).json({
       mode: 'shadow',
+      engine: ENGINE_VERSION,
       window_days: 7,
       generated_at: new Date().toISOString(),
       disclaimer: 'Shadow research output. Not a wager recommendation.',
       verdict,
       verdict_reasons: reasons,
+      promotion_eligible,
+      performance_status,
       checkpoints: {
         by_window: cp.map((r) => ({...r, capture_rate: r.planned > 0 ? r.captured / r.planned : null})),
         overall: {

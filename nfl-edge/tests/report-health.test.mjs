@@ -1,5 +1,8 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {fileURLToPath} from 'node:url';
+import {dirname, join} from 'node:path';
 import {percentile, evaluateVerdict, CAPTURE_RATE_MIN, CLOSE_VALID_MIN} from '../lib/report-health.mjs';
 
 const CLEAN = {
@@ -21,12 +24,18 @@ test('clean week is HEALTHY', () => {
   const {verdict, reasons} = evaluateVerdict(CLEAN);
   assert.equal(verdict, 'HEALTHY');
   assert.deepEqual(reasons, []);
+  const result = evaluateVerdict(CLEAN);
+  assert.equal(result.promotion_eligible, null);
+  assert.equal(result.performance_status, 'eligible_for_gate_evaluation');
 });
 
 test('any duplicate quote group degrades', () => {
   const {verdict, reasons} = evaluateVerdict({...CLEAN, duplicate_quote_groups: 1});
   assert.equal(verdict, 'DEGRADED');
   assert.ok(reasons.some((r) => r.includes('duplicate quote')));
+  const result = evaluateVerdict({...CLEAN, duplicate_quote_groups: 1});
+  assert.equal(result.promotion_eligible, false);
+  assert.equal(result.performance_status, 'diagnostic_only');
 });
 
 test('any duplicate pick group degrades', () => {
@@ -83,4 +92,14 @@ test('percentile: median/p95 and empty', () => {
   assert.equal(percentile([1, 2, 3, 4], 95), 4);
   assert.equal(percentile([], 50), null);
   assert.equal(percentile(['x', null], 50), null);
+});
+
+test('all shadow reporting and display feeds are pinned to the repaired engine', () => {
+  const here = dirname(fileURLToPath(import.meta.url));
+  for (const rel of ['../api/picks.js', '../api/performance.js', '../api/report-health.js']) {
+    const source = readFileSync(join(here, rel), 'utf8');
+    assert.match(source, /v1\.2-consensus-lobo-4pct-15m/);
+    assert.match(source, /engine_version = \$1/);
+    assert.match(source, /\[ENGINE_VERSION\]/);
+  }
 });

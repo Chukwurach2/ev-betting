@@ -17,7 +17,8 @@ HEALTH verdict; performance numbers are always read in its light.
 Implementation: `nfl-edge/api/report-health.js`; verdict logic in
 `nfl-edge/lib/report-health.mjs` (pure, unit-tested). All metrics are computed
 from existing tables — checkpoints, `nfl_edge_odds_quotes`, `nfl_edge_picks` —
-never fabricated.
+never fabricated. Pick-level performance and health metrics are restricted to
+current engine `${VERSION}`; rows from other engine versions are never pooled.
 
 ## Required metrics (every report, every week)
 
@@ -66,6 +67,14 @@ All violated conditions are listed as `verdict_reasons`. A DEGRADED report
 must name the failing metric and the suspected cause (or state that the cause
 is under investigation) — never bury it under performance numbers.
 
+A DEGRADED verdict mechanically sets `promotion_eligible=false` and
+`performance_status=diagnostic_only`. ROI, CLV, calibration, and gate-progress
+figures may still be reported for debugging, but they cannot count toward
+promotion evidence. A HEALTHY verdict sets
+`performance_status=eligible_for_gate_evaluation` and leaves
+`promotion_eligible=null`: data quality is necessary but never sufficient
+for promotion.
+
 ## Report order
 
 1. Week range + HEALTH verdict line (with reasons if DEGRADED).
@@ -77,3 +86,7 @@ is under investigation) — never bury it under performance numbers.
 ## Amendments
 
 - 2026-09-12: initial spec (user-directed: health alongside performance).
+- 2026-09-12: DEGRADED performance is mechanically diagnostic-only and not
+  promotion-eligible.
+- 2026-09-12: engine-scoped reporting added; threshold changes start a new
+  forward window and prior engine versions cannot be aggregated.
