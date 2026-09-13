@@ -262,6 +262,11 @@ export default async function handler(req, res) {
       games: gameCards,
     });
   } catch (e) {
+    console.error('Sunday board unavailable', {
+      name: e?.name || null,
+      code: e?.code || null,
+      message: String(e?.message || 'unknown').slice(0, 240),
+    });
     return res.status(503).json({error: 'Sunday board unavailable'});
   } finally {
     await client.end().catch(() => {});
