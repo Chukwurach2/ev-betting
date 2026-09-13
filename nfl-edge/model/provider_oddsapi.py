@@ -4,6 +4,25 @@ from dataclasses import dataclass
 
 BASE='https://api.the-odds-api.com/v4'
 SPORT='americanfootball_nfl'
+# Sport registry (nfl-edge/ops/sports.py) maps sport keys ('nfl'|'ncaaf') to
+# provider sport keys. Imported defensively: this module is also imported
+# with only model/ on sys.path (tests, readiness), where ops.* is not
+# visible. In that case only the default sport='nfl' (the SPORT constant)
+# is available; every existing call site behaves identically.
+try:
+    from ops.sports import odds_api_sport as _registry_api_sport
+except ImportError:
+    _registry_api_sport = None
+
+def _api_sport(sport='nfl'):
+    """Resolve the provider sport key, defaulting to the NFL constant."""
+    if _registry_api_sport is not None:
+        return _registry_api_sport(sport)  # raises ValueError on unknown sport
+    if sport != 'nfl':
+        raise RuntimeError(
+            "sport=%r needs ops.sports on sys.path; only sport='nfl' "
+            "is available in this import context" % (sport,))
+    return SPORT
 # Verified NY mobile brands should still be rechecked against NYSGC each run.
 # williamhill_us (Caesars) and fanatics need a paid API tier; they are kept
 # here so the book list is tier-driven, not code-driven.
@@ -49,36 +68,37 @@ def _get(url, params, timeout):
         raise RuntimeError('Odds provider request failed') from None
     return payload, dict(response.headers)
 
-def fetch_events(api_key=None, timeout=20):
-    url=f'{BASE}/sports/{SPORT}/events'
+def fetch_events(api_key=None, timeout=20, sport='nfl'):
+    url=f'{BASE}/sports/{_api_sport(sport)}/events'
     return _get(url, {'apiKey':_key(api_key),'dateFormat':'iso'}, timeout)
 
-def fetch_event_markets(event_id, api_key=None, timeout=20, bookmakers=None):
-    url=f'{BASE}/sports/{SPORT}/events/{event_id}/markets'
+def fetch_event_markets(event_id, api_key=None, timeout=20, bookmakers=None,
+                        sport='nfl'):
+    url=f'{BASE}/sports/{_api_sport(sport)}/events/{event_id}/markets'
     params={'apiKey':_key(api_key),'dateFormat':'iso'}
     if bookmakers: params['bookmakers']=','.join(bookmakers)
     else: params['regions']='us'
     return _get(url, params, timeout)
 
 def fetch_event_odds(event_id, markets, api_key=None, timeout=20,
-                   bookmakers=None, regions='us'):
+                   bookmakers=None, regions='us', sport='nfl'):
     if not markets: return {},{}
-    url=f'{BASE}/sports/{SPORT}/events/{event_id}/odds'
+    url=f'{BASE}/sports/{_api_sport(sport)}/events/{event_id}/odds'
     params={'apiKey':_key(api_key),'dateFormat':'iso','oddsFormat':'american','markets':','.join(markets)}
     if bookmakers: params['bookmakers']=','.join(bookmakers)
     params['regions']=regions
     return _get(url, params, timeout)
 
 def fetch_odds(markets, api_key=None, timeout=20, bookmakers=None,
-               regions='us'):
-    url=f'{BASE}/sports/{SPORT}/odds'
+               regions='us', sport='nfl'):
+    url=f'{BASE}/sports/{_api_sport(sport)}/odds'
     params={'apiKey':_key(api_key),'dateFormat':'iso','oddsFormat':'american','markets':','.join(markets)}
     if bookmakers: params['bookmakers']=','.join(bookmakers)
     params['regions']=regions
     return _get(url, params, timeout)
 
-def fetch_scores(days_from=3, api_key=None, timeout=20):
-    url=f'{BASE}/sports/{SPORT}/scores'
+def fetch_scores(days_from=3, api_key=None, timeout=20, sport='nfl'):
+    url=f'{BASE}/sports/{_api_sport(sport)}/scores'
     return _get(url,{'apiKey':_key(api_key),'dateFormat':'iso','daysFrom':str(days_from)},timeout)
 
 def quota(headers):
@@ -87,12 +107,14 @@ def quota(headers):
         except (TypeError,ValueError):return None
     return {'remaining':number('x-requests-remaining'),'used':number('x-requests-used'),'last':number('x-requests-last')}
 
-def normalize(event, allowed_books=None):
+def normalize(event, allowed_books=None, sport='nfl'):
     """Flatten one event's bookmakers/markets into Quote rows.
 
     allowed_books: book keys to keep (default NY_BOOK_KEYS). Pass an
     explicit set to include signal-only books (e.g. pinnacle) or to
     widen the quote universe without touching the NY default.
+    sport: selects the provider sport key used in the provenance URL
+    (default 'nfl' keeps every existing call site identical).
     """
     keep = set(allowed_books) if allowed_books is not None else NY_BOOK_KEYS
     event_id=event.get('id') if isinstance(event,dict) else None
@@ -123,7 +145,7 @@ def normalize(event, allowed_books=None):
                 if market in {'Q1_TOTAL','FULL_GAME_TOTAL'} and line<0:continue
                 quotes.append(Quote(event_id,offered['key'],book.get('title') or book_key,
                     market,selection,line,price,observed_at,
-                    f'{BASE}/sports/{SPORT}/events/{event_id}/odds',book_key))
+                    f'{BASE}/sports/{_api_sport(sport)}/events/{event_id}/odds',book_key))
     return quotes
 
 def _check(response):

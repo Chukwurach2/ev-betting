@@ -5,13 +5,13 @@ import json
 import os
 import pathlib
 import sys
-import time
 from dataclasses import asdict
 from urllib.parse import urlsplit
 sys.path.insert(0,str(pathlib.Path(__file__).parents[1]/'model'))
-sys.path.insert(0,str(pathlib.Path(__file__).parents[1]))  # research.devig
-from checkpoints import WINDOWS,plan,collect,instant
+sys.path.insert(0,str(pathlib.Path(__file__).parents[1]))  # research.devig, ops.sports
+from checkpoints import plan,collect,instant
 from research.devig import devig_multiplicative  # tournament-selected de-vig
+from ops.sports import get as sport_config, checkpoints_table, odds_quotes_table
 from postgres_checkpoints import PostgresCheckpointStore
 from provider_oddsapi import (fetch_events,fetch_event_odds,normalize,quota,
                                NY_BOOK_KEYS)
@@ -41,6 +41,47 @@ NAMES=dict(zip(
 
 def canonical(team): return {'LA':'LAR','ARI':'AZ'}.get(team,team)
 
+# Per-sport session advisory locks: the NFL and NCAAF collectors run as
+# separate scheduled workflows and must never block each other. The NFL lock
+# id is unchanged.
+ADVISORY_LOCKS={'nfl':20260910,'ncaaf':20260913}
+# Heartbeat component names per sport (the health monitor keys on these).
+HEARTBEAT_COMPONENTS={'nfl':'collector','ncaaf':'collector_ncaaf'}
+
+def collector_env(sport):
+    """Book/region config for a collector run.
+
+    Env prefix is NFL_EDGE_* for nfl, NCAAF_EDGE_* for ncaaf so the two
+    workflows configure independently. Defaults: NFL keeps its existing
+    universe; NCAAF starts with the NY-licensed books actually observed in
+    the us-region feed (Pinnacle is absent there; see the NCAAF contract).
+    """
+    prefix='NCAAF_EDGE' if sport=='ncaaf' else 'NFL_EDGE'
+    default_books=('draftkings,fanduel,betmgm,betrivers' if sport=='ncaaf'
+                   else 'draftkings,fanduel,betmgm,betrivers,espnbet')
+    books=[b.strip() for b in os.environ.get(
+        prefix+'_BOOKMAKERS',default_books).split(',') if b.strip()]
+    regions=os.environ.get(prefix+'_REGIONS','us')
+    n_regions=len([r for r in regions.split(',') if r.strip()]) or 1
+    return books,regions,n_regions
+
+def find_provider_event(game,events,kickoff,sport):
+    """Match provider events by exact matchup and kickoff.
+
+    NFL maps provider team names through the NAMES/canonical alias table
+    (32 teams, stable). NCAAF has 130+ teams: match on the exact
+    home_team/away_team strings from the events feed, never a hardcoded
+    name dictionary.
+    """
+    if sport=='nfl':
+        want=(NAMES.get(canonical(game['home_team'])),
+              NAMES.get(canonical(game['away_team'])))
+    else:
+        want=(game['home_team'],game['away_team'])
+    return [e for e in events
+            if e.get('home_team')==want[0] and e.get('away_team')==want[1]
+            and instant(e['commence_time'])==kickoff]
+
 def provider_event_keys(events):
     """Signatures of provider events, for the opener gate (pure)."""
     keys=set()
@@ -51,36 +92,22 @@ def provider_event_keys(events):
             continue
     return keys
 
-def opener_eligible(checkpoint,game,event_keys,captured_game_ids):
+def opener_eligible(checkpoint,game,event_keys,captured_game_ids,sport='nfl'):
     """Pure opener gate: skip when the game already has a captured checkpoint
     (first-seen value is gone) or the provider has no event yet (no lines to
-    capture -> retry a later run without spending or claiming)."""
+    capture -> retry a later run without spending or claiming).
+
+    sport='nfl' (default) keeps the existing alias-table matching; other
+    sports match on exact provider team strings.
+    """
     if checkpoint.name!='Opener': return True
     if checkpoint.game_id in captured_game_ids: return False
-    return (NAMES.get(canonical(game['home_team'])),NAMES.get(canonical(game['away_team'])),
-            instant(checkpoint.kickoff)) in event_keys
-EARLY_TARGET_WAIT_SECONDS = 120
-
-def seconds_until_imminent_target(games, now, max_wait_seconds=EARLY_TARGET_WAIT_SECONDS):
-    """Return a bounded wait for the next fixed checkpoint target.
-
-    A runner may reach the planner seconds before a target and otherwise exit
-    without work. Waiting here changes neither the target nor its deadline;
-    provider timestamps and the strict on-time evidence gate remain authoritative.
-    Openers are intentionally excluded because their target is first observation.
-    """
-    now = instant(now)
-    waits = []
-    for game in games:
-        if game.get('status', 'scheduled') != 'scheduled':
-            continue
-        kickoff = instant(game['kickoff'])
-        for _, minutes in WINDOWS:
-            seconds = (kickoff - dt.timedelta(minutes=minutes) - now).total_seconds()
-            if 0 < seconds <= max_wait_seconds:
-                waits.append(seconds)
-    return min(waits, default=0.0)
-
+    if sport=='nfl':
+        home,away=(NAMES.get(canonical(game['home_team'])),
+                    NAMES.get(canonical(game['away_team'])))
+    else:
+        home,away=game['home_team'],game['away_team']
+    return (home,away,instant(checkpoint.kickoff)) in event_keys
 def implied(odds): return 100/(100+odds) if odds>0 else abs(odds)/(100+abs(odds))
 
 def settlement(market,line):
@@ -93,8 +120,9 @@ def settlement(market,line):
                 if integer else 'Regulation plus overtime; no push at half-point spread; book rules govern voids')
     return 'First quarter only; no push at half-point line; book rules govern voids'
 
-def pair_quotes(payload):
-    normalized=normalize(payload, allowed_books=BOOKMAKERS)
+def pair_quotes(payload,allowed_books=None,sport='nfl'):
+    books=BOOKMAKERS if allowed_books is None else allowed_books
+    normalized=normalize(payload, allowed_books=books, sport=sport)
     groups={}
     for q in normalized:
         line=abs(q.line) if q.market=='FULL_GAME_SPREAD' else q.line
@@ -123,28 +151,34 @@ def pair_quotes(payload):
                 'ny_licensed':q.sportsbook_key in NY_BOOK_KEYS})
     return result
 
-def materialize_quotes(connection):
-    """Fan captured checkpoint quotes out into nfl_edge_odds_quotes.
+def materialize_quotes(connection,sport='nfl'):
+    """Fan captured checkpoint quotes out into the sport's odds-quotes table.
 
     The live collector stores quotes as a jsonb array on the checkpoint row;
-    the picks engine and settlement CLV read the normalized
-    nfl_edge_odds_quotes table (migration 002 designed it for exactly this
-    fan-out, but no code ever performed it -- so the forward shadow loop was
-    silently starved of quotes). Idempotent: quote_id is a deterministic
-    hash, so re-runs and the one-time backfill of old checkpoints insert
-    nothing twice. Best-effort: a failure here must never break collection;
-    the next run retries anything missed.
+    the picks engine and settlement CLV read the normalized odds-quotes
+    table (migration 002 designed it for exactly this fan-out, but no code
+    ever performed it -- so the forward shadow loop was silently starved of
+    quotes). Idempotent: quote_id is a deterministic hash, so re-runs and
+    the one-time backfill of old checkpoints insert nothing twice.
+    Best-effort: a failure here must never break collection; the next run
+    retries anything missed.
+
+    sport selects the checkpoint/quotes tables via the sports registry.
+    Default 'nfl' keeps every existing call site identical; 'ncaaf' writes
+    only to ncaaf_edge_* tables, never to nfl_edge_*.
     """
+    cp_table=checkpoints_table(sport)
+    q_table=odds_quotes_table(sport)
     rows = connection.execute(
         """
         SELECT c.checkpoint_key, c.game_id, c.kickoff, c.quotes,
                g.home_team, g.away_team
-        FROM public.nfl_edge_checkpoints c
+        FROM public.%s c
         JOIN public.games g ON g.game_id = c.game_id
         WHERE c.status = 'captured'
-          AND NOT EXISTS (SELECT 1 FROM public.nfl_edge_odds_quotes q
+          AND NOT EXISTS (SELECT 1 FROM public.%s q
                           WHERE q.checkpoint_key = c.checkpoint_key)
-        """).fetchall()
+        """ % (cp_table,q_table)).fetchall()
     attempted = 0
     for r in rows:
         for q in (r["quotes"] or []):
@@ -155,14 +189,14 @@ def materialize_quotes(connection):
                 str(q.get("observed_at"))]).encode()).hexdigest()
             connection.execute(
                 """
-                INSERT INTO public.nfl_edge_odds_quotes
+                INSERT INTO public.%s
                   (quote_id, checkpoint_key, provider_event_id, home_team,
                    away_team, kickoff, sportsbook, book_key, market,
                    selection, line, american_odds, fair_probability,
                    observed_at, settlement_rules, ny_licensed)
-                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                VALUES (%%s,%%s,%%s,%%s,%%s,%%s,%%s,%%s,%%s,%%s,%%s,%%s,%%s,%%s,%%s,%%s)
                 ON CONFLICT (quote_id) DO NOTHING
-                """,
+                """ % q_table,
                 (qid, r["checkpoint_key"], q.get("provider_event_id"),
                  r["home_team"], r["away_team"], r["kickoff"],
                  q.get("sportsbook"), q.get("sportsbook_key"),
@@ -175,9 +209,21 @@ def materialize_quotes(connection):
             "quote_rows_attempted": attempted}
 
 
-def main():
+def parse_args(argv=None):
+    import argparse
+    ap=argparse.ArgumentParser(description='Shadow checkpoint collector')
+    ap.add_argument('--sport',default='nfl',choices=('nfl','ncaaf'),
+                    help="sport key from the ops.sports registry "
+                         "(default 'nfl': existing behavior unchanged)")
+    return ap.parse_args(argv)
+
+def main(argv=None):
     import psycopg
     from psycopg.rows import dict_row
+    sport=parse_args(argv).sport
+    # Validates against the registry; raises ValueError on unknown sport.
+    sport_config(sport)
+    books,regions,n_regions=collector_env(sport)
     database=os.environ.get('NFL_EDGE_DATABASE_URL')
     if not database or not os.environ.get('THE_ODDS_API_KEY'):
         raise ValueError('NFL_EDGE_DATABASE_URL and THE_ODDS_API_KEY are required')
@@ -185,53 +231,57 @@ def main():
         raise ValueError('Use a direct database connection for the session advisory lock')
     clock=lambda:dt.datetime.now(dt.timezone.utc)
     with psycopg.connect(database,autocommit=True,connect_timeout=10,row_factory=dict_row) as connection:
-        if not connection.execute('SELECT pg_try_advisory_lock(20260910) AS acquired').fetchone()['acquired']:
-            print(json.dumps({'status':'already_running'}));return
+        if not connection.execute('SELECT pg_try_advisory_lock(%s) AS acquired'
+                                  % ADVISORY_LOCKS[sport]).fetchone()['acquired']:
+            print(json.dumps({'status':'already_running','sport':sport}));return
         connection.execute("SET statement_timeout='10s'")
-        store=PostgresCheckpointStore(connection);store.reconcile(clock())
-        rows=connection.execute("SELECT game_id,home_team,away_team,kickoff,status FROM public.games WHERE status='scheduled' AND kickoff BETWEEN now()-interval '1 day' AND now()+interval '6 days'").fetchall()
+        store=PostgresCheckpointStore(connection,table=checkpoints_table(sport))
+        store.reconcile(clock())
+        rows=connection.execute(
+            "SELECT game_id,home_team,away_team,kickoff,status FROM public.games "
+            "WHERE sport=%s AND status='scheduled' "
+            "AND kickoff BETWEEN now()-interval '1 day' AND now()+interval '6 days'",
+            (sport,)).fetchall()
         unique={}
         for r in rows:
-            k=(canonical(r['home_team']),canonical(r['away_team']),r['kickoff'])
-            if k not in unique or r['game_id'].startswith('nfl-'):unique[k]=r
+            if sport=='nfl':
+                k=(canonical(r['home_team']),canonical(r['away_team']),r['kickoff'])
+            else:
+                # NCAAF: exact provider strings; no alias table.
+                k=(r['home_team'],r['away_team'],r['kickoff'])
+            if k not in unique or r['game_id'].startswith(sport+'-'):unique[k]=r
         games=list(unique.values())
-        wait_seconds = seconds_until_imminent_target(games, clock())
-        if wait_seconds:
-            print(json.dumps({'status': 'waiting_for_checkpoint_target',
-                              'seconds': round(wait_seconds, 3)}))
-            time.sleep(wait_seconds + 0.25)
         # The events feed is free: always consult it for quota headers and to
         # gate opener attempts on the provider actually listing the event.
-        events,headers=fetch_events()
+        events,headers=fetch_events(sport=sport)
         event_keys=provider_event_keys(events)
         captured={r['game_id'] for r in connection.execute(
-            "SELECT DISTINCT game_id FROM public.nfl_edge_checkpoints WHERE status='captured'").fetchall()}
+            "SELECT DISTINCT game_id FROM public.%s WHERE status='captured'"
+            % checkpoints_table(sport)).fetchall()}
         by_id={r['game_id']:r for r in games}
         checkpoints=[c for c in plan(games,clock())
-                     if opener_eligible(c,by_id[c.game_id],event_keys,captured)]
+                     if opener_eligible(c,by_id[c.game_id],event_keys,captured,sport=sport)]
         def fetch(checkpoint):
             game=by_id[checkpoint.game_id]
-            matches=[e for e in events if e.get('home_team')==NAMES.get(canonical(game['home_team']))
-                     and e.get('away_team')==NAMES.get(canonical(game['away_team']))
-                     and instant(e['commence_time'])==checkpoint.kickoff]
+            matches=find_provider_event(game,events,checkpoint.kickoff,sport)
             if len(matches)!=1: raise ValueError('Provider event did not match exact matchup and kickoff')
-            payload,_=fetch_event_odds(matches[0]['id'],['spreads','totals'],bookmakers=BOOKMAKERS,regions=REGIONS)
+            payload,_=fetch_event_odds(matches[0]['id'],['spreads','totals'],bookmakers=books,regions=regions,sport=sport)
             if payload.get('id')!=matches[0]['id'] or instant(payload['commence_time'])!=checkpoint.kickoff:
                 raise ValueError('Provider response event changed')
-            return pair_quotes(payload)
+            return pair_quotes(payload,allowed_books=books,sport=sport)
         _summary = collect(checkpoints,store,fetch,clock,
-                         remaining=quota(headers)['remaining'],max_requests=8,cost_per_request=2*N_REGIONS)
+                         remaining=quota(headers)['remaining'],max_requests=8,cost_per_request=2*n_regions)
         try:
             # Fan captured checkpoints out to the normalized quotes table the
             # picks engine and settlement read. Backfills old checkpoints too.
-            _summary['materialize'] = materialize_quotes(connection)
+            _summary['materialize'] = materialize_quotes(connection,sport=sport)
         except Exception as e:  # noqa: BLE001 - best effort; next run retries
             _summary['materialize'] = {'failed': str(e)[:120]}
-        print(json.dumps({'status':'shadow_collection_only',**_summary}))
+        print(json.dumps({'status':'shadow_collection_only','sport':sport,**_summary}))
         try:
             # Best-effort pipeline heartbeat; must never break collection.
             from heartbeat import record_heartbeat
-            record_heartbeat(connection, 'collector', {
+            record_heartbeat(connection, HEARTBEAT_COMPONENTS[sport], {
                 'credits_remaining': quota(headers).get('remaining'),
                 'checkpoints': {k: _summary.get(k) for k in
                                 ('captured', 'missed', 'duplicate', 'deferred',

@@ -69,15 +69,37 @@ class MigrationTests(unittest.TestCase):
         ):
             self.assertIn(clause, sql, f"012 migration missing: {clause}")
 
-    def test_historical_outcomes_migration_shape(self):
-        sql = (MIGRATIONS / "013_historical_outcomes.sql").read_text()
+    def test_games_sport_migration_shape(self):
+        sql = (MIGRATIONS / "014_games_sport.sql").read_text()
         for clause in (
-            "CREATE TABLE IF NOT EXISTS public.nfl_edge_historical_outcomes",
-            "nflverse_game_id text PRIMARY KEY",
-            "source_sha256",
+            "ALTER TABLE public.games",
+            "ADD COLUMN IF NOT EXISTS sport",
+            "DEFAULT 'nfl'",
+            "games_sport_check",
+            "'ncaaf'",
+        ):
+            self.assertIn(clause, sql, f"014 migration missing: {clause}")
+
+    def test_ncaaf_checkpoints_migration_shape(self):
+        sql = (MIGRATIONS / "015_ncaaf_checkpoints.sql").read_text()
+        for clause in (
+            "CREATE TABLE IF NOT EXISTS public.ncaaf_edge_checkpoints",
+            "CREATE TABLE IF NOT EXISTS public.ncaaf_edge_odds_quotes",
+            # Dual timestamps per contract 1.4: collector capture time on the
+            # checkpoint row, provider observation time on each quote.
+            "started_at timestamptz NOT NULL",
+            "ended_at timestamptz",
+            "observed_at timestamptz NOT NULL",
+            "decision_window IN ('T-24','T-3','T-90','Close','Opener')",
+            "ncaaf_edge_fanout_quotes",
+            "AFTER INSERT OR UPDATE",
+            "ON CONFLICT (quote_id) DO NOTHING",
             "ENABLE ROW LEVEL SECURITY",
         ):
-            self.assertIn(clause, sql, f"013 migration missing: {clause}")
+            self.assertIn(clause, sql, f"015 migration missing: {clause}")
+        # The ncaaf path must never reference the frozen NFL tables.
+        self.assertNotIn("nfl_edge_checkpoints", sql)
+        self.assertNotIn("nfl_edge_odds_quotes", sql)
 
 
 if __name__ == "__main__":
