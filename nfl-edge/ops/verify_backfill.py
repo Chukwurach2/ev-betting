@@ -103,9 +103,15 @@ def main(argv=None):
                  "regions": regions, "markets": markets,
                  "books_present": books_present,
                  "credits_used": credits_used}
-        if sid in seen_ids:
-            errors.append("duplicate provider_snapshot_id: %s" % sid)
-        seen_ids.add(sid)
+        # Idempotency is per (requested_at, regions, markets): the same
+        # requested instant legitimately holds several rows when different
+        # market sets were pulled (e.g. the moneyline h2h track alongside
+        # spreads,totals). The table PK is (snapshot_at, regions, markets).
+        key = (sid, regions, markets)
+        if key in seen_ids:
+            errors.append("duplicate snapshot (requested_at, regions, "
+                          "markets): %s %s %s" % (sid, regions, markets))
+        seen_ids.add(key)
         req = _parse_ts(requested_at)
         ret = _parse_ts(snap_at)
         if req is None:

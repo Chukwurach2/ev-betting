@@ -72,6 +72,76 @@ def _run(payload, quote_rows):
     return rc, report
 
 
+def _run_many(snap_rows, quote_rows, argv=None):
+    fake = types.ModuleType("psycopg")
+
+    class FakeConn:
+        def __init__(self):
+            self.autocommit = False
+
+        def execute(self, sql, params=()):
+            class Cur:
+                def fetchall(inner):
+                    if "market_history" in sql:
+                        return snap_rows
+                    return quote_rows
+            return Cur()
+
+        def close(self):
+            pass
+
+    fake.connect = lambda *a, **k: FakeConn()
+    sys.modules["psycopg"] = fake
+    os.environ["NFL_EDGE_DATABASE_URL"] = "fake"
+    buf = io.StringIO()
+    try:
+        with contextlib.redirect_stdout(buf):
+            rc = vb.main(argv or [])
+    finally:
+        sys.modules.pop("psycopg", None)
+    report, _ = json.JSONDecoder().raw_decode(buf.getvalue())
+    return rc, report
+
+
+def _snap_row(markets, sid="2024-09-04T12:00:00+00:00", payload=None):
+    return (sid, RET, REQ, "us,eu", markets,
+            ["draftkings", "pinnacle"], 40, payload)
+
+
+class VerifierIdempotencyTests(unittest.TestCase):
+    def _quotes(self):
+        return [
+            ("e1", "draftkings", "FULL_GAME_SPREAD", 3.0, RET, 0.5, True, -110),
+            ("e1", "draftkings", "FULL_GAME_SPREAD", 3.0, RET, 0.5, True, -110),
+        ]
+
+    def _payload(self):
+        return _envelope([
+            {"name": "Baltimore Ravens", "price": -110, "point": -3.0},
+            {"name": "Kansas City Chiefs", "price": -110, "point": 3.0},
+        ])
+
+    def test_same_requested_different_markets_is_not_duplicate(self):
+        # The moneyline (h2h) track pulled the same instants as
+        # spreads,totals: same requested_at, different markets is legitimate.
+        payload = self._payload()
+        rows = [_snap_row("spreads,totals", payload=payload),
+                _snap_row("h2h", payload=payload)]
+        rc, report = _run_many(rows, self._quotes())
+        self.assertEqual(rc, 0, report["errors"])
+        self.assertFalse(any("duplicate snapshot" in e
+                             for e in report["errors"]))
+
+    def test_same_requested_regions_markets_is_duplicate(self):
+        payload = self._payload()
+        rows = [_snap_row("spreads,totals", payload=payload),
+                _snap_row("spreads,totals", payload=payload)]
+        rc, report = _run_many(rows, self._quotes())
+        self.assertEqual(rc, 1)
+        self.assertTrue(any("duplicate snapshot" in e
+                            for e in report["errors"]))
+
+
 class VerifierForensicsTests(unittest.TestCase):
     def test_provider_single_side_is_warning_not_error(self):
         payload = _envelope([
