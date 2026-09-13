@@ -62,8 +62,9 @@ class PicksMathTests(unittest.TestCase):
 
     def test_engine_constants_sane(self):
         self.assertEqual(picks.MODE, "shadow")
-        self.assertEqual(picks.ENGINE_VERSION, "v1.2-consensus-lobo-4pct-15m")
-        self.assertGreaterEqual(picks.MIN_EDGE, 0.01)
+        self.assertEqual(picks.ENGINE_VERSION, "v1.3-consensus-lobo-3pp-4pct-15m")
+        self.assertEqual(picks.MIN_PROBABILITY_EDGE, 0.03)
+        self.assertEqual(picks.MIN_EXPECTED_VALUE, 0.04)
         self.assertGreaterEqual(picks.MIN_CONSENSUS_BOOKS, 2)
         self.assertGreater(picks.FRESHNESS_MINUTES, 0)
 
@@ -115,7 +116,7 @@ class PicksBuildTests(unittest.TestCase):
         # from its own consensus); circa at +120: edge=.50*2.2-1=.10
         circa = [p for p in out if p["book_key"] == "circa"]
         self.assertEqual(len(circa), 1)
-        self.assertGreaterEqual(circa[0]["edge"], picks.MIN_EDGE)
+        self.assertGreaterEqual(circa[0]["edge"], picks.MIN_EXPECTED_VALUE)
         self.assertEqual(circa[0]["mode"], "shadow")
         self.assertEqual(circa[0]["consensus_books"], 2)
         # the -110/-105 books have negative edge vs their LOBO consensus
@@ -184,7 +185,7 @@ class PicksBuildTests(unittest.TestCase):
             ("e1", "H", "A", now, "FULL_GAME_TOTAL", "Over", 45.5,
              "FanDuel", "fanduel", -110, 0.50, now, "ck1", "g1"),
             ("e1", "H", "A", now, "FULL_GAME_TOTAL", "Over", 46.5,
-             "DraftKings", "draftkings", 140, 0.45, now, "ck1", "g1"),
+             "DraftKings", "draftkings", 140, 0.40, now, "ck1", "g1"),
             ("e1", "H", "A", now, "FULL_GAME_TOTAL", "Over", 46.5,
              "FanDuel", "fanduel", -110, 0.45, now, "ck1", "g1"),
             ("e1", "H", "A", now, "FULL_GAME_TOTAL", "Over", 46.5,
@@ -235,9 +236,36 @@ class PicksBuildTests(unittest.TestCase):
         self.assertEqual(self.run_build(rows), [])
 
 
+    def test_rejects_ev_pass_when_probability_edge_is_below_3pp(self):
+        import datetime as dt
+        now = dt.datetime.now(dt.timezone.utc)
+        rows = [
+            ("e1", "H", "A", now, "FULL_GAME_TOTAL", "Over", 47.5,
+             "Target", "target", 120, 0.49, now, "ck1", "g1"),
+            ("e1", "H", "A", now, "FULL_GAME_TOTAL", "Over", 47.5,
+             "BookB", "bookb", -110, 0.50, now, "ck1", "g1"),
+            ("e1", "H", "A", now, "FULL_GAME_TOTAL", "Over", 47.5,
+             "BookC", "bookc", -110, 0.50, now, "ck1", "g1"),
+        ]
+        self.assertEqual(self.run_build(rows), [])
+
+    def test_rejects_probability_edge_pass_when_ev_is_below_4pct(self):
+        import datetime as dt
+        now = dt.datetime.now(dt.timezone.utc)
+        rows = [
+            ("e1", "H", "A", now, "FULL_GAME_TOTAL", "Over", 47.5,
+             "Target", "target", -110, 0.40, now, "ck1", "g1"),
+            ("e1", "H", "A", now, "FULL_GAME_TOTAL", "Over", 47.5,
+             "BookB", "bookb", -110, 0.50, now, "ck1", "g1"),
+            ("e1", "H", "A", now, "FULL_GAME_TOTAL", "Over", 47.5,
+             "BookC", "bookc", -110, 0.50, now, "ck1", "g1"),
+        ]
+        self.assertEqual(self.run_build(rows), [])
+
     def test_source_timestamp_and_user_gates_are_preserved(self):
         self.assertEqual(picks.FRESHNESS_MINUTES, 15)
-        self.assertGreaterEqual(picks.MIN_EDGE, 0.04)
+        self.assertEqual(picks.MIN_PROBABILITY_EDGE, 0.03)
+        self.assertEqual(picks.MIN_EXPECTED_VALUE, 0.04)
         self.assertEqual(picks.MIN_AMERICAN_ODDS, -150)
         self.assertIn("q.observed_at > now()", picks.LATEST_QUOTES_SQL)
         self.assertIn("q.observed_at <= now()", picks.LATEST_QUOTES_SQL)
