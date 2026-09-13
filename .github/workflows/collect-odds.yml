@@ -26,9 +26,8 @@ on:
     - cron: '18 0 * * 0'   # T-24
     - cron: '18 21 * * 0'  # T-3
     - cron: '48 22 * * 0'  # T-90
-    - cron: '13 0 * * 1'   # Close
+    - cron: '13 0 * * 1'   # Sunday-night Close / Monday-night T-24
     # Monday night window (00:15 UTC Tuesday kickoff)
-    - cron: '13 0 * * 1'   # T-24
     - cron: '13 21 * * 1'  # T-3
     - cron: '43 22 * * 1'  # T-90
     - cron: '8 0 * * 2'    # Close
