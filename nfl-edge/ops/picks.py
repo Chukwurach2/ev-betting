@@ -1,4 +1,4 @@
-"""Shadow picks engine v1.2: cross-book consensus edge detection with strict LOBO.
+"""Shadow picks engine v1.3: cross-book consensus edge detection with strict LOBO.
 
 For every upcoming game/market/selection/LINE with fresh quotes, the engine
 compares each book's offered odds against the leave-one-book-out consensus
@@ -6,8 +6,8 @@ no-vig fair probability (median across OTHER books at that identical line).
 The evaluated book never enters its own consensus: a book cannot manufacture
 an edge against itself. Grouping is line-aware: different lines are different
 bets and never share a consensus calculation, even for the same selection.
-A positive edge above MIN_EDGE emits a SHADOW pick with fractional-Kelly
-staking. An empty pick set is a valid output: the engine never forces picks.
+Both a probability edge above MIN_PROBABILITY_EDGE and expected value above
+MIN_EXPECTED_VALUE are required to emit a SHADOW pick with fractional-Kelly staking. An empty pick set is a valid output: the engine never forces picks.
 
 Fair probabilities are computed upstream with the tournament-selected
 multiplicative de-vig (research/devig.py); the engine consumes them read-only.
@@ -29,7 +29,7 @@ import os
 import statistics
 import sys
 
-ENGINE_VERSION = "v1.2-consensus-lobo-4pct-15m"
+ENGINE_VERSION = "v1.3-consensus-lobo-3pp-4pct-15m"
 MODE = "shadow"
 
 # Full team name (Odds API selection) -> canonical abbreviation.
@@ -98,7 +98,8 @@ def annotate_challenger(challenger, cache, pick: dict) -> dict:
         pass
     return fields
 
-MIN_EDGE = 0.04            # minimum expected value to emit a shadow pick
+MIN_PROBABILITY_EDGE = 0.03  # consensus probability minus offered no-vig probability
+MIN_EXPECTED_VALUE = 0.04    # consensus probability * decimal price - 1
 MIN_AMERICAN_ODDS = -150    # user-authorized price floor; never accept worse
 KELLY_DIVISOR = 4          # quarter-Kelly
 MAX_STAKE_UNITS = 1.0      # cap per pick, bankroll = 100 units
@@ -266,10 +267,13 @@ def build_picks(conn) -> list[dict]:
             consensus = consensus_prob(
                 [float(x["fair_probability"]) for x in others])
             dec = american_to_decimal(int(q["american_odds"]))
-            edge = edge_for_quote(dec, consensus)
-            if edge < MIN_EDGE:
+            probability_edge = consensus - float(q["fair_probability"])
+            expected_value = edge_for_quote(dec, consensus)
+            if probability_edge < MIN_PROBABILITY_EDGE:
                 continue
-            kf = kelly_fraction(edge, dec)
+            if expected_value < MIN_EXPECTED_VALUE:
+                continue
+            kf = kelly_fraction(expected_value, dec)
             pick = {
                 "pick_id": pick_id_for(ENGINE_VERSION, event_id, market,
                                        selection, linek, q["book_key"],
@@ -290,7 +294,9 @@ def build_picks(conn) -> list[dict]:
                 "decimal_odds": round(dec, 4),
                 "consensus_fair_prob": round(consensus, 6),
                 "taken_fair_prob": round(float(q["fair_probability"]), 6),
-                "edge": round(edge, 6),
+                # Backward-compatible DB column: edge stores expected value.
+                # Probability edge is exactly consensus_fair_prob - taken_fair_prob.
+                "edge": round(expected_value, 6),
                 "kelly_fraction": round(kf, 6),
                 "stake_units": stake_units(kf),
                 "consensus_books": len({x["book_key"] for x in others}),
@@ -350,7 +356,7 @@ def main() -> int:
     print(f"risk={json.dumps(getattr(build_picks, 'last_risk_stats', {}))}")
     for p in picks[:10]:
         print(f"  {p['away_team']} @ {p['home_team']} {p['market']} {p['selection']} "
-              f"{p['line']} {p['book_key']} {p['american_odds']:+d} edge={p['edge']:.3f} "
+              f"{p['line']} {p['book_key']} {p['american_odds']:+d} ev={p['edge']:.3f} "
               f"stake={p['stake_units']}u")
     return 0
 

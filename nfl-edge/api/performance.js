@@ -1,17 +1,21 @@
 import {Client} from 'pg';
 
-const ENGINE_VERSION = 'v1.2-consensus-lobo-4pct-15m';
+const ENGINE_VERSION = 'v1.3-consensus-lobo-3pp-4pct-15m';
 
 // Read-only track record for the SHADOW consensus engine: settled-pick
 // aggregates, CLV, calibration buckets, and drawdown. Research output only;
-// every row is mode='shadow' by construction. Empty states when nothing is
+// every row is mode='shadow' by construction. Performance is fixed-unit;
+// stored research sizing is neither exposed nor used. Empty states when nothing is
 // settled yet — the engine never invents history.
 
 import {summarize} from '../lib/summarize.mjs';
 
 const SQL = `
 SELECT pick_id, market, selection, line, book_key, american_odds, decimal_odds,
-       consensus_fair_prob, edge, stake_units, observed_at, created_at,
+       consensus_fair_prob,
+       (consensus_fair_prob - taken_fair_prob) AS probability_edge,
+       edge AS expected_value, 1.0::numeric AS stake_units,
+       observed_at, created_at,
        settled_at, result, clv_prob_points, engine_version
 FROM public.nfl_edge_picks
 WHERE mode = 'shadow' AND engine_version = $1

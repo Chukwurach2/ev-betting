@@ -98,8 +98,31 @@ test('all shadow reporting and display feeds are pinned to the repaired engine',
   const here = dirname(fileURLToPath(import.meta.url));
   for (const rel of ['../api/picks.js', '../api/performance.js', '../api/report-health.js']) {
     const source = readFileSync(join(here, rel), 'utf8');
-    assert.match(source, /v1\.2-consensus-lobo-4pct-15m/);
+    assert.match(source, /v1\.3-consensus-lobo-3pp-4pct-15m/);
     assert.match(source, /engine_version = \$1/);
     assert.match(source, /\[ENGINE_VERSION\]/);
   }
+});
+
+test('public feeds exclude model sizing and performance is fixed-unit', () => {
+  const here = dirname(fileURLToPath(import.meta.url));
+  const picksSource = readFileSync(join(here, '../api/picks.js'), 'utf8');
+  assert.doesNotMatch(picksSource, /kelly_fraction/);
+  assert.doesNotMatch(picksSource, /\bstake_units\b/);
+  assert.match(picksSource, /AS probability_edge/);
+  assert.match(picksSource, /AS expected_value/);
+
+  const performanceSource = readFileSync(join(here, '../api/performance.js'), 'utf8');
+  assert.doesNotMatch(performanceSource, /kelly_fraction/);
+  assert.match(performanceSource, /1\.0::numeric AS stake_units/);
+  assert.match(performanceSource, /AS probability_edge/);
+  assert.match(performanceSource, /AS expected_value/);
+});
+
+test('Sunday Board exposes and requires both locked gates', () => {
+  const here = dirname(fileURLToPath(import.meta.url));
+  const source = readFileSync(join(here, '../api/sunday-board.js'), 'utf8');
+  assert.match(source, /MIN_PROBABILITY_EDGE = 0\.03/);
+  assert.match(source, /MIN_EXPECTED_VALUE = 0\.04/);
+  assert.match(source, /clearsProbability && clearsEv/);
 });

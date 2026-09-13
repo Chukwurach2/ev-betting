@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {profitOf, summarize} from '../lib/summarize.mjs';
 
 const W = (over = {}) => ({result: 'win', stake_units: 1, decimal_odds: 2.0,
-  consensus_fair_prob: 0.55, edge: 0.1, clv_prob_points: 0.02,
+  consensus_fair_prob: 0.55, expected_value: 0.1, clv_prob_points: 0.02,
   settled_at: '2026-09-14T00:00:00Z', market: 'FULL_GAME_SPREAD', ...over});
 const L = (over = {}) => W({result: 'loss', ...over});
 const P = (over = {}) => W({result: 'push', ...over});
