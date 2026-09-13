@@ -12,7 +12,7 @@ class MemoryStore:
     def claim(self,c,now):
         if c.key in self.rows:return False
         self.rows[c.key]={'status':'running'}; return True
-    def finish(self,c,now,status,quotes,error): self.rows[c.key]={'status':status,'quotes':quotes,'ended_at':now}
+    def finish(self,c,now,status,quotes,error): self.rows[c.key]={'status':status,'quotes':quotes,'ended_at':now,'error':error}
 
 class CheckpointTests(unittest.TestCase):
     def setUp(self):
