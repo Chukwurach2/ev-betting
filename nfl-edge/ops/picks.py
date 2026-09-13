@@ -219,12 +219,20 @@ SELECT DISTINCT ON (q.provider_event_id, q.market, q.selection, q.book_key)
   q.selection, q.line, q.sportsbook, q.book_key, q.american_odds,
   q.fair_probability, q.observed_at, q.checkpoint_key, g.game_id
 FROM public.nfl_edge_odds_quotes q
+JOIN public.nfl_edge_checkpoints c
+  ON c.checkpoint_key = q.checkpoint_key
 LEFT JOIN public.games g
   ON g.home_team = q.home_team AND g.away_team = q.away_team
  AND g.kickoff = q.kickoff
 WHERE q.observed_at > now() - make_interval(mins => %s)
   AND q.observed_at <= now()
   AND q.collected_at >= q.observed_at
+  -- Operational collection may remain open longer, but only quotes we
+  -- actually collected inside the original 15-minute decision window can
+  -- generate v1.3 picks or promotion evidence.
+  AND c.status = 'captured'
+  AND q.collected_at >= c.target_at
+  AND q.collected_at < c.target_at + interval '15 minutes'
   AND q.kickoff > now()
 ORDER BY q.provider_event_id, q.market, q.selection, q.book_key, q.observed_at DESC
 """
