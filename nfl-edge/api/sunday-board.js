@@ -1,4 +1,5 @@
 import {Client} from 'pg';
+import {buildEngineVerdict} from '../lib/sunday-board-verdict.js';
 
 // Sunday Board: decision-support data board for the 2026-09-13 slate.
 // READ-ONLY. Stored quotes only — never pulls provider quota.
@@ -250,7 +251,7 @@ export default async function handler(req, res) {
       disclaimer: 'Shadow research — not a wager recommendation.',
       engine_verdict: {
         qualifying_shadow_picks: enginePicks,
-        verdict: enginePicks === 0 ? 'No qualifying edges — no bet' : `${enginePicks} qualifying shadow edge(s) under review`,
+        verdict: buildEngineVerdict({enginePicks, gamesWithQuotes, slateGames: slate.length}),
       },
       data_coverage: {
         games: slate.length,
