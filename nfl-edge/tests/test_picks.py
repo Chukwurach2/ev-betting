@@ -185,7 +185,7 @@ class PicksBuildTests(unittest.TestCase):
             ("e1", "H", "A", now, "FULL_GAME_TOTAL", "Over", 45.5,
              "FanDuel", "fanduel", -110, 0.50, now, "ck1", "g1"),
             ("e1", "H", "A", now, "FULL_GAME_TOTAL", "Over", 46.5,
-             "DraftKings", "draftkings", 140, 0.45, now, "ck1", "g1"),
+             "DraftKings", "draftkings", 140, 0.40, now, "ck1", "g1"),
             ("e1", "H", "A", now, "FULL_GAME_TOTAL", "Over", 46.5,
              "FanDuel", "fanduel", -110, 0.45, now, "ck1", "g1"),
             ("e1", "H", "A", now, "FULL_GAME_TOTAL", "Over", 46.5,
@@ -194,7 +194,7 @@ class PicksBuildTests(unittest.TestCase):
         out = self.run_build(rows)
         # 45.5 group: only two books -> no LOBO consensus, no picks.
         # 46.5 group: LOBO consensus for DK = median(fd, mgm) = .45;
-        # DK +140 -> edge .45*2.4-1 = .08 -> pick above the 4% gate
+        # DK +140 has probability edge 5pp and EV .08 -> clears both gates
         self.assertEqual(len(out), 1)
         self.assertEqual(out[0]["book_key"], "draftkings")
         self.assertEqual(float(out[0]["line"]), 46.5)
