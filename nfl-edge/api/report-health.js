@@ -1,6 +1,6 @@
 import {Client} from 'pg';
 
-const ENGINE_VERSION = 'v1.2-consensus-lobo-4pct-15m';
+const ENGINE_VERSION = 'v1.3-consensus-lobo-3pp-4pct-15m';
 
 // Pipeline-health companion to /api/performance for the weekly forward-shadow
 // report. Read-only aggregates over the last 7 days; no row-level data.
