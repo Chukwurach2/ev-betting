@@ -24,6 +24,29 @@ class CheckpointTests(unittest.TestCase):
         close=plan([self.game],self.kickoff)
         self.assertTrue(all(c.state=='missed' for c in close))
         with self.assertRaises(ValueError): plan([{**self.game,'kickoff':'2026-09-13T17:00:00'}],self.now)
+    def test_wide_window_survives_realistic_collector_cadence(self):
+        # Regression: all 14 T-24 checkpoints for the 2026-09-13 Sunday slate
+        # were missed because no collector run fell inside the old 15-minute
+        # window. A run landing 30 minutes after the T-24 target must capture.
+        at_target=self.kickoff-dt.timedelta(hours=24)
+        t24=[c for c in plan([self.game],at_target) if c.name=='T-24']
+        self.assertEqual([(c.name,c.state) for c in t24],[('T-24','due')])
+        self.assertEqual(t24[0].deadline,self.kickoff-dt.timedelta(hours=22,minutes=30))
+        late=at_target+dt.timedelta(minutes=30)
+        cps=[c for c in plan([self.game],late) if c.name=='T-24']
+        self.assertEqual(cps[0].state,'due')
+        self.assertEqual(cps[0].key,t24[0].key)  # same checkpoint, later run
+        store=MemoryStore()
+        collect(cps,store,lambda c:[{'observed_at':late.isoformat()}],lambda:late,100)
+        self.assertEqual(store.rows[cps[0].key]['status'],'captured')
+    def test_deadline_never_past_kickoff(self):
+        # T-90 and Close windows are capped strictly before kickoff.
+        for name,offset in (('T-90',dt.timedelta(minutes=45)),('Close',dt.timedelta(minutes=3))):
+            now=self.kickoff-offset
+            cps=[c for c in plan([self.game],now) if c.name==name]
+            self.assertTrue(cps)
+            self.assertLess(cps[0].deadline,self.kickoff)
+            self.assertLessEqual(cps[0].deadline,cps[0].target+dt.timedelta(minutes=90))
     def test_duplicates_do_not_repeat_paid_requests(self):
         store=MemoryStore(); calls=[]
         fetch=lambda c: calls.append(c.key) or [{'observed_at':self.now.isoformat()}]
@@ -37,7 +60,7 @@ class CheckpointTests(unittest.TestCase):
         store=MemoryStore()
         collect(cps,store,lambda c:[{'observed_at':(self.now-dt.timedelta(seconds=1)).isoformat()}],lambda:self.now,100)
         self.assertEqual(store.rows[cps[0].key]['status'],'unavailable')
-        times=iter([self.now,self.now,self.now+dt.timedelta(minutes=16)])
+        times=iter([self.now,self.now,self.now+dt.timedelta(minutes=91)])
         store=MemoryStore()
         collect(cps,store,lambda c:[{'observed_at':self.now.isoformat()}],lambda:next(times),100)
         self.assertEqual(store.rows[cps[0].key]['status'],'missed')

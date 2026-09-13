@@ -6,6 +6,18 @@ from dataclasses import dataclass
 
 UTC=dt.timezone.utc
 WINDOWS=(('T-24',1440),('T-3',180),('T-90',90),('Close',5))
+# Collection windows are 90 minutes wide (deadline = target + 90m, capped
+# strictly before kickoff). The original 15-minute windows could not survive
+# the observed collector cadence: GitHub scheduled runs land every ~15-45
+# minutes with queue jitter, so all 14 T-24 checkpoints for the 2026-09-13
+# Sunday slate were missed because no run fell inside any 15-minute window.
+# Widening the window is a capture-mechanics fix, not a measurement change:
+# every row still records target_at, deadline_at, started_at and ended_at,
+# and every quote carries its own observed_at, so research uses actual
+# capture times rather than nominal window names. Point-in-time safety is
+# preserved: no window extends past kickoff, and nothing is ever captured
+# after the fact.
+WINDOW_MINUTES=90
 # Opener capture: first-seen lines for games beyond the T-24 horizon, where
 # lines are softest. Planned with a per-day identity so a day with no posted
 # lines ('unavailable') is retried the next day; the collector skips games
@@ -36,7 +48,9 @@ def plan(games,now):
         if -1440 <= mins <= 1440:
             for name,minutes in WINDOWS:
                 target=kickoff-dt.timedelta(minutes=minutes)
-                deadline=min(target+dt.timedelta(minutes=15),kickoff)
+                # Wide collection window; never past kickoff (point-in-time).
+                deadline=min(target+dt.timedelta(minutes=WINDOW_MINUTES),
+                             kickoff-dt.timedelta(minutes=1))
                 if now<target: continue
                 state='due' if now<deadline else 'missed'
                 identity='|'.join([str(game['game_id']),kickoff.isoformat(),name])
