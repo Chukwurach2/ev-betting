@@ -3,7 +3,7 @@ import pathlib
 import sys
 import unittest
 sys.path.insert(0,str(pathlib.Path(__file__).parents[1]/'ops'))
-from checkpoints import plan,collect,instant
+from checkpoints import plan,collect,instant,safe_collection_error
 from collect_checkpoints import (pair_quotes, provider_event_keys, opener_eligible,
                                  seconds_until_imminent_target)
 
@@ -12,7 +12,7 @@ class MemoryStore:
     def claim(self,c,now):
         if c.key in self.rows:return False
         self.rows[c.key]={'status':'running'}; return True
-    def finish(self,c,now,status,quotes,error): self.rows[c.key]={'status':status,'quotes':quotes,'ended_at':now}
+    def finish(self,c,now,status,quotes,error): self.rows[c.key]={'status':status,'quotes':quotes,'ended_at':now,'error':error}
 
 class CheckpointTests(unittest.TestCase):
     def setUp(self):
@@ -77,6 +77,20 @@ class CheckpointTests(unittest.TestCase):
         store=MemoryStore()
         collect(cps,store,lambda c:[{'observed_at':self.now.isoformat()}],lambda:next(times),100)
         self.assertEqual(store.rows[cps[0].key]['status'],'missed')
+    def test_collection_failure_reason_is_safe_and_actionable(self):
+        cp=[c for c in plan([self.game],self.now) if c.state=='due'][0]
+        store=MemoryStore()
+        def provider_failure(_):
+            raise RuntimeError('Odds provider request failed with HTTP 404')
+        collect([cp],store,provider_failure,lambda:self.now,100)
+        self.assertEqual(store.rows[cp.key]['status'],'failed')
+        self.assertEqual(store.rows[cp.key]['error'],
+                         'Odds provider request failed with HTTP 404')
+        secret='https://provider.test/?apiKey=do-not-store'
+        self.assertEqual(safe_collection_error(RuntimeError(secret)),
+                         'Collection failed; inspect private runtime health')
+        self.assertNotIn('apiKey',safe_collection_error(RuntimeError(secret)))
+
     def test_quota_unknown_or_exhausted_does_not_claim_due_work(self):
         cps=[c for c in plan([self.game],self.now) if c.state=='due']
         for remaining in [None,11,0]:

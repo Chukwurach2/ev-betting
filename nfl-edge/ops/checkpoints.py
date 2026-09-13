@@ -67,6 +67,23 @@ def plan(games,now):
             result[key]=Checkpoint(key,str(game['game_id']),kickoff,'Opener',target,deadline,'due')
     return sorted(result.values(),key=lambda c:(c.deadline,c.game_id,c.name))
 
+SAFE_COLLECTION_ERRORS = {
+    'Odds provider request failed',
+    'Provider event did not match exact matchup and kickoff',
+    'Provider response event changed',
+}
+
+def safe_collection_error(error):
+    """Return a credential-safe operational reason for a collection failure."""
+    message = str(error)
+    if isinstance(error, RuntimeError) and (
+            message in SAFE_COLLECTION_ERRORS or
+            message.startswith('Odds provider request failed with HTTP ')):
+        return message
+    if isinstance(error, ValueError) and message in SAFE_COLLECTION_ERRORS:
+        return message
+    return 'Collection failed; inspect private runtime health'
+
 def collect(checkpoints,store,fetch_quotes,clock,remaining,max_requests=2,reserve=10,cost_per_request=1):
     """Collect bounded quotes after an immutable claim.
 
@@ -113,8 +130,8 @@ def collect(checkpoints,store,fetch_quotes,clock,remaining,max_requests=2,reserv
                     valid.append(q)
             store.finish(checkpoint,ended,'captured' if valid else 'unavailable',valid,None)
             counts['captured' if valid else 'failed']+=1
-        except Exception:
-            store.finish(checkpoint,instant(clock()),'failed',[],'Collection failed; inspect private runtime health')
+        except Exception as error:
+            store.finish(checkpoint,instant(clock()),'failed',[],safe_collection_error(error))
             counts['failed']+=1
     counts['requests']=used
     counts['credits_budgeted']=used*cost_per_request
