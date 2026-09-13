@@ -1,7 +1,8 @@
 """Smoke-test / backfill verification: the end-to-end audit gate.
 
-Reads public.nfl_edge_market_history + public.nfl_edge_historical_quotes
-and checks every item on the historical-data acceptance checklist:
+Reads public.<prefix>_market_history + public.<prefix>_historical_quotes
+(sport-parameterized via --sport; default nfl) and checks every item on
+the historical-data acceptance checklist:
 
   * requested_at vs provider snapshot_at (returned timestamp); drift
   * provider_snapshot_id present and unique (canonical requested-time id,
@@ -30,7 +31,7 @@ and checks every item on the historical-data acceptance checklist:
 
 Fails loudly (non-zero exit) on any violation. Prints a JSON report.
 
-Usage: python ops/verify_backfill.py [--since 2026-09-12]
+Usage: python ops/verify_backfill.py [--sport ncaaf] [--since 2026-09-12]
 Env: NFL_EDGE_DATABASE_URL.
 """
 from __future__ import annotations
@@ -39,7 +40,11 @@ import argparse
 import datetime as dt
 import json
 import os
+import pathlib
 import sys
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))  # ops/
+import sports
 
 US_BOOKS = {"draftkings", "fanduel", "betmgm", "betrivers", "espnbet",
             "williamhill_us", "fanatics"}
@@ -58,9 +63,13 @@ def _parse_ts(value):
 
 def main(argv=None):
     ap = argparse.ArgumentParser()
+    ap.add_argument("--sport", default="nfl", choices=sorted(sports.SPORTS),
+                    help="sport key; tables follow the ops/sports.py registry")
     ap.add_argument("--since", default=None,
                     help="only verify snapshots with requested_at >= date")
     args = ap.parse_args(argv)
+    mh_table = sports.market_history_table(args.sport)
+    hq_table = sports.historical_quotes_table(args.sport)
     import psycopg
     dsn = os.environ.get("NFL_EDGE_DATABASE_URL")
     if not dsn:
@@ -77,12 +86,12 @@ def main(argv=None):
         where = "WHERE requested_at >= %s"
         params = (args.since,)
     snaps = conn.execute(
-        """SELECT provider_snapshot_id, snapshot_at, requested_at, regions,
-                  markets, books_present, credits_used, payload
-           FROM public.nfl_edge_market_history %s
-           ORDER BY requested_at""" % where, params).fetchall()
+        ("SELECT provider_snapshot_id, snapshot_at, requested_at, regions, "
+         "markets, books_present, credits_used, payload "
+         "FROM public.%s %s "
+         "ORDER BY requested_at") % (mh_table, where), params).fetchall()
     if not snaps:
-        errors.append("no snapshots found in nfl_edge_market_history")
+        errors.append("no snapshots found in %s" % mh_table)
     seen_ids = set()
     # snapshot_at IS the provider's returned timestamp (there is no separate
     # provider_timestamp column); requested_at is what we asked for.
@@ -136,10 +145,10 @@ def main(argv=None):
                                    and "data" in env_keys else "legacy-data-only")
         # Normalized quotes.
         qrows = conn.execute(
-            """SELECT provider_event_id, book_key, market, line, observed_at,
-                      fair_probability, ny_licensed, american_odds
-               FROM public.nfl_edge_historical_quotes
-               WHERE observed_at = %s""", (snap_at,)).fetchall()
+            ("SELECT provider_event_id, book_key, market, line, observed_at, "
+             "fair_probability, ny_licensed, american_odds "
+             "FROM public.%s "
+             "WHERE observed_at = %%s") % hq_table, (snap_at,)).fetchall()
         entry["quotes"] = len(qrows)
         if n_events and not qrows:
             warnings.append("snapshot %s: %d events but 0 normalized quotes"

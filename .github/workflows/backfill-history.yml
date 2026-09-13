@@ -1,15 +1,19 @@
-name: NFL Edge historical odds backfill
+name: Football Edge historical odds backfill
 on:
   workflow_dispatch:
     inputs:
+      sport:
+        description: 'Sport key: nfl or ncaaf (tables and calendar follow ops/sports.py)'
+        required: false
+        default: 'nfl'
       seasons:
-        description: 'Comma-separated seasons (2022+ only)'
+        description: 'Comma-separated seasons (2022+ only; default: all supported for the sport)'
         required: false
-        default: '2022,2023,2024'
+        default: ''
       weeks:
-        description: 'Week range, e.g. 1-18'
+        description: 'Week range, e.g. 1-18 for NFL or 0-14 for NCAAF (default: sport default)'
         required: false
-        default: '1-18'
+        default: ''
       regions:
         description: 'Odds API regions (eu carries Pinnacle)'
         required: false
@@ -29,7 +33,7 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: nfl-edge-backfill-history
+  group: football-edge-backfill-history-${{ inputs.sport }}
   cancel-in-progress: false
 jobs:
   backfill:
@@ -95,8 +99,9 @@ jobs:
           THE_ODDS_API_KEY: ${{ secrets.THE_ODDS_API_KEY }}
         run: |
           python ops/backfill_history.py \
-            --seasons "${{ inputs.seasons }}" \
-            --weeks "${{ inputs.weeks }}" \
+            --sport "${{ inputs.sport }}" \
+            ${{ inputs.seasons != '' && format('--seasons "{0}"', inputs.seasons) || '' }} \
+            ${{ inputs.weeks != '' && format('--weeks "{0}"', inputs.weeks) || '' }} \
             --regions "${{ inputs.regions }}" \
             --markets "${{ inputs.markets }}" \
             --max-credits "${{ inputs.max_credits }}" \

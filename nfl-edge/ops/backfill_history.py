@@ -1,13 +1,19 @@
-"""Historical odds backfill: paid-tier training data for market-only-v1.
+"""Historical odds backfill (sport-parameterized): paid-tier market data.
 
 Fetches The Odds API historical snapshots (5-minute granularity since Sep
-2022) for past NFL regular-season weeks and stores:
-  * raw snapshot envelopes -> public.nfl_edge_market_history
-  * normalized two-sided quotes -> public.nfl_edge_historical_quotes
+2022) for past seasons and stores:
+  * raw snapshot envelopes -> public.<prefix>_market_history
+  * normalized two-sided quotes -> public.<prefix>_historical_quotes
 
-Snapshot plan per week: Wednesday 12:00 UTC (early week), Saturday 12:00
-UTC (late week), Sunday 15:30 UTC (~90 min before the 1pm ET slate; the
-"close"). One bulk call covers the whole slate.
+Sport is a first-class parameter (--sport nfl|ncaaf); calendars, table
+prefixes, and API sport keys come from ops/sports.py. Each sport writes
+only its own tables: the frozen NFL dataset is never touched by the
+ncaaf path.
+
+Snapshot plan per week is sport-specific (see ops/sports.py): NFL uses
+Wednesday 12:00 / Saturday 12:00 / Sunday 15:30 UTC; NCAAF uses
+Wednesday 12:00 / Friday 20:00 / Saturday 15:00 UTC. One bulk call
+covers the whole slate.
 
 Credit math: historical calls cost 10 x markets x regions. The default
 (spreads,totals x us,eu) = 40 credits/snapshot; 3 snapshots x 18 weeks x
@@ -32,8 +38,9 @@ Safety:
     1000) or total spend exceeds --max-credits.
 
 Usage (GitHub Actions workflow backfill-history.yml, or locally):
-  python ops/backfill_history.py --seasons 2022,2023,2024
-  python ops/backfill_history.py --seasons 2024 --weeks 1-4 --dry-run
+  python ops/backfill_history.py --sport nfl --seasons 2022,2023,2024
+  python ops/backfill_history.py --sport ncaaf --seasons 2022,2023,2024,2025 --weeks 0-14
+  python ops/backfill_history.py --sport nfl --seasons 2024 --weeks 1-4 --dry-run
 
 Env: NFL_EDGE_DATABASE_URL, THE_ODDS_API_KEY.
 """
@@ -46,19 +53,16 @@ import json
 import os
 import sys
 
-sys.path.insert(0, str(__import__("pathlib").Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(__import__("pathlib").Path(__file__).resolve().parents[0]))  # ops/
+sys.path.insert(0, str(__import__("pathlib").Path(__file__).resolve().parents[1]))  # nfl-edge/
 from research.devig import devig_multiplicative  # tournament-selected de-vig
+import sports  # sport registry: calendars, table prefixes, API sport keys
 
 BASE = "https://api.the-odds-api.com/v4"
-SPORT = "americanfootball_nfl"
 
-# Week-1 Sunday (regular season) per season. 2022+ only: American odds in
-# historical snapshots are reliable from 2022-09-18.
-WEEK1_SUNDAY = {
-    2022: dt.date(2022, 9, 11),
-    2023: dt.date(2023, 9, 10),
-    2024: dt.date(2024, 9, 8),
-}
+# Re-exported so existing call sites (bh.parse_weeks) keep working.
+parse_weeks = sports.parse_weeks
+snapshot_times = sports.snapshot_times
 
 NY_BOOK_KEYS = {'draftkings', 'fanduel', 'betmgm', 'betrivers', 'espnbet',
                 'williamhill_us', 'fanatics'}
@@ -110,34 +114,6 @@ class RateLimitError(RuntimeError):
     """Provider rate limit hit: stop, do not retry in a loop."""
 
 
-def snapshot_times(season, week):
-    """The three weekly snapshot instants (aware UTC datetimes).
-
-    Wednesday 12:00 UTC (early-week price), Saturday 12:00 UTC
-    (late-week price), Sunday 15:30 UTC (~90 min before the 1pm ET slate:
-    the close proxy).
-    """
-    sunday = WEEK1_SUNDAY[season] + dt.timedelta(days=7 * (week - 1))
-    wed = sunday - dt.timedelta(days=4)
-    sat = sunday - dt.timedelta(days=1)
-    utc = dt.timezone.utc
-    return [
-        dt.datetime(wed.year, wed.month, wed.day, 12, 0, tzinfo=utc),
-        dt.datetime(sat.year, sat.month, sat.day, 12, 0, tzinfo=utc),
-        dt.datetime(sunday.year, sunday.month, sunday.day, 15, 30,
-                    tzinfo=utc),
-    ]
-
-
-def parse_weeks(spec):
-    """'1-18' -> [1..18]; '5' -> [5]."""
-    spec = spec.strip()
-    if "-" in spec:
-        lo, hi = spec.split("-", 1)
-        return list(range(int(lo), int(hi) + 1))
-    return [int(spec)]
-
-
 def implied(odds):
     odds = float(odds)
     return 100.0 / (100.0 + odds) if odds > 0 else abs(odds) / (100.0 + abs(odds))
@@ -179,7 +155,7 @@ def _req(path, params, api_key, timeout=30):
                         "x-requests-last")}
 
 
-def fetch_snapshot(when, regions, markets, api_key):
+def fetch_snapshot(sport, when, regions, markets, api_key):
     """Fetch one historical snapshot envelope. Returns (envelope, headers).
 
     The historical odds endpoint returns a timestamped envelope:
@@ -192,7 +168,7 @@ def fetch_snapshot(when, regions, markets, api_key):
     bad rows were stored).
     """
     payload, headers = _req(
-        "/historical/sports/%s/odds" % SPORT,
+        "/historical/sports/%s/odds" % sports.odds_api_sport(sport),
         {"apiKey": api_key,
          "date": when.isoformat().replace("+00:00", "Z"),
          "regions": regions, "markets": markets,
@@ -321,8 +297,14 @@ def normalize_snapshot(envelope, regions, markets):
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("--seasons", default="2022,2023,2024")
-    ap.add_argument("--weeks", default="1-18")
+    ap.add_argument("--sport", default="nfl", choices=sorted(sports.SPORTS),
+                    help="sport key; calendar, tables, and API sport follow "
+                         "the ops/sports.py registry")
+    ap.add_argument("--seasons", default=None,
+                    help="comma-separated seasons; default: all supported "
+                         "for the sport")
+    ap.add_argument("--weeks", default=None,
+                    help="week range, e.g. 1-18; default: sport default")
     ap.add_argument("--regions", default="us,eu")
     ap.add_argument("--markets", default="spreads,totals")
     ap.add_argument("--min-remaining", type=int, default=1000)
@@ -336,21 +318,28 @@ def main(argv=None):
                          "rows; logged explicitly.")
     args = ap.parse_args(argv)
 
-    seasons = [int(s) for s in args.seasons.split(",") if s.strip()]
+    cfg = sports.get(args.sport)
+    known_seasons = sports.supported_seasons(args.sport)
+    seasons = [int(s) for s in
+               (args.seasons or ",".join(map(str, known_seasons))).split(",")
+               if s.strip()]
     for s in seasons:
-        if s not in WEEK1_SUNDAY:
-            raise SystemExit("unsupported season %d (known: %s)" %
-                             (s, sorted(WEEK1_SUNDAY)))
-    weeks = parse_weeks(args.weeks)
+        if s not in known_seasons:
+            raise SystemExit("unsupported season %d for sport %s (known: %s)"
+                             % (s, args.sport, known_seasons))
+    weeks = sports.parse_weeks(args.weeks or cfg["default_weeks"])
+    mh_table = sports.market_history_table(args.sport)
+    hq_table = sports.historical_quotes_table(args.sport)
 
     api_key = os.environ.get("THE_ODDS_API_KEY")
     if not api_key and not args.dry_run:
         raise SystemExit("THE_ODDS_API_KEY is required")
 
     plan = [(s, w, t) for s in seasons for w in weeks
-            for t in snapshot_times(s, w)]
-    print("plan: %d snapshots (%d seasons x %d weeks x 3)" %
-          (len(plan), len(seasons), len(weeks)))
+            for t in sports.snapshot_times(args.sport, s, w)]
+    print("plan: sport=%s %d snapshots (%d seasons x %d weeks x %d)" %
+          (args.sport, len(plan), len(seasons), len(weeks),
+           len(cfg["historical_cadence"])))
     est = len(plan) * 10 * len(args.markets.split(",")) * len(args.regions.split(","))
     print("estimated max credits: %d (10 x markets x regions per snapshot)" % est)
     if args.dry_run:
@@ -375,18 +364,19 @@ def main(argv=None):
                 # Replace legacy rows (data-only payload, stored before the
                 # full-envelope change) so the frozen dataset has one format.
                 doomed = conn.execute(
-                    """SELECT snapshot_at FROM public.nfl_edge_market_history
-                       WHERE regions=%s AND markets=%s
-                         AND abs(extract(epoch from (snapshot_at - %s))) < 1800
-                         AND payload->>'timestamp' IS NULL""",
+                    ("SELECT snapshot_at FROM public.%s "
+                     "WHERE regions=%%s AND markets=%%s "
+                     "AND abs(extract(epoch from (snapshot_at - %%s))) < 1800 "
+                     "AND payload->>'timestamp' IS NULL") % mh_table,
                     (args.regions, args.markets, when)).fetchall()
                 for (old_snap,) in doomed:
                     qn = conn.execute(
-                        """DELETE FROM public.nfl_edge_historical_quotes
-                           WHERE observed_at = %s""", (old_snap,)).rowcount
+                        "DELETE FROM public.%s WHERE observed_at = %%s" % hq_table,
+                        (old_snap,)).rowcount
                     conn.execute(
-                        """DELETE FROM public.nfl_edge_market_history
-                           WHERE snapshot_at = %s AND regions=%s AND markets=%s""",
+                        ("DELETE FROM public.%s "
+                         "WHERE snapshot_at = %%s AND regions=%%s AND markets=%%s")
+                        % mh_table,
                         (old_snap, args.regions, args.markets))
                     print("recaptured legacy snapshot %s (deleted %d quotes)"
                           % (old_snap, qn), flush=True)
@@ -400,19 +390,19 @@ def main(argv=None):
             for _m in args.markets.split(","):
                 expected_markets.extend(_MARKET_VALUES.get(_m.strip(), ()))
             row = conn.execute(
-                """SELECT mh.snapshot_at FROM public.nfl_edge_market_history mh
-                   WHERE mh.regions=%s AND mh.markets=%s
-                     AND abs(extract(epoch from (mh.snapshot_at - %s))) < 1800
-                     AND EXISTS (SELECT 1 FROM public.nfl_edge_historical_quotes q
-                                 WHERE q.observed_at = mh.snapshot_at
-                                   AND q.market = ANY(%s))""",
+                ("SELECT mh.snapshot_at FROM public.%s mh "
+                 "WHERE mh.regions=%%s AND mh.markets=%%s "
+                 "AND abs(extract(epoch from (mh.snapshot_at - %%s))) < 1800 "
+                 "AND EXISTS (SELECT 1 FROM public.%s q "
+                 "WHERE q.observed_at = mh.snapshot_at "
+                 "AND q.market = ANY(%%s))") % (mh_table, hq_table),
                 (args.regions, args.markets, when, expected_markets)).fetchone()
             if row:
                 skipped += 1
                 continue
-            print("fetching season=%d week=%d at=%s" %
-                  (season, week, when.isoformat()), flush=True)
-            envelope, headers = fetch_snapshot(when, args.regions,
+            print("fetching sport=%s season=%d week=%d at=%s" %
+                  (args.sport, season, week, when.isoformat()), flush=True)
+            envelope, headers = fetch_snapshot(args.sport, when, args.regions,
                                                args.markets, api_key)
             last = headers.get("x-requests-last")
             remaining = headers.get("x-requests-remaining")
@@ -423,10 +413,11 @@ def main(argv=None):
             snap_at = validated_snapshot_time(envelope, when)
             books = snapshot_books(envelope)
             conn.execute(
-                """INSERT INTO public.nfl_edge_market_history
-                   (snapshot_at, regions, markets, requested_at,
-                    provider_snapshot_id, books_present, payload, credits_used)
-                   VALUES (%s,%s,%s,%s,%s,%s,%s,%s) ON CONFLICT DO NOTHING""",
+                ("INSERT INTO public.%s "
+                 "(snapshot_at, regions, markets, requested_at, "
+                 "provider_snapshot_id, books_present, payload, credits_used) "
+                 "VALUES (%%s,%%s,%%s,%%s,%%s,%%s,%%s,%%s) "
+                 "ON CONFLICT DO NOTHING") % mh_table,
                 (snap_at, args.regions, args.markets, when,
                  when.isoformat(), books,
                  json.dumps(envelope),
@@ -435,18 +426,18 @@ def main(argv=None):
             quotes = normalize_snapshot(envelope, args.regions, args.markets)
             for q in quotes:
                 conn.execute(
-                    """INSERT INTO public.nfl_edge_historical_quotes
-                       (quote_id, provider_event_id, home_team, away_team, kickoff,
-                        sportsbook, book_key, market, selection, line, american_odds,
-                        fair_probability, observed_at, ny_licensed)
-                       VALUES (%(quote_id)s,%(provider_event_id)s,%(home_team)s,%(away_team)s,
-                               %(kickoff)s,%(sportsbook)s,%(book_key)s,%(market)s,%(selection)s,
-                               %(line)s,%(american_odds)s,%(fair_probability)s,%(observed_at)s,
-                               %(ny_licensed)s)
-                       ON CONFLICT (quote_id) DO NOTHING""", q)
+                    ("INSERT INTO public.%s "
+                     "(quote_id, provider_event_id, home_team, away_team, kickoff, "
+                     "sportsbook, book_key, market, selection, line, american_odds, "
+                     "fair_probability, observed_at, ny_licensed) "
+                     "VALUES (%%(quote_id)s,%%(provider_event_id)s,%%(home_team)s,%%(away_team)s, "
+                     "%%(kickoff)s,%%(sportsbook)s,%%(book_key)s,%%(market)s,%%(selection)s, "
+                     "%%(line)s,%%(american_odds)s,%%(fair_probability)s,%%(observed_at)s, "
+                     "%%(ny_licensed)s) "
+                     "ON CONFLICT (quote_id) DO NOTHING") % hq_table, q)
                 stored_quotes += 1
-            print("stored season=%d week=%d snapshot=%s quotes=%d books=%d credits_last=%s remaining=%s" %
-                  (season, week, snap_at, len(quotes), len(books), last, remaining))
+            print("stored sport=%s season=%d week=%d snapshot=%s quotes=%d books=%d credits_last=%s remaining=%s" %
+                  (args.sport, season, week, snap_at, len(quotes), len(books), last, remaining))
             try:
                 rem = int(remaining) if remaining else None
             except (TypeError, ValueError):

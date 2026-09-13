@@ -1,7 +1,9 @@
 """Dataset integrity audit for the frozen historical market dataset.
 
-Reads public.nfl_edge_market_history + public.nfl_edge_historical_quotes
-and produces a JSON (+ optional Markdown) audit artifact covering:
+Reads public.<prefix>_market_history + public.<prefix>_historical_quotes
+(sport-parameterized via --sport, default nfl; tables follow
+ops/sports.py) and produces a JSON (+ optional Markdown) audit artifact
+covering:
 
   Coverage
     * expected snapshots (from backfill_history.snapshot_times) vs received
@@ -48,18 +50,19 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import backfill_history as bh
+import sports
 
 TOLERANCE_SECONDS = 3600
 NAMED_BOOKS = ["pinnacle", "draftkings", "fanduel", "betmgm", "betrivers",
                "williamhill_us", "fanatics", "espnbet"]
 
 
-def build_expected(seasons, weeks):
+def build_expected(seasons, weeks, sport="nfl"):
     """The planned snapshot instants, mirroring the backfill schedule."""
     plan = []
     for s in seasons:
         for w in weeks:
-            for when in bh.snapshot_times(s, w):
+            for when in bh.snapshot_times(sport, s, w):
                 plan.append({"season": s, "week": w,
                              "requested_at": when})
     return plan
@@ -79,16 +82,18 @@ def _pct(xs, p):
     return xs[lo] + (xs[hi] - xs[lo]) * (k - lo)
 
 
-def run_audit(conn, seasons, weeks, regions, markets):
+def run_audit(conn, seasons, weeks, regions, markets, sport="nfl"):
     errors, warnings = [], []
+    mh_table = sports.market_history_table(sport)
+    hq_table = sports.historical_quotes_table(sport)
     now = dt.datetime.now(dt.timezone.utc)
-    expected = build_expected(seasons, weeks)
+    expected = build_expected(seasons, weeks, sport)
     exp_times = [e["requested_at"] for e in expected]
 
     snaps = conn.execute(
-        """SELECT provider_snapshot_id, snapshot_at, requested_at, regions,
+        f"""SELECT provider_snapshot_id, snapshot_at, requested_at, regions,
                   markets, books_present, credits_used
-           FROM public.nfl_edge_market_history
+           FROM public.{mh_table}
            WHERE regions = %s AND markets = %s
            ORDER BY requested_at""", (regions, markets)).fetchall()
     by_req = {}
@@ -193,33 +198,33 @@ def run_audit(conn, seasons, weeks, regions, markets):
     def _one(sql):
         return conn.execute(sql % qwhere, qp).fetchone()[0]
 
-    total_quotes = _one("SELECT COUNT(*) FROM public.nfl_edge_historical_quotes %s")
+    total_quotes = _one(f"SELECT COUNT(*) FROM public.{hq_table} %s")
     dup_q = _one(
-        """SELECT COUNT(*) FROM (
-             SELECT quote_id FROM public.nfl_edge_historical_quotes %s
+        f"""SELECT COUNT(*) FROM (
+             SELECT quote_id FROM public.{hq_table} %s
              GROUP BY quote_id HAVING COUNT(*) > 1) t""")
     if dup_q:
         errors.append("%d duplicate quote_id(s)" % dup_q)
     bad_price = _one(
-        """SELECT COUNT(*) FROM public.nfl_edge_historical_quotes %s
+        f"""SELECT COUNT(*) FROM public.{hq_table} %s
            AND (american_odds IS NULL OR abs(american_odds) < 100)""")
     if bad_price:
         errors.append("%d quote(s) with malformed american_odds" % bad_price)
     bad_line = _one(
-        """SELECT COUNT(*) FROM public.nfl_edge_historical_quotes %s
+        f"""SELECT COUNT(*) FROM public.{hq_table} %s
            AND line IS NULL""")
     if bad_line:
         errors.append("%d quote(s) with null line" % bad_line)
     bad_fp = _one(
-        """SELECT COUNT(*) FROM public.nfl_edge_historical_quotes %s
+        f"""SELECT COUNT(*) FROM public.{hq_table} %s
            AND (fair_probability IS NULL
               OR fair_probability <= 0 OR fair_probability >= 1)""")
     if bad_fp:
         errors.append("%d quote(s) with impossible fair_probability" % bad_fp)
     bad_groups = _one(
-        """SELECT COUNT(*) FROM (
+        f"""SELECT COUNT(*) FROM (
              SELECT provider_event_id, book_key, market, line, observed_at
-             FROM public.nfl_edge_historical_quotes %s
+             FROM public.{hq_table} %s
              GROUP BY 1,2,3,4,5
              HAVING COUNT(*) != 2 OR abs(SUM(fair_probability) - 1.0) > 1e-9
            ) t""")
@@ -227,9 +232,9 @@ def run_audit(conn, seasons, weeks, regions, markets):
         errors.append("%d mis-paired quote group(s)" % bad_groups)
     dist = {}
     for (mk, n, lmin, lmax, lavg, pmin, pmax) in conn.execute(
-            ("""SELECT market, COUNT(*), MIN(line), MAX(line), AVG(line),
+            (f"""SELECT market, COUNT(*), MIN(line), MAX(line), AVG(line),
                       MIN(american_odds), MAX(american_odds)
-               FROM public.nfl_edge_historical_quotes %s
+               FROM public.{hq_table} %s
                GROUP BY market""" % qwhere), qp):
         dist[mk] = {"quotes": n, "line_min": float(lmin),
                     "line_max": float(lmax), "line_mean": float(lavg),
@@ -243,9 +248,9 @@ def run_audit(conn, seasons, weeks, regions, markets):
     # ---- book integrity ---------------------------------------------------
     books = {}
     for bk, nq, nsn, seasons_seen in conn.execute(
-            ("""SELECT book_key, COUNT(*), COUNT(DISTINCT observed_at),
+            (f"""SELECT book_key, COUNT(*), COUNT(DISTINCT observed_at),
                       COUNT(DISTINCT date_trunc('year', observed_at))
-               FROM public.nfl_edge_historical_quotes %s
+               FROM public.{hq_table} %s
                GROUP BY book_key""" % qwhere), qp):
         books[bk] = {"quotes": nq, "snapshots_present": nsn,
                      "years_seen": seasons_seen}
@@ -258,7 +263,7 @@ def run_audit(conn, seasons, weeks, regions, markets):
 
     report = {
         "generated_at": now.isoformat(),
-        "seasons": seasons, "weeks": weeks,
+        "sport": sport, "seasons": seasons, "weeks": weeks,
         "regions": regions, "markets": markets,
         "coverage": coverage, "timestamps": timestamps,
         "quotes": quotes, "books": book_cov,
@@ -338,6 +343,8 @@ def render_markdown(rep):
 
 def main(argv=None):
     ap = argparse.ArgumentParser()
+    ap.add_argument("--sport", default="nfl",
+                    help="sport key; tables and calendar follow ops/sports.py")
     ap.add_argument("--seasons", default="2022,2023,2024")
     ap.add_argument("--weeks", default="1-18")
     ap.add_argument("--regions", default="us,eu")
@@ -354,7 +361,8 @@ def main(argv=None):
     conn = psycopg.connect(dsn, connect_timeout=10)
     conn.autocommit = True
     try:
-        report = run_audit(conn, seasons, weeks, args.regions, args.markets)
+        report = run_audit(conn, seasons, weeks, args.regions, args.markets,
+                           sport=args.sport)
     finally:
         conn.close()
     text = json.dumps(report, indent=2, default=str)
