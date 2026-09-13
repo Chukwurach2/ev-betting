@@ -1,6 +1,6 @@
 # NCAAF Research Contract (Football Edge)
 
-Status: DRAFT — step (A), pending user review. Frozen terms take effect once approved.
+Status: FROZEN 2026-09-13 — governing NCAAF research contract (user-approved with two corrections).
 
 Second sport stack inside Football Edge: separate evidence and models, shared platform.
 NFL v1.3 remains frozen and completely isolated; NCAAF uses idle research capacity.
@@ -30,7 +30,12 @@ NFL v1.3 remains frozen and completely isolated; NCAAF uses idle research capaci
 
 ### 1.4 Timing windows (point-in-time)
 - Windows: Opener (first-seen, games 24h–6d out), T-24, T-3, T-90min, Close.
-- Capture timestamp = collector capture time, never provider update time.
+- Preserve **both** timestamps on every observation. Collector capture time
+  determines window membership (whether the checkpoint landed in
+  T-24/T-3/T-90/Close); provider observation/update time determines quote
+  freshness (whether a quote is fresh enough to be recommendation-eligible).
+  Never conflate the two — this is the distinction learned from the NFL
+  forward-shadow audit.
 - A checkpoint belongs to a window only if captured inside that window's declared
   interval. Late captures are diagnostic-only and never count toward promotion evidence.
 - Never retroactively construct a T-24/T-3/T-90 observation from a later quote.
@@ -49,11 +54,15 @@ NFL v1.3 remains frozen and completely isolated; NCAAF uses idle research capaci
   recorded separately.
 - Settlement mapping verified in the dataset audit before any modeling.
 
-### 1.7 Promotion criteria (same bar as NFL)
-- ≥200 settled picks, ≥8 weeks, positive exact-line CLV against actual closes,
-  statistical significance with multiple-testing protection, calibration
-  requirements, operational-health gates (capture ≥90%, no anomalies, ≤10% of
-  settled picks lacking exact-line closes).
+### 1.7 Promotion criteria (NFL-identical statistics and health; sample gates locked later)
+- Positive exact-line CLV against actual closes, statistical significance
+  with multiple-testing protection, calibration requirements, and
+  operational-health gates (capture ≥90%, no anomalies, ≤10% of settled
+  picks lacking exact-line closes) — all identical in kind to the NFL gate.
+- Sample-size and duration gates are **not** hard-coded yet. Observe NCAAF's
+  natural prospective qualifying frequency first, then lock them
+  prospectively — an NFL-derived ≥200 picks / ≥8 weeks rule could be
+  arbitrary against the much larger college slate.
 - No forward-data threshold tuning. Only the locked gate plus the user's
   decision ends SHADOW.
 
