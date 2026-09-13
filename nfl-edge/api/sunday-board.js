@@ -204,7 +204,7 @@ export default async function handler(req, res) {
               .map((r) => ({book: r.sportsbook, price: Number(r.american_odds), fair_prob: Number(r.fair_probability)}))
               .sort((a, b) => americanToDecimal(b.price) - americanToDecimal(a.price)),
             best_price: best
-              ? {book: best.row.book, price: best.row.price, probability_edge_pp: probabilityEdgePp, expected_value_pct: expectedValuePct}
+              ? {book: best.row.book, price: best.row.price, edge_pp: probabilityEdgePp, probability_edge_pp: probabilityEdgePp, expected_value_pct: expectedValuePct}
               : null,
             consensus_fair_prob: consensus == null ? null : Math.round(consensus * 10000) / 10000,
             pinnacle:
@@ -229,6 +229,7 @@ export default async function handler(req, res) {
               line: grp.line,
               book: best.row.book,
               price: best.row.price,
+              edge_pp: probabilityEdgePp,
               probability_edge_pp: probabilityEdgePp,
               expected_value_pct: expectedValuePct,
               clears_bar: clearsBar,
@@ -256,6 +257,7 @@ export default async function handler(req, res) {
     return res.status(200).json({
       mode: 'shadow',
       engine: ENGINE_VERSION,
+      edge_bar_pp: MIN_PROBABILITY_EDGE * 100,
       probability_edge_bar_pp: MIN_PROBABILITY_EDGE * 100,
       expected_value_bar_pct: MIN_EXPECTED_VALUE * 100,
       slate_date: '2026-09-13',
