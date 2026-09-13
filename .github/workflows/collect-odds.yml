@@ -7,6 +7,31 @@ on:
     # per evidence window and avoid top-of-hour congestion. Idempotent checkpoint
     # keys prevent repeat paid requests after a successful capture.
     - cron: '2-59/5 * * * *'
+    # Target-specific guardrails for the standard NFL weekly windows. GitHub
+    # may drop high-frequency scheduled events under load; these independent
+    # entries provide a second trigger two minutes before each common target.
+    # The worker still derives targets from authoritative kickoffs, waits at
+    # most two minutes, and exits without paid requests when nothing is due.
+    # Sunday early window (17:00 UTC kickoffs)
+    - cron: '58 16 * * 6'  # T-24
+    - cron: '58 13 * * 0'  # T-3
+    - cron: '28 15 * * 0'  # T-90
+    - cron: '53 16 * * 0'  # Close
+    # Sunday late window (20:25 UTC kickoffs)
+    - cron: '23 20 * * 6'  # T-24
+    - cron: '23 17 * * 0'  # T-3
+    - cron: '53 18 * * 0'  # T-90
+    - cron: '18 20 * * 0'  # Close
+    # Sunday night window (00:20 UTC Monday kickoff)
+    - cron: '18 0 * * 0'   # T-24
+    - cron: '18 21 * * 0'  # T-3
+    - cron: '48 22 * * 0'  # T-90
+    - cron: '13 0 * * 1'   # Close
+    # Monday night window (00:15 UTC Tuesday kickoff)
+    - cron: '13 0 * * 1'   # T-24
+    - cron: '13 21 * * 1'  # T-3
+    - cron: '43 22 * * 1'  # T-90
+    - cron: '8 0 * * 2'    # Close
   workflow_dispatch:
 permissions:
   contents: read
