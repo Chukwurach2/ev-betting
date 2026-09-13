@@ -1,5 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {fileURLToPath} from 'node:url';
+import {dirname, join} from 'node:path';
 
 import {buildEngineVerdict} from '../lib/sunday-board-verdict.js';
 
@@ -23,4 +26,12 @@ test('complete coverage may report zero recorded qualifying picks', () => {
 test('actual engine picks take precedence', () => {
   const verdict = buildEngineVerdict({enginePicks: 2, gamesWithQuotes: 0, slateGames: 12});
   assert.equal(verdict, '2 qualifying shadow edge(s) under review');
+});
+
+test('board includes the complete US Sunday slate after UTC midnight', () => {
+  const here = dirname(fileURLToPath(import.meta.url));
+  const source = readFileSync(join(here, '../api/sunday-board.js'), 'utf8');
+  assert.match(source, /const DAY_START = '2026-09-13T00:00:00Z'/);
+  assert.match(source, /const DAY_END = '2026-09-14T12:00:00Z'/);
+  assert.doesNotMatch(source, /const DAY_END = '2026-09-14T00:00:00Z'/);
 });
