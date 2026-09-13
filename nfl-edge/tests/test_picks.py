@@ -62,8 +62,9 @@ class PicksMathTests(unittest.TestCase):
 
     def test_engine_constants_sane(self):
         self.assertEqual(picks.MODE, "shadow")
-        self.assertEqual(picks.ENGINE_VERSION, "v1.2-consensus-lobo-4pct-15m")
-        self.assertGreaterEqual(picks.MIN_EDGE, 0.01)
+        self.assertEqual(picks.ENGINE_VERSION, "v1.3-consensus-lobo-3pp-4pct-15m")
+        self.assertEqual(picks.MIN_PROBABILITY_EDGE, 0.03)
+        self.assertEqual(picks.MIN_EXPECTED_VALUE, 0.04)
         self.assertGreaterEqual(picks.MIN_CONSENSUS_BOOKS, 2)
         self.assertGreater(picks.FRESHNESS_MINUTES, 0)
 
@@ -115,7 +116,7 @@ class PicksBuildTests(unittest.TestCase):
         # from its own consensus); circa at +120: edge=.50*2.2-1=.10
         circa = [p for p in out if p["book_key"] == "circa"]
         self.assertEqual(len(circa), 1)
-        self.assertGreaterEqual(circa[0]["edge"], picks.MIN_EDGE)
+        self.assertGreaterEqual(circa[0]["edge"], picks.MIN_EXPECTED_VALUE)
         self.assertEqual(circa[0]["mode"], "shadow")
         self.assertEqual(circa[0]["consensus_books"], 2)
         # the -110/-105 books have negative edge vs their LOBO consensus
@@ -237,7 +238,8 @@ class PicksBuildTests(unittest.TestCase):
 
     def test_source_timestamp_and_user_gates_are_preserved(self):
         self.assertEqual(picks.FRESHNESS_MINUTES, 15)
-        self.assertGreaterEqual(picks.MIN_EDGE, 0.04)
+        self.assertEqual(picks.MIN_PROBABILITY_EDGE, 0.03)
+        self.assertEqual(picks.MIN_EXPECTED_VALUE, 0.04)
         self.assertEqual(picks.MIN_AMERICAN_ODDS, -150)
         self.assertIn("q.observed_at > now()", picks.LATEST_QUOTES_SQL)
         self.assertIn("q.observed_at <= now()", picks.LATEST_QUOTES_SQL)
@@ -257,6 +259,55 @@ class PicksBuildTests(unittest.TestCase):
         ]
         out = self.run_build(rows)
         self.assertFalse(any(p["book_key"] == "target" for p in out))
+
+
+    def test_rejects_ev_pass_when_probability_edge_below_three_pp(self):
+        import datetime as dt
+        now = dt.datetime.now(dt.timezone.utc)
+        # Target fair=.48, LOBO consensus=.50 => probability edge 2pp.
+        # At +110, EV is 4.55%, but the separate 3pp gate must reject.
+        rows = [
+            ("e1", "H", "A", now, "FULL_GAME_TOTAL", "Over", 47.5,
+             "Target", "target", 110, 0.48, now, "ck1", "g1"),
+            ("e1", "H", "A", now, "FULL_GAME_TOTAL", "Over", 47.5,
+             "BookB", "bookb", -110, 0.50, now, "ck1", "g1"),
+            ("e1", "H", "A", now, "FULL_GAME_TOTAL", "Over", 47.5,
+             "BookC", "bookc", -110, 0.50, now, "ck1", "g1"),
+        ]
+        self.assertFalse(any(p["book_key"] == "target" for p in self.run_build(rows)))
+
+    def test_rejects_probability_pass_when_ev_below_four_percent(self):
+        import datetime as dt
+        now = dt.datetime.now(dt.timezone.utc)
+        # Target fair=.45, LOBO consensus=.49 => probability edge 4pp.
+        # At +110, EV is 2.9%, so the independent EV gate must reject.
+        rows = [
+            ("e1", "H", "A", now, "FULL_GAME_TOTAL", "Over", 47.5,
+             "Target", "target", 110, 0.45, now, "ck1", "g1"),
+            ("e1", "H", "A", now, "FULL_GAME_TOTAL", "Over", 47.5,
+             "BookB", "bookb", -110, 0.49, now, "ck1", "g1"),
+            ("e1", "H", "A", now, "FULL_GAME_TOTAL", "Over", 47.5,
+             "BookC", "bookc", -110, 0.49, now, "ck1", "g1"),
+        ]
+        self.assertFalse(any(p["book_key"] == "target" for p in self.run_build(rows)))
+
+    def test_pick_stores_taken_fair_prob_and_checkpoint(self):
+        import datetime as dt
+        now = dt.datetime.now(dt.timezone.utc)
+        rows = [
+            ("e1", "H", "A", now, "FULL_GAME_SPREAD", "A", -3.5,
+             "DraftKings", "draftkings", -110, 0.50, now, "ck1", "g1"),
+            ("e1", "H", "A", now, "FULL_GAME_SPREAD", "A", -3.5,
+             "FanDuel", "fanduel", -105, 0.50, now, "ck1", "g1"),
+            ("e1", "H", "A", now, "FULL_GAME_SPREAD", "A", -3.5,
+             "Circa", "circa", 120, 0.40, now, "ck1", "g1"),
+        ]
+        circa = [p for p in self.run_build(rows) if p["book_key"] == "circa"]
+        self.assertEqual(len(circa), 1)
+        self.assertAlmostEqual(circa[0]["taken_fair_prob"], 0.40)
+        self.assertEqual(circa[0]["checkpoint_key"], "ck1")
+        self.assertIn("taken_fair_prob", picks.INSERT_PICK_SQL)
+        self.assertIn("checkpoint_key", picks.INSERT_PICK_SQL)
 
 
 def _mkpick(event="e1", market="FULL_GAME_SPREAD", selection="A",
@@ -317,48 +368,3 @@ class RiskLimitsTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-
-    def test_freshness_uses_collection_time(self):
-        # The checkpoint collector may capture a price whose provider
-        # last_update is hours old; freshness must be judged by when WE
-        # saw the price (collected_at), not the book's last move.
-        self.assertIn("q.collected_at > now()", picks.LATEST_QUOTES_SQL)
-        self.assertIn("q.collected_at DESC", picks.LATEST_QUOTES_SQL)
-
-    def test_pick_stores_taken_fair_prob(self):
-        # The taken quote's de-vigged fair prob must be stored so settlement
-        # can compute CLV as close-minus-taken (not consensus-minus-close).
-        import datetime as dt
-        now = dt.datetime.now(dt.timezone.utc)
-        rows = [
-            ("e1", "H", "A", now, "FULL_GAME_SPREAD", "A", -3.5,
-             "DraftKings", "draftkings", -110, 0.50, now, "ck1", "g1"),
-            ("e1", "H", "A", now, "FULL_GAME_SPREAD", "A", -3.5,
-             "FanDuel", "fanduel", -105, 0.50, now, "ck1", "g1"),
-            ("e1", "H", "A", now, "FULL_GAME_SPREAD", "A", -3.5,
-             "Circa", "circa", 120, 0.40, now, "ck1", "g1"),
-        ]
-        out = self.run_build(rows)
-        circa = [p for p in out if p["book_key"] == "circa"]
-        self.assertEqual(len(circa), 1)
-        self.assertAlmostEqual(circa[0]["taken_fair_prob"], 0.40)
-        self.assertIn("taken_fair_prob", picks.INSERT_PICK_SQL)
-
-    def test_pick_stores_checkpoint_key(self):
-        # Picks must carry the checkpoint whose quotes fed them so the
-        # weekly report can attribute picks to decision windows.
-        import datetime as dt
-        now = dt.datetime.now(dt.timezone.utc)
-        rows = [
-            ("e1", "H", "A", now, "FULL_GAME_SPREAD", "A", -3.5,
-             "DraftKings", "draftkings", -110, 0.50, now, "ck1", "g1"),
-            ("e1", "H", "A", now, "FULL_GAME_SPREAD", "A", -3.5,
-             "FanDuel", "fanduel", -105, 0.50, now, "ck1", "g1"),
-            ("e1", "H", "A", now, "FULL_GAME_SPREAD", "A", -3.5,
-             "Circa", "circa", 120, 0.40, now, "ck1", "g1"),
-        ]
-        out = self.run_build(rows)
-        circa = [p for p in out if p["book_key"] == "circa"]
-        self.assertEqual(len(circa), 1)
-        self.assertEqual(circa[0]["checkpoint_key"], "ck1")
-        self.assertIn("checkpoint_key", picks.INSERT_PICK_SQL)
