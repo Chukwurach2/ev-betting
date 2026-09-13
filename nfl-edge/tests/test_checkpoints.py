@@ -4,7 +4,8 @@ import sys
 import unittest
 sys.path.insert(0,str(pathlib.Path(__file__).parents[1]/'ops'))
 from checkpoints import plan,collect,instant
-from collect_checkpoints import pair_quotes,provider_event_keys,opener_eligible
+from collect_checkpoints import (pair_quotes, provider_event_keys, opener_eligible,
+                                 seconds_until_imminent_target)
 
 class MemoryStore:
     def __init__(self): self.rows={}
@@ -18,6 +19,18 @@ class CheckpointTests(unittest.TestCase):
         self.kickoff=instant('2026-09-13T17:00:00Z')
         self.game={'game_id':'g1','kickoff':self.kickoff,'status':'scheduled'}
         self.now=self.kickoff-dt.timedelta(hours=3)
+    def test_imminent_target_wait_is_bounded(self):
+        # Regression: run 34769944280 reached the worker 19 seconds before
+        # Close, then exited with zero requests because plan() omits future work.
+        before_close = self.kickoff - dt.timedelta(minutes=5, seconds=19)
+        self.assertEqual(seconds_until_imminent_target([self.game], before_close), 19)
+        self.assertEqual(seconds_until_imminent_target(
+            [self.game], self.kickoff-dt.timedelta(minutes=7, seconds=1)), 0)
+        self.assertEqual(seconds_until_imminent_target(
+            [self.game], self.kickoff-dt.timedelta(minutes=5)), 0)
+        self.assertEqual(seconds_until_imminent_target(
+            [{**self.game, 'status': 'final'}], before_close), 0)
+
     def test_deadlines_and_missed_checkpoints(self):
         checkpoints=plan([self.game],self.now)
         self.assertEqual([(c.name,c.state) for c in checkpoints],[('T-24','missed'),('T-3','due')])

@@ -5,11 +5,12 @@ import json
 import os
 import pathlib
 import sys
+import time
 from dataclasses import asdict
 from urllib.parse import urlsplit
 sys.path.insert(0,str(pathlib.Path(__file__).parents[1]/'model'))
 sys.path.insert(0,str(pathlib.Path(__file__).parents[1]))  # research.devig
-from checkpoints import plan,collect,instant
+from checkpoints import WINDOWS,plan,collect,instant
 from research.devig import devig_multiplicative  # tournament-selected de-vig
 from postgres_checkpoints import PostgresCheckpointStore
 from provider_oddsapi import (fetch_events,fetch_event_odds,normalize,quota,
@@ -58,6 +59,28 @@ def opener_eligible(checkpoint,game,event_keys,captured_game_ids):
     if checkpoint.game_id in captured_game_ids: return False
     return (NAMES.get(canonical(game['home_team'])),NAMES.get(canonical(game['away_team'])),
             instant(checkpoint.kickoff)) in event_keys
+EARLY_TARGET_WAIT_SECONDS = 120
+
+def seconds_until_imminent_target(games, now, max_wait_seconds=EARLY_TARGET_WAIT_SECONDS):
+    """Return a bounded wait for the next fixed checkpoint target.
+
+    A runner may reach the planner seconds before a target and otherwise exit
+    without work. Waiting here changes neither the target nor its deadline;
+    provider timestamps and the strict on-time evidence gate remain authoritative.
+    Openers are intentionally excluded because their target is first observation.
+    """
+    now = instant(now)
+    waits = []
+    for game in games:
+        if game.get('status', 'scheduled') != 'scheduled':
+            continue
+        kickoff = instant(game['kickoff'])
+        for _, minutes in WINDOWS:
+            seconds = (kickoff - dt.timedelta(minutes=minutes) - now).total_seconds()
+            if 0 < seconds <= max_wait_seconds:
+                waits.append(seconds)
+    return min(waits, default=0.0)
+
 def implied(odds): return 100/(100+odds) if odds>0 else abs(odds)/(100+abs(odds))
 
 def settlement(market,line):
@@ -172,6 +195,11 @@ def main():
             k=(canonical(r['home_team']),canonical(r['away_team']),r['kickoff'])
             if k not in unique or r['game_id'].startswith('nfl-'):unique[k]=r
         games=list(unique.values())
+        wait_seconds = seconds_until_imminent_target(games, clock())
+        if wait_seconds:
+            print(json.dumps({'status': 'waiting_for_checkpoint_target',
+                              'seconds': round(wait_seconds, 3)}))
+            time.sleep(wait_seconds + 0.25)
         # The events feed is free: always consult it for quota headers and to
         # gate opener attempts on the provider actually listing the event.
         events,headers=fetch_events()
