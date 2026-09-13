@@ -1,12 +1,15 @@
 name: NCAAF Edge odds checkpoint collector
 on:
   schedule:
-    # Same 15-minute cadence as the NFL collector: checkpoint windows are
-    # 90 minutes wide (deadline = target + 90m, capped before kickoff), so
-    # the worker must run at least that often. Runs with no due checkpoints
-    # spend zero provider credits: only the free events endpoint is
-    # consulted, and only a due checkpoint triggers a paid odds fetch.
-    - cron: '*/15 * * * *'
+    # Same 15-minute cadence as the NFL collector, but offset by 7 minutes
+    # (:07/:22/:37/:52 vs NFL's :00/:15/:30/:45) so the two collectors never
+    # fire simultaneously against the shared DB and provider quota.
+    # Checkpoint windows are 90 minutes wide (deadline = target + 90m, capped
+    # before kickoff), so the worker must run at least that often. Runs with
+    # no due checkpoints spend zero provider credits: only the free events
+    # endpoint is consulted, and only a due checkpoint triggers a paid odds
+    # fetch.
+    - cron: '7,22,37,52 * * * *'
   workflow_dispatch:
 permissions:
   contents: read
@@ -27,8 +30,14 @@ jobs:
       # missed/unavailable windows spend nothing and each checkpoint is
       # claimed once. Pinnacle is absent from the us-region NCAAF feed, so
       # the book universe is the observed NY-licensed books.
+      # QUOTA ISOLATION: the NFL collector has priority on the shared key.
+      # When remaining quota drops below NCAAF_EDGE_MIN_QUOTA_REMAINING
+      # (default 2000), the NCAAF collector stands down entirely -- free
+      # events feed only, zero paid requests -- so a college-slate surge
+      # can never cause an NFL T-90/close miss.
       NCAAF_EDGE_REGIONS: us
       NCAAF_EDGE_BOOKMAKERS: draftkings,fanduel,betmgm,betrivers
+      NCAAF_EDGE_MIN_QUOTA_REMAINING: 2000
     defaults:
       run:
         working-directory: nfl-edge

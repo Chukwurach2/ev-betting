@@ -66,6 +66,23 @@ def collector_env(sport):
     n_regions=len([r for r in regions.split(',') if r.strip()]) or 1
     return books,regions,n_regions
 
+def quota_reserve_ok(sport, headers):
+    """Quota isolation: the NFL collector has priority on the shared key.
+
+    When remaining provider quota falls below the NCAAF reserve floor, the
+    NCAAF collector stands down entirely (free events feed only, zero paid
+    requests) so a large college slate -- or any unexpected college-collector
+    cost -- can never starve an NFL T-90/close checkpoint. The NFL collector
+    has no such gate. Pure: decides from sport + response headers only.
+    """
+    if sport != 'ncaaf':
+        return True, None
+    remaining = quota(headers).get('remaining')
+    reserve = int(os.environ.get('NCAAF_EDGE_MIN_QUOTA_REMAINING', '2000'))
+    if remaining is not None and remaining < reserve:
+        return False, {'remaining': remaining, 'reserve': reserve}
+    return True, None
+
 def find_provider_event(game,events,kickoff,sport):
     """Match provider events by exact matchup and kickoff.
 
@@ -286,6 +303,20 @@ def main(argv=None):
         # The events feed is free: always consult it for quota headers and to
         # gate opener attempts on the provider actually listing the event.
         events,headers=fetch_events(sport=sport)
+        ok, quota_info = quota_reserve_ok(sport, headers)
+        if not ok:
+            print(json.dumps({'status':'quota_reserved_for_nfl','sport':sport,
+                              **quota_info}))
+            try:
+                from heartbeat import record_heartbeat
+                record_heartbeat(connection, HEARTBEAT_COMPONENTS[sport], {
+                    'credits_remaining': quota_info['remaining'],
+                    'quota_stand_down': True,
+                })
+            except Exception as e:  # noqa: BLE001 - heartbeat is advisory only
+                print(json.dumps({'heartbeat':'failed',
+                                  'reason':str(e)[:120]}))
+            return
         event_keys=provider_event_keys(events)
         captured={r['game_id'] for r in connection.execute(
             "SELECT DISTINCT game_id FROM public.%s WHERE status='captured'"

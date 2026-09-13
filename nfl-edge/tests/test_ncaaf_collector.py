@@ -14,7 +14,8 @@ sys.path.insert(0, str(pathlib.Path(__file__).parents[1] / "ops"))
 
 from model import provider_oddsapi as pov
 import sync_ncaaf_schedule as ncaaf_sync
-from collect_checkpoints import find_provider_event, opener_eligible, materialize_quotes
+from collect_checkpoints import (find_provider_event, opener_eligible,
+                                  materialize_quotes, quota_reserve_ok)
 from postgres_checkpoints import PostgresCheckpointStore
 from checkpoints import instant
 
@@ -196,6 +197,34 @@ class StoreTableTests(unittest.TestCase):
         self.assertIn("ncaaf_edge_checkpoints", joined)
         self.assertIn("ncaaf_edge_odds_quotes", joined)
         self.assertNotIn("nfl_edge_", joined)
+
+
+class QuotaIsolationTests(unittest.TestCase):
+    def _headers(self, remaining):
+        return {"x-requests-remaining": str(remaining),
+                "x-requests-used": "1", "x-requests-last": "2"}
+
+    def test_nfl_never_gated(self):
+        ok, info = quota_reserve_ok("nfl", self._headers(0))
+        self.assertTrue(ok)
+        self.assertIsNone(info)
+
+    def test_ncaaf_stands_down_below_reserve(self):
+        ok, info = quota_reserve_ok("ncaaf", self._headers(1999))
+        self.assertFalse(ok)
+        self.assertEqual(info["remaining"], 1999)
+        self.assertEqual(info["reserve"], 2000)
+
+    def test_ncaaf_proceeds_at_reserve(self):
+        ok, info = quota_reserve_ok("ncaaf", self._headers(2000))
+        self.assertTrue(ok)
+        self.assertIsNone(info)
+
+    def test_ncaaf_unknown_quota_proceeds(self):
+        # Missing headers must not strand the collector; the provider
+        # reports remaining on every real response.
+        ok, _ = quota_reserve_ok("ncaaf", {})
+        self.assertTrue(ok)
 
 
 if __name__ == "__main__":
