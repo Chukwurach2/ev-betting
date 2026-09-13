@@ -29,3 +29,5 @@ jobs:
         run: python -m unittest tests.test_picks tests.test_migrations -v
       - name: Weekly health contract
         run: node --test tests/report-health.test.mjs
+      - name: Sunday board fail-closed verdict
+        run: node --test tests/sunday-board.test.mjs
