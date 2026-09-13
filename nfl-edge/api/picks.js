@@ -1,16 +1,18 @@
 import {Client} from 'pg';
 
-const ENGINE_VERSION = 'v1.2-consensus-lobo-4pct-15m';
+const ENGINE_VERSION = 'v1.3-consensus-lobo-3pp-4pct-15m';
 
 // Public read-only feed of the latest SHADOW picks from the consensus edge
 // engine. These are research outputs, never production wagers: every row is
 // mode='shadow' by construction (see ops/picks.py assert_shadow).
-// The deployment itself sits behind Vercel access protection.
+// Public output intentionally excludes Kelly and stake sizing; the user controls stakes.
 
 const SQL = `
 SELECT pick_id, engine_version, mode, provider_event_id, home_team, away_team,
        kickoff, market, selection, line, sportsbook, book_key, american_odds,
-       decimal_odds, consensus_fair_prob, edge, kelly_fraction, stake_units,
+       decimal_odds, consensus_fair_prob,
+       (consensus_fair_prob - taken_fair_prob) AS probability_edge,
+       edge AS expected_value,
        consensus_books, observed_at, created_at,
        challenger_version, challenger_fair_prob, challenger_pred_margin,
        challenger_pred_total
