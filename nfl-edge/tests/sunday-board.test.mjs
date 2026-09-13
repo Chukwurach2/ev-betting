@@ -32,6 +32,7 @@ test('board includes the complete US Sunday slate after UTC midnight', () => {
   const here = dirname(fileURLToPath(import.meta.url));
   const source = readFileSync(join(here, '../api/sunday-board.js'), 'utf8');
   assert.match(source, /const DAY_START = '2026-09-13T00:00:00Z'/);
-  assert.match(source, /const DAY_END = '2026-09-14T12:00:00Z'/);
+  assert.match(source, /^const DAY_END = '2026-09-14T12:00:00Z'/m);
+  assert.doesNotMatch(source, /\\n/);
   assert.doesNotMatch(source, /const DAY_END = '2026-09-14T00:00:00Z'/);
 });
