@@ -1,12 +1,12 @@
 name: NFL Edge odds checkpoint collector
 on:
   schedule:
-    # Checkpoint windows are 90 minutes wide (deadline = target + 90m, capped
-    # before kickoff; see WINDOW_MINUTES in ops/checkpoints.py), so the
-    # worker runs at least that often. Runs with no due checkpoints spend zero
-    # provider credits: only the free events endpoint is consulted, and only
-    # when a checkpoint is actually due.
-    - cron: '*/15 * * * *'
+    # Operational capture may remain available for 90 minutes, but only quotes
+    # collected inside the first 15 minutes count as forward evidence. Run every
+    # five minutes on an off-minute boundary to provide three nominal attempts
+    # per evidence window and avoid top-of-hour congestion. Idempotent checkpoint
+    # keys prevent repeat paid requests after a successful capture.
+    - cron: '2-59/5 * * * *'
   workflow_dispatch:
 permissions:
   contents: read
