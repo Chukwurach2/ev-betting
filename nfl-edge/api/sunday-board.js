@@ -16,7 +16,9 @@ import {buildEngineVerdict} from '../lib/sunday-board-verdict.js';
 // "bet", "pick" (verb), or "recommendation" (verb).
 
 const DAY_START = '2026-09-13T00:00:00Z';
-// Include the complete US Sunday slate, including Sunday Night Football\n// after UTC midnight. The following Monday-night game is later than this bound.\nconst DAY_END = '2026-09-14T12:00:00Z';
+// Include the complete US Sunday slate, including Sunday Night Football
+// after UTC midnight. The following Monday-night game is later than this bound.
+const DAY_END = '2026-09-14T12:00:00Z';
 const ENGINE_VERSION = 'v1.2-consensus-lobo-4pct-15m';
 const MIN_EDGE = 0.04; // 4% bar, mirrors ops/picks.py v1.2
 const MIN_AMERICAN_ODDS = -150; // user-authorized price floor
