@@ -131,6 +131,6 @@ test('late checkpoint captures are diagnostic-only in weekly health', () => {
   const here = dirname(fileURLToPath(import.meta.url));
   const source = readFileSync(join(here, '../api/report-health.js'), 'utf8');
   assert.match(source, /AS late_captured/);
-  assert.match(source, /target_at \\+ interval '15 minutes'/);
+  assert.ok(source.includes("target_at + interval '15 minutes'"));
   assert.match(source, /later captures are diagnostic only/);
 });
