@@ -23,7 +23,7 @@ const MIN_BOOKS = 3; // strict LOBO needs 3+ distinct books per line group
 const PINNACLE_KEY = 'pinnacle';
 
 const Q_GAMES = `
-SELECT game_id, home_team, away_team, kickoff
+SELECT game_id, week, home_team, away_team, kickoff
 FROM public.games
 WHERE kickoff >= $1 AND kickoff < $2
 ORDER BY kickoff ASC`;
@@ -69,8 +69,15 @@ function lineKey(line) {
   return String(Number(line));
 }
 
-function gameKey(home, away, kickoff) {
-  return `${home}|${away}|${kickoff}`;
+// Team abbreviations differ between the provider feed and the games table
+// (same normalization the frontend uses); match on the normalized pair so
+// kickoff-timestamp drift cannot orphan quotes from their game.
+const TEAM_NORM = {LA: 'LAR', ARI: 'AZ'};
+function normTeam(t) {
+  return TEAM_NORM[t] || t;
+}
+function matchupKey(home, away) {
+  return `${normTeam(away)}|${normTeam(home)}`;
 }
 
 export default async function handler(req, res) {
@@ -93,15 +100,25 @@ export default async function handler(req, res) {
       (await client.query(Q_ENGINE_PICKS, [DAY_START, DAY_END, ENGINE_VERSION])).rows[0]?.n || 0
     );
 
+    // Dedupe games the same way the frontend does: one row per
+    // (week, away, home), preferring game_id starting with 'nfl-'.
+    const gameMap = new Map();
+    for (const g of games) {
+      const k = `${g.week}|${matchupKey(g.home_team, g.away_team)}`;
+      const old = gameMap.get(k);
+      if (!old || String(g.game_id).startsWith('nfl-')) gameMap.set(k, g);
+    }
+    const slate = [...gameMap.values()].sort((a, b) => new Date(a.kickoff) - new Date(b.kickoff));
+
     const byGame = new Map();
     for (const q of latest) {
-      const k = gameKey(q.home_team, q.away_team, q.kickoff);
+      const k = matchupKey(q.home_team, q.away_team);
       if (!byGame.has(k)) byGame.set(k, []);
       byGame.get(k).push(q);
     }
     const openerByGame = new Map();
     for (const q of opener) {
-      const k = gameKey(q.home_team, q.away_team, q.kickoff);
+      const k = matchupKey(q.home_team, q.away_team);
       if (!openerByGame.has(k)) openerByGame.set(k, []);
       openerByGame.get(k).push(q);
     }
@@ -109,8 +126,8 @@ export default async function handler(req, res) {
     const bestPrices = [];
     let gamesWithQuotes = 0;
 
-    const gameCards = games.map((g) => {
-      const k = gameKey(g.home_team, g.away_team, g.kickoff);
+    const gameCards = slate.map((g) => {
+      const k = matchupKey(g.home_team, g.away_team);
       const quotes = byGame.get(k) || [];
       const openers = openerByGame.get(k) || [];
       if (quotes.length) gamesWithQuotes += 1;
@@ -236,9 +253,9 @@ export default async function handler(req, res) {
         verdict: enginePicks === 0 ? 'No qualifying edges — no bet' : `${enginePicks} qualifying shadow edge(s) under review`,
       },
       data_coverage: {
-        games: games.length,
+        games: slate.length,
         games_with_quotes: gamesWithQuotes,
-        games_without_quotes: games.length - gamesWithQuotes,
+        games_without_quotes: slate.length - gamesWithQuotes,
       },
       best_prices: bestPrices.slice(0, 15),
       games: gameCards,
