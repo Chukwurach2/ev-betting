@@ -15,7 +15,22 @@ import {percentile, evaluateVerdict} from '../lib/report-health.mjs';
 const Q_CHECKPOINTS = `
 SELECT decision_window,
        count(*)::int AS planned,
-       count(*) FILTER (WHERE status = 'captured')::int AS captured,
+       count(*) FILTER (
+         WHERE status = 'captured' AND EXISTS (
+           SELECT 1 FROM public.nfl_edge_odds_quotes q
+           WHERE q.checkpoint_key = nfl_edge_checkpoints.checkpoint_key
+             AND q.collected_at >= nfl_edge_checkpoints.target_at
+             AND q.collected_at < nfl_edge_checkpoints.target_at + interval '15 minutes'
+         )
+       )::int AS captured,
+       count(*) FILTER (
+         WHERE status = 'captured' AND NOT EXISTS (
+           SELECT 1 FROM public.nfl_edge_odds_quotes q
+           WHERE q.checkpoint_key = nfl_edge_checkpoints.checkpoint_key
+             AND q.collected_at >= nfl_edge_checkpoints.target_at
+             AND q.collected_at < nfl_edge_checkpoints.target_at + interval '15 minutes'
+         )
+       )::int AS late_captured,
        count(*) FILTER (WHERE status = 'missed')::int AS missed,
        count(*) FILTER (WHERE status = 'unavailable')::int AS unavailable,
        count(*) FILTER (WHERE status IN ('failed','abandoned'))::int AS failed,
@@ -124,6 +139,7 @@ export default async function handler(req, res) {
       performance_status,
       checkpoints: {
         by_window: cp.map((r) => ({...r, capture_rate: r.planned > 0 ? r.captured / r.planned : null})),
+        definition: 'Captured counts only quotes collected from target_at through target_at + 15 minutes; later captures are diagnostic only.',
         overall: {
           planned,
           captured,
