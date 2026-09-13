@@ -2,6 +2,10 @@ name: verify-backfill
 on:
   workflow_dispatch:
     inputs:
+      sport:
+        description: "Sport key: nfl or ncaaf (tables follow ops/sports.py)"
+        required: false
+        default: "nfl"
       since:
         description: "Only verify snapshots with requested_at >= this date (YYYY-MM-DD). Empty = all."
         required: false
@@ -24,7 +28,7 @@ jobs:
           NFL_EDGE_DATABASE_URL: ${{ secrets.NFL_EDGE_DATABASE_URL }}
         run: |
           if [ -z "${{ inputs.since }}" ]; then
-            python nfl-edge/ops/verify_backfill.py
+            python nfl-edge/ops/verify_backfill.py --sport "${{ inputs.sport }}"
           else
-            python nfl-edge/ops/verify_backfill.py --since "${{ inputs.since }}"
+            python nfl-edge/ops/verify_backfill.py --sport "${{ inputs.sport }}" --since "${{ inputs.since }}"
           fi
