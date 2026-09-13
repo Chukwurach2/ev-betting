@@ -7,7 +7,7 @@ import {buildEngineVerdict} from '../lib/sunday-board-verdict.js';
 // This is NOT a picks list. It shows per-game price data (spread/total
 // across books), best available price per side, line movement since the
 // opener capture, Pinnacle vs consensus as the sharp marker, and the
-// engine's assessment of each side against its 4% bar. The authoritative
+// engine's assessment against the separate 3pp probability-edge and 4% EV bars. The authoritative
 // engine verdict comes from the actual nfl_edge_picks table (expect zero
 // qualifying shadow picks), never from a re-implementation.
 //
@@ -19,8 +19,9 @@ const DAY_START = '2026-09-13T00:00:00Z';
 // Include the complete US Sunday slate, including Sunday Night Football
 // after UTC midnight. The following Monday-night game is later than this bound.
 const DAY_END = '2026-09-14T12:00:00Z';
-const ENGINE_VERSION = 'v1.2-consensus-lobo-4pct-15m';
-const MIN_EDGE = 0.04; // 4% bar, mirrors ops/picks.py v1.2
+const ENGINE_VERSION = 'v1.3-consensus-lobo-3pp-4pct-15m';
+const MIN_PROBABILITY_EDGE = 0.03;
+const MIN_EXPECTED_VALUE = 0.04;
 const MIN_AMERICAN_ODDS = -150; // user-authorized price floor
 const MIN_BOOKS = 3; // strict LOBO needs 3+ distinct books per line group
 const PINNACLE_KEY = 'pinnacle';
@@ -160,36 +161,44 @@ export default async function handler(req, res) {
           for (const r of grp.rows) {
             const others = grp.rows.filter((x) => x.book_key !== r.book_key);
             const otherBooks = new Set(others.map((x) => x.book_key));
-            let edge = null;
+            let probabilityEdge = null;
+            let expectedValue = null;
             if (books.length >= MIN_BOOKS && otherBooks.size >= MIN_BOOKS - 1 && Number(r.american_odds) >= MIN_AMERICAN_ODDS) {
               const lob = median(others.map((x) => Number(x.fair_probability)));
-              edge = lob * americanToDecimal(r.american_odds) - 1;
+              probabilityEdge = lob - Number(r.fair_probability);
+              expectedValue = lob * americanToDecimal(r.american_odds) - 1;
             }
             const row = {
               book: r.sportsbook,
               book_key: r.book_key,
               price: Number(r.american_odds),
               fair_prob: Number(r.fair_probability),
-              edge_pp: edge == null ? null : Math.round(edge * 10000) / 100,
+              probability_edge_pp: probabilityEdge == null ? null : Math.round(probabilityEdge * 10000) / 100,
+              expected_value_pct: expectedValue == null ? null : Math.round(expectedValue * 10000) / 100,
               observed_at: r.observed_at,
             };
-            if (edge != null && (best == null || edge > best.edge)) best = {row, edge};
+            if (expectedValue != null && (best == null || expectedValue > best.expectedValue)) {
+              best = {row, probabilityEdge, expectedValue};
+            }
           }
           const pin = grp.rows.find((r) => r.book_key === PINNACLE_KEY);
           const openerLines = mo
             .filter((o) => o.selection === grp.selection)
             .map((o) => Number(o.line));
           const openerLine = median(openerLines);
-          const edgePp = best ? Math.round(best.edge * 10000) / 100 : null;
-          const clearsBar = edgePp != null && edgePp >= MIN_EDGE * 100;
+          const probabilityEdgePp = best ? Math.round(best.probabilityEdge * 10000) / 100 : null;
+          const expectedValuePct = best ? Math.round(best.expectedValue * 10000) / 100 : null;
+          const clearsProbability = probabilityEdgePp != null && probabilityEdgePp >= MIN_PROBABILITY_EDGE * 100;
+          const clearsEv = expectedValuePct != null && expectedValuePct >= MIN_EXPECTED_VALUE * 100;
+          const clearsBar = clearsProbability && clearsEv;
           const assessment =
             books.length < MIN_BOOKS
               ? `DOES NOT QUALIFY — fewer than ${MIN_BOOKS} books at this line, no consensus`
               : best == null
                 ? 'DOES NOT QUALIFY — no book clears the price floor at this line'
                 : clearsBar
-                  ? 'QUALIFIES — edge at or above the 4% bar'
-                  : `DOES NOT QUALIFY — best edge ${edgePp.toFixed(2)}pp is below the 4% bar`;
+                  ? 'QUALIFIES — probability edge ≥3pp and EV ≥4%'
+                  : `DOES NOT QUALIFY — probability edge ${probabilityEdgePp.toFixed(2)}pp; EV ${expectedValuePct.toFixed(2)}%`;
           sides.push({
             selection: grp.selection,
             line: grp.line,
@@ -197,7 +206,8 @@ export default async function handler(req, res) {
               .map((r) => ({book: r.sportsbook, price: Number(r.american_odds), fair_prob: Number(r.fair_probability)}))
               .sort((a, b) => americanToDecimal(b.price) - americanToDecimal(a.price)),
             best_price: best
-              ? {book: best.row.book, price: best.row.price, edge_pp: edgePp}
+              ? {book: best.row.book, price: best.row.price,
+                 probability_edge_pp: probabilityEdgePp, expected_value_pct: expectedValuePct}
               : null,
             consensus_fair_prob: consensus == null ? null : Math.round(consensus * 10000) / 10000,
             pinnacle:
@@ -208,8 +218,11 @@ export default async function handler(req, res) {
               openerLine == null
                 ? null
                 : {opener_line: openerLine, latest_line: grp.line},
-            edge_estimate_pp: edgePp,
-            clears_bar: clearsBar,
+            probability_edge_pp: probabilityEdgePp,
+            expected_value_pct: expectedValuePct,
+            clears_probability_edge_bar: clearsProbability,
+            clears_ev_bar: clearsEv,
+            clears_both_bars: clearsBar,
             assessment,
           });
           if (best) {
@@ -221,12 +234,13 @@ export default async function handler(req, res) {
               line: grp.line,
               book: best.row.book,
               price: best.row.price,
-              edge_pp: edgePp,
-              clears_bar: clearsBar,
+              probability_edge_pp: probabilityEdgePp,
+              expected_value_pct: expectedValuePct,
+              clears_both_bars: clearsBar,
             });
           }
         }
-        sides.sort((a, b) => (b.edge_estimate_pp ?? -Infinity) - (a.edge_estimate_pp ?? -Infinity));
+        sides.sort((a, b) => (b.expected_value_pct ?? -Infinity) - (a.expected_value_pct ?? -Infinity));
         markets[market] = {status: 'ok', sides};
       }
       markets['FULL_GAME_MONEYLINE'] = {status: 'no_data', note: 'No stored moneyline quotes for this game.'};
@@ -242,12 +256,13 @@ export default async function handler(req, res) {
       };
     });
 
-    bestPrices.sort((a, b) => b.edge_pp - a.edge_pp);
+    bestPrices.sort((a, b) => b.expected_value_pct - a.expected_value_pct);
 
     return res.status(200).json({
       mode: 'shadow',
       engine: ENGINE_VERSION,
-      edge_bar_pp: MIN_EDGE * 100,
+      probability_edge_bar_pp: MIN_PROBABILITY_EDGE * 100,
+      expected_value_bar_pct: MIN_EXPECTED_VALUE * 100,
       slate_date: '2026-09-13',
       generated_at: new Date().toISOString(),
       disclaimer: 'Shadow research — not a wager recommendation.',
