@@ -29,7 +29,7 @@ import os
 import statistics
 import sys
 
-ENGINE_VERSION = "v1.2-consensus-lobo-4pct-15m"
+ENGINE_VERSION = "v1.3-consensus-lobo-3pp-4pct-15m"
 MODE = "shadow"
 
 # Full team name (Odds API selection) -> canonical abbreviation.
@@ -98,7 +98,8 @@ def annotate_challenger(challenger, cache, pick: dict) -> dict:
         pass
     return fields
 
-MIN_EDGE = 0.04            # minimum expected value to emit a shadow pick
+MIN_PROBABILITY_EDGE = 0.03  # consensus fair probability minus target-book fair probability
+MIN_EXPECTED_VALUE = 0.04    # consensus fair probability * executable decimal odds - 1
 MIN_AMERICAN_ODDS = -150    # user-authorized price floor; never accept worse
 KELLY_DIVISOR = 4          # quarter-Kelly
 MAX_STAKE_UNITS = 1.0      # cap per pick, bankroll = 100 units
@@ -266,10 +267,13 @@ def build_picks(conn) -> list[dict]:
             consensus = consensus_prob(
                 [float(x["fair_probability"]) for x in others])
             dec = american_to_decimal(int(q["american_odds"]))
-            edge = edge_for_quote(dec, consensus)
-            if edge < MIN_EDGE:
+            probability_edge = consensus - float(q["fair_probability"])
+            expected_value = edge_for_quote(dec, consensus)
+            if probability_edge < MIN_PROBABILITY_EDGE:
                 continue
-            kf = kelly_fraction(edge, dec)
+            if expected_value < MIN_EXPECTED_VALUE:
+                continue
+            kf = kelly_fraction(expected_value, dec)
             pick = {
                 "pick_id": pick_id_for(ENGINE_VERSION, event_id, market,
                                        selection, linek, q["book_key"],
@@ -290,7 +294,7 @@ def build_picks(conn) -> list[dict]:
                 "decimal_odds": round(dec, 4),
                 "consensus_fair_prob": round(consensus, 6),
                 "taken_fair_prob": round(float(q["fair_probability"]), 6),
-                "edge": round(edge, 6),
+                "edge": round(expected_value, 6),
                 "kelly_fraction": round(kf, 6),
                 "stake_units": stake_units(kf),
                 "consensus_books": len({x["book_key"] for x in others}),
