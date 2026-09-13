@@ -245,6 +245,10 @@ class PicksBuildTests(unittest.TestCase):
         self.assertIn("q.observed_at <= now()", picks.LATEST_QUOTES_SQL)
         self.assertIn("q.collected_at >= q.observed_at", picks.LATEST_QUOTES_SQL)
         self.assertIn("q.observed_at DESC", picks.LATEST_QUOTES_SQL)
+        self.assertIn("JOIN public.nfl_edge_checkpoints c", picks.LATEST_QUOTES_SQL)
+        self.assertIn("q.collected_at >= c.target_at", picks.LATEST_QUOTES_SQL)
+        self.assertIn("q.collected_at < c.target_at + interval '15 minutes'", picks.LATEST_QUOTES_SQL)
+        self.assertIn("c.status = 'captured'", picks.LATEST_QUOTES_SQL)
 
     def test_rejects_price_below_minus_150_even_with_apparent_edge(self):
         import datetime as dt

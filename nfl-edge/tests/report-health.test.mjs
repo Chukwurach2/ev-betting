@@ -126,3 +126,11 @@ test('Sunday Board exposes and requires both locked gates', () => {
   assert.match(source, /MIN_EXPECTED_VALUE = 0\.04/);
   assert.match(source, /clearsProbability && clearsEv/);
 });
+
+test('late checkpoint captures are diagnostic-only in weekly health', () => {
+  const here = dirname(fileURLToPath(import.meta.url));
+  const source = readFileSync(join(here, '../api/report-health.js'), 'utf8');
+  assert.match(source, /AS late_captured/);
+  assert.ok(source.includes("target_at + interval '15 minutes'"));
+  assert.match(source, /later captures are diagnostic only/);
+});
