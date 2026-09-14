@@ -1,218 +1,96 @@
-# 📈 EV Betting Dashboard
+# EV Betting / Football Edge Research Workspace
 
-A data-driven sports betting dashboard built with **Streamlit** that calculates expected value (EV), applies Kelly Criterion position sizing, and tracks bankroll performance with persistent Google Sheets storage.
+This repository is no longer just a single Streamlit EV calculator. It now contains several related betting-analysis projects and research artifacts, with **Football Edge** (`nfl-edge/`) as the active production/research track.
 
-Designed for disciplined, process-driven betting.
+## Repository map
 
----
+| Area | Purpose | Current role |
+|---|---|---|
+| [`nfl-edge/`](nfl-edge/) | Football Edge platform: NFL production app + NFL/NCAAF research, live odds collection, checkpoints, settlement, CLV, model validation, and forward-shadow evidence | **Primary active project** |
+| [`nfl-edge/docs/ncaaf-plan.md`](nfl-edge/docs/ncaaf-plan.md) | Frozen NCAAF research contract | Active NCAAF source of truth |
+| [`nfl-edge/research/AGENT.md`](nfl-edge/research/AGENT.md) | Research/agent policy governing NFL Edge experimentation and promotion | Active policy |
+| [`nfl-edge/research/experiments.json`](nfl-edge/research/experiments.json) | Durable experiment registry preserving completed, failed, and queued trials | Active evidence registry |
+| [`docs/`](docs/) | Historical NFL research outputs, preregistrations, dataset-freeze evidence, promotion-gate material, and forward-shadow reporting specs created before the project was fully consolidated under `nfl-edge/` | Historical/research evidence; retained for provenance |
+| `app.py`, `pages/`, `storage.py`, `evsharps_alerts.py`, `strategy_rules.py` | Original Streamlit EV dashboard, bet journal, alerts, strategy rules, and Google Sheets/local persistence | Legacy but retained/usable |
+| `options-desk-risk` | Linked Git repository entry for the separate options-desk-risk project | Separate project reference; not part of Football Edge runtime |
+| `.github/workflows/` | CI, historical-data, collector, settlement, reporting, and research workflows | Shared automation |
 
-## 🚀 Features
+## Active project: Football Edge
 
-### ✅ Expected Value Engine
-- Input book odds + fair odds
-- Calculates:
-  - Implied probability
-  - True probability
-  - Edge %
-  - Kelly fraction
-  - Suggested stake size
+Football Edge is the current focus of this repository. It uses shared infrastructure while keeping sport-specific models and evidence isolated.
 
-### ✅ Bankroll Management
-- Adjustable bankroll + unit size
-- Kelly scaling (fractional Kelly supported)
-- Parlay support
-- Boost handling
+### NFL Edge
 
-### ✅ CLV Tracking
-- Logs closing odds
-- Tracks Closing Line Value (CLV)
-- Measures edge quality independent of variance
+- Deployed app source lives under `nfl-edge/`.
+- NFL v1.3 is frozen for forward-shadow measurement.
+- Forward observations are measurement-only and are not used to tune the frozen engine.
+- The current milestone is **healthy, uncontaminated prospective evidence accumulation**, not a winning week.
+- Checkpoint reliability is **mitigated, not yet proven healthy**; late captures remain diagnostic-only.
+- Any model/market change requires a new preregistered research cycle.
 
-### ✅ Google Sheets Backend
-- Persistent ledger storage
-- Cloud-accessible
-- Mobile-friendly logging
-- Local JSON fallback if Sheets unavailable
+### NCAAF Edge
 
----
+- Separate model/evidence stack sharing Football Edge infrastructure.
+- Development seasons: **2022–2025 only**.
+- Entire **2026 season is sealed prospective shadow** and cannot be used for training, feature selection, or threshold tuning.
+- Phase-1 markets: FBS spreads and totals.
+- Exact-line identity, same-book de-vigging, immutable checkpoints, dual timestamps, settlement, CLV, and promotion discipline mirror the NFL framework where applicable.
+- Current contract and A–G plan: [`nfl-edge/docs/ncaaf-plan.md`](nfl-edge/docs/ncaaf-plan.md).
 
-## 🏗 Architecture
+See [`nfl-edge/docs/README.md`](nfl-edge/docs/README.md) for the current project/workstream map.
 
-User (Desktop / iPhone)
-→ Streamlit App (Local or Cloud)
-→ Google Sheets (Primary Storage)
-→ Local JSON Fallback (`data/ev_ledger.json`)
+## Legacy Streamlit EV dashboard
 
-Storage auto-detects:
-- If Google secrets exist → use Sheets
-- Otherwise → fallback to local JSON
+The original root application remains available and is separate from the Football Edge Vercel app.
 
----
+It provides:
 
-## 📊 Metrics Tracked
+- manual book/fair-odds EV calculations
+- implied/true probability and edge calculations
+- fractional Kelly sizing utilities
+- bankroll and unit tracking
+- parlay/boost handling
+- bet logging and CLV tracking
+- Google Sheets persistence with local fallback
+- mobile-oriented Streamlit pages
+- EV alert and strategy-rule utilities
 
-- Total units staked
-- Win %
-- ROI
-- EV %
-- CLV %
-- Bankroll trajectory
-- Bet-level PnL
-- Parlay stats
-
----
-
-## 🛠 Tech Stack
-
-- Python 3.10+
-- Streamlit
-- gspread
-- Google Service Account Auth
-- Pandas / NumPy
-
----
-
-# 🔧 Local Setup
-
-### 1️⃣ Clone repo
-
-```bash
-git clone https://github.com/Chukwurach2/ev-betting.git
-cd ev-betting
-```
-
-### 2️⃣ Create virtual environment
+Run locally with:
 
 ```bash
 python3 -m venv venv
 source venv/bin/activate
-```
-
-### 3️⃣ Install dependencies
-
-```bash
 pip install -r requirements.txt
-```
-
-### 4️⃣ Run app
-
-```bash
 streamlit run app.py
 ```
 
----
+The root Streamlit application is **not** the deployed `nfl-edge-v2-1` Football Edge application.
 
-# ☁️ Google Sheets Setup (Optional but Recommended)
+## Football Edge deployment
 
-The app supports persistent cloud storage via Google Sheets.
+Production Vercel project: `nfl-edge-v2-1` with repository Root Directory set to `nfl-edge`.
 
-## Step 1 – Create Service Account
+The Odds API credential is server-only. Diagnostic/build-time odds samples are not treated as actionable live feeds. Recommendations may only surface when their exact market family has earned the required evidence and all live price/freshness/NY-eligibility gates pass.
 
-- Go to Google Cloud Console
-- Enable **Google Sheets API**
-- Create a Service Account
-- Generate a JSON key
+## Research principles
 
-## Step 2 – Share Your Google Sheet
+The repository deliberately preserves failed experiments and negative results. In particular:
 
-Share the target sheet with:
+- historical success does not itself authorize promotion;
+- prospective evidence is not reused for tuning;
+- missed checkpoints are never reconstructed from later information;
+- provider observation time governs quote freshness while collector time governs decision-window membership;
+- pushes/ties and exact-line identity are explicit settlement concerns;
+- a PASS is preferable to manufacturing a betting signal;
+- no profitability claim is made without reproducible evidence meeting the governing promotion gate.
 
-```
-<service-account-email>@<project>.iam.gserviceaccount.com
-```
+## Current high-level status
 
-Grant **Editor** access.
+- **NFL:** frozen forward-shadow engine; accumulating prospective evidence; no shortcut around the promotion gate.
+- **NCAAF:** historical/live infrastructure being built under the frozen 2022–2025 development / 2026 prospective split; no modeling before probe + dataset audit/freeze gates pass.
+- **Legacy EV dashboard:** retained as a separate Streamlit utility and journal.
+- **Historical research material:** retained intentionally for auditability and provenance.
 
-## Step 3 – Add Secrets
+## Safety / scope
 
-Create `.streamlit/secrets.toml` locally (DO NOT COMMIT):
-
-```toml
-spreadsheet_name = "YOUR_SPREADSHEET_NAME_OR_ID"
-worksheet_name = "ledger"
-
-[gcp_service_account]
-type = "service_account"
-project_id = "..."
-private_key_id = "..."
-private_key = """-----BEGIN PRIVATE KEY-----
-...
------END PRIVATE KEY-----"""
-client_email = "..."
-client_id = "..."
-auth_uri = "https://accounts.google.com/o/oauth2/auth"
-token_uri = "https://oauth2.googleapis.com/token"
-auth_provider_x509_cert_url = "https://www.googleapis.com/oauth2/v1/certs"
-client_x509_cert_url = "..."
-```
-
-For Streamlit Cloud:
-App → Settings → Secrets → paste the same values.
-
----
-
-# 🔁 One-Time Backfill (Local -> Sheets)
-
-If you logged bets locally before enabling Sheets, run the built-in backfill page once:
-
-1. Launch app with valid Sheets secrets.
-2. Open **`99_Backfill`** page in Streamlit sidebar.
-3. Review counts and click **APPEND MISSING TO SHEETS**.
-
-Duplicate safety:
-- Primary key: `bet_id`
-- Fallback key: `placed_at/timestamp + selection/player + book + odds`
-
-After this, new bets from dashboard/mobile append to Google Sheets by default (with local fallback only if Sheets is unavailable).
-
----
-
-# 📈 Kelly Formula Used
-
-For decimal odds:
-
-```
-f* = (bp - q) / b
-```
-
-Where:
-
-- b = decimal odds - 1  
-- p = true probability  
-- q = 1 - p  
-
-American odds are converted internally.
-
-Suggested stake = Kelly fraction × bankroll (or scaled Kelly).
-
----
-
-# 📂 Project Structure
-
-```
-ev-betting/
-│
-├── app.py
-├── storage.py
-├── pages/
-│   ├── 1_Mobile_Stake.py
-│   └── ...
-├── data/
-│   └── ev_ledger.json (local fallback)
-├── requirements.txt
-└── README.md
-```
-
----
-
-# ⚠️ Disclaimer
-
-This project is for educational and analytical purposes only.  
-No betting advice is provided.  
-Past performance does not guarantee future results.
-
----
-
-# 👤 Author
-
-Chris Chukwura  
+This repository supports analytical research and user decision support. It does not autonomously place wagers or alter personal stakes.
