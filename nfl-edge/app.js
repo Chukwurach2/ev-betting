@@ -47,6 +47,18 @@ async function renderNcaafBoard(){const v=$('#ncaafVerdict'),gl=$('#ncaafGames')
  }catch(e){v.textContent='NCAAF board unavailable: '+(e.message||e);gl.innerHTML='';}
  finally{ncaafBoardLoading=false;}}
 $('#ncaafRefresh').onclick=renderNcaafBoard;
+let ncaafExpVisible=false,ncaafExpLoading=false;
+$('#ncaafExpBtn').onclick=()=>{ncaafExpVisible=!ncaafExpVisible;$('#ncaafExp').classList.toggle('hidden',!ncaafExpVisible);$('#ncaafExpBtn').textContent=ncaafExpVisible?'Hide experimental':'Experimental signals';if(ncaafExpVisible)renderNcaafExp();};
+async function renderNcaafExp(){const c=$('#ncaafExpContent');if(!c||ncaafExpLoading)return;ncaafExpLoading=true;c.innerHTML='<div class="empty">Loading market data…</div>';
+ try{const quotes=await qread('ncaaf_edge_odds_quotes',{select:'home_team,away_team,kickoff,market,selection,line,american_odds,sportsbook,collected_at',order:'collected_at.desc',limit:2000});
+ if(!quotes.length){c.innerHTML='<div class="empty">No quote data available yet. The live collector is still building history.</div>';return;}
+ const games={};
+ for(const q of quotes){const key=`${q.away_team}@${q.home_team}|${q.kickoff}`;if(!games[key])games[key]={away:q.away_team,home:q.home_team,kickoff:q.kickoff,spreads:[],totals:[],books:new Set(),latest:q.collected_at};const g=games[key];g.books.add(q.sportsbook);if(q.market==='FULL_GAME_SPREAD')g.spreads.push(Number(q.line));if(q.market==='FULL_GAME_TOTAL')g.totals.push(Number(q.line));}
+ const list=Object.values(games).filter(g=>new Date(g.kickoff)>=new Date(Date.now()-3*3600*1000)).slice(0,20);
+ const avg=a=>a.length?(a.reduce((x,y)=>x+y,0)/a.length).toFixed(1):'—';
+ c.innerHTML=list.map(g=>{const ko=new Date(g.kickoff);const kd=ko.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});return `<article class="card"><div class="row"><div><div class="match">${esc(g.away_team)} @ ${esc(g.home_team)}</div><div class="kick">${kd} · ${g.books.size} books</div></div><span class="pill">UNVALIDATED</span></div><div class="kpi-row" style="margin-top:8px"><div class="kpi"><b>${avg(g.spreads)}</b><span>Avg spread</span></div><div class="kpi"><b>${avg(g.totals)}</b><span>Avg total</span></div></div><div class="small muted" style="margin-top:6px">Method: simple average across books. No backtest. No edge proven. Not a pick.</div></article>`;}).join('')||'<div class="empty">No upcoming games with quote data.</div>';
+ }catch(e){c.innerHTML='<div class="empty">Market data unavailable: '+esc(e.message||e)+'</div>';}
+ finally{ncaafExpLoading=false;}}
 async function renderNcaafStatus(){const cp=$('#ncaafCheckpoints');if(!cp)return;
  try{const rows=await qread('ncaaf_edge_checkpoints',{select:'requested_at,status,quotes_captured',order:'requested_at.desc',limit:10});
  cp.innerHTML=rows.length?`<table class="table"><thead><tr><th>Checkpoint</th><th>Status</th><th>Quotes</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${esc(time(r.requested_at))}</td><td>${esc(r.status)}</td><td>${r.quotes_captured??'—'}</td></tr>`).join('')}</tbody></table>`:'<p class="small muted">No checkpoints yet.</p>';

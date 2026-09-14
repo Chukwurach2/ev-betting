@@ -44,8 +44,11 @@
 <div id="ncaaf-board"><div class="section-title">Saturday Board</div>
 <div class="notice"><b>Market data only — not recommendations.</b> There is no NCAAF model and no edge has been found. Per your rules, this board shows games and available prices but never manufactures picks. When the evidence gate is earned, qualifying edges will appear here; until then it says PASS.</div>
 <div id="ncaafVerdict" class="notice" role="status">Loading board…</div>
-<div class="controls"><button id="ncaafRefresh" class="primary">Refresh</button></div>
+<div class="controls"><button id="ncaafRefresh" class="primary">Refresh</button><button id="ncaafExpBtn">Experimental signals</button></div>
 <section id="ncaafGames" class="games"></section>
+<div id="ncaafExp" class="hidden"><div class="section-title">Experimental Signals <span class="pill">UNVALIDATED</span></div>
+<div class="notice"><b>UNVALIDATED — NO EDGE PROVEN — RESEARCH ONLY.</b> These are raw market data summaries, not picks. The heuristics below have not been backtested, have not beaten closing lines, and have no proven predictive value. Do not bet on them.</div>
+<div id="ncaafExpContent" class="games"></div></div>
 </div>
 <div id="ncaaf-status" class="hidden"><div class="section-title">Evidence Status</div>
 <div class="kpi-row"><div class="kpi"><b id="ncaafHistSnaps">—</b><span>Historical snapshots (2022–25)</span></div><div class="kpi"><b id="ncaafHistQuotes">—</b><span>Historical quotes</span></div><div class="kpi"><b id="ncaafLiveCaps">—</b><span>2026 live captures</span></div><div class="kpi"><b id="ncaafQuota">—</b><span>Quota guard</span></div></div>
