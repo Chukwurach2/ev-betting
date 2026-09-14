@@ -11,6 +11,7 @@ This directory is the human-readable map of the current NFL + NCAAF workstreams.
 | NCAAF research contract | `ncaaf-plan.md` | Frozen 2022–2025 development / 2026 prospective-only NCAAF contract |
 | Operations | `../OPS_README.md` | Runtime, collection, deployment, and operational procedures |
 | Release history | `../RELEASE.md` | Historical release notes; not the preferred current-state tracker |
+| Parent repository map | `../../README.md` | Distinguishes Football Edge from the legacy Streamlit app, historical root research evidence, and other linked material |
 
 ## Current workstreams
 
@@ -48,6 +49,10 @@ This directory is the human-readable map of the current NFL + NCAAF workstreams.
 - Collector time controls checkpoint/window membership; provider observation time controls quote freshness.
 - Late or missed checkpoints are never reconstructed from later quotes.
 - Private bet/bankroll data is not part of public model status or research evidence.
+
+## Repository-level context
+
+`nfl-edge/` is the active Football Edge subtree, but the parent repository contains more than this application. The root Streamlit EV dashboard remains a separate legacy utility, root `docs/` preserves earlier NFL research evidence for provenance, and `options-desk-risk` is a separate linked Git project reference. See `../../README.md` before assuming every root-level file belongs to the production Football Edge runtime.
 
 ## What to read first
 
