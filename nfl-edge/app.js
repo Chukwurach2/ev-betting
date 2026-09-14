@@ -24,12 +24,12 @@ function renderGames(){const qualified=loadError?[]:predictions.filter(p=>pickSt
 function show(view){$$('.tab').forEach(t=>t.classList.toggle('active',t.dataset.view===view));['home','nfl','ncaaf','bets','model'].forEach(v=>$('#view-'+v).classList.toggle('hidden',v!==view));const T={home:['Home','NFL + NCAAF market research'],nfl:['NFL','Sundays · shadow engine · SHADOW'],ncaaf:['NCAAF','Saturdays · market data · research build'],bets:['My Bets','Bet tracker · CLV'],model:['Model','Research agent · validation']}[view]||['Home',''];$('#pageTitle').textContent=T[0];$('#pageSub').textContent=T[1];if(view==='home')renderHome();if(view==='nfl')showNflSub(nflSub);if(view==='ncaaf')showNcaafSub(ncaafSub);}
 let nflSub='picks',ncaafSub='board';
 function showNflSub(sub){nflSub=sub;$$('[data-nfl]').forEach(b=>b.classList.toggle('active',b.dataset.nfl===sub));['picks','board','games'].forEach(s=>$('#nfl-'+s).classList.toggle('hidden',s!==sub));if(sub==='board')renderBoard();}
-function showNcaafSub(sub){ncaafSub=sub;$$('[data-ncaaf]').forEach(b=>b.classList.toggle('active',b.dataset.ncaaf===sub));['board','schedule','status'].forEach(s=>$('#ncaaf-'+s).classList.toggle('hidden',s!==sub));if(sub==='board')renderNcaafBoard();if(sub==='schedule')renderNcaafSchedule();if(sub==='status')renderNcaafStatus();}
+function showNcaafSub(sub){ncaafSub=sub;$$('[data-ncaaf]').forEach(b=>b.classList.toggle('active',b.dataset.ncaaf===sub));['board','status'].forEach(s=>$('#ncaaf-'+s).classList.toggle('hidden',s!==sub));if(sub==='board')renderNcaafBoard();if(sub==='status')renderNcaafStatus();}
 $$('[data-nfl]').forEach(b=>b.onclick=()=>showNflSub(b.dataset.nfl));
 $$('[data-ncaaf]').forEach(b=>b.onclick=()=>showNcaafSub(b.dataset.ncaaf));
 $$('[data-goto]').forEach(b=>b.onclick=()=>show(b.dataset.goto));
 async function qread(table,opts){if(!client)throw Error('Connecting to live data…');let q=client.from(table).select(opts.select||'*');for(const [f,v] of Object.entries(opts.eq||{}))q=q.eq(f,v);for(const order of (opts.order||'').split(',').filter(Boolean)){const [field,dir]=order.split('.');q=q.order(field,{ascending:dir!=='desc'});}if(opts.limit)q=q.range(Number(opts.offset||0),Number(opts.offset||0)+Number(opts.limit)-1);return cloud(q.abortSignal(AbortSignal.timeout(15000)));}
-let ncaafGames=[],ncaafWeek=4;
+let ncaafGames=[];
 async function renderHome(){try{const g=await qread('games',{select:'game_id',eq:{sport:'nfl',season:'2026',week:String(week)},limit:100});$('#homeNflGames').textContent=g.length||'—';}catch{$('#homeNflGames').textContent='—';}
  try{const r=await fetch('/api/picks');const d=r.ok?await r.json():{};$('#homeNflPicks').textContent=d.count??'—';$('#nflStatusPill').textContent=(d.count??0)>0?'SHADOW · active':'SHADOW · quiet';}catch{$('#homeNflPicks').textContent='—';}
  try{const ng=await qread('games',{select:'game_id',eq:{sport:'ncaaf',season:'2026'},limit:5000});$('#homeNcaafGames').textContent=ng.length||'—';$('#ncaafStatusPill').textContent=ng.length?'TRACKING':'—';}catch{$('#homeNcaafGames').textContent='—';}
@@ -38,18 +38,14 @@ async function renderHome(){try{const g=await qread('games',{select:'game_id',eq
 let ncaafBoardLoading=false;
 async function renderNcaafBoard(){const v=$('#ncaafVerdict'),gl=$('#ncaafGames');if(!v||ncaafBoardLoading)return;ncaafBoardLoading=true;v.textContent='Loading board…';
  try{const rows=await qread('games',{select:'game_id,away_team,home_team,kickoff,status,week',eq:{sport:'ncaaf',season:'2026'},order:'kickoff.asc',limit:5000});
- const upcoming=rows.filter(g=>new Date(g.kickoff)>=new Date(Date.now()-3*3600*1000)).slice(0,25);
+ const upcoming=rows.filter(g=>new Date(g.kickoff)>=new Date(Date.now()-3*3600*1000)).slice(0,30);
  ncaafGames=rows;
- v.innerHTML=`<b>${upcoming.length} upcoming games tracked.</b><br><span class="small muted">Market data only — no model scores these games yet. 2026 is sealed prospective evidence.</span>`;
- gl.innerHTML=upcoming.map(g=>`<article class="card"><div class="row"><div><div class="match">${esc(g.away_team)} @ ${esc(g.home_team)}</div><div class="kick">${esc(time(g.kickoff))} · Week ${esc(g.week)} · ${esc(g.status)}</div></div><span class="pill">TRACKED</span></div></article>`).join('')||'<div class="empty">No upcoming games found.</div>';
+ const byWeek={};upcoming.forEach(g=>{(byWeek[g.week]=byWeek[g.week]||[]).push(g);});
+ const weeks=Object.keys(byWeek).sort((a,b)=>a-b);
+ v.innerHTML=`<b>${upcoming.length} upcoming games tracked.</b><br><span class="small muted">No model scores these games. No qualifying edges — PASS on all. 2026 is sealed prospective evidence.</span>`;
+ gl.innerHTML=weeks.map(w=>`<div class="section-title">Week ${esc(w)}</div>`+byWeek[w].map(g=>{const ko=new Date(g.kickoff);const kd=ko.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});const kt=ko.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});return `<article class="card"><div class="row"><div><div class="match">${esc(g.away_team)} @ ${esc(g.home_team)}</div><div class="kick">${kd} · ${kt} ET · ${esc(g.status)}</div></div><span class="pill">PASS</span></div><div class="small muted" style="margin-top:6px">No edge found — no bet. Model status: none (research build).</div></article>`;}).join('')).join('')||'<div class="empty">No upcoming games found.</div>';
  }catch(e){v.textContent='NCAAF board unavailable: '+(e.message||e);gl.innerHTML='';}
  finally{ncaafBoardLoading=false;}}
-async function renderNcaafSchedule(){const gl=$('#ncaafScheduleList');if(!gl)return;gl.innerHTML='<div class="empty">Loading…</div>';
- try{const rows=await qread('games',{select:'game_id,away_team,home_team,kickoff,status,week',eq:{sport:'ncaaf',season:'2026',week:String(ncaafWeek)},order:'kickoff.asc',limit:2000});
- gl.innerHTML=rows.map(g=>`<article class="card"><div class="row"><div><div class="match">${esc(g.away_team)} @ ${esc(g.home_team)}</div><div class="kick">${esc(time(g.kickoff))} · ${esc(g.status)}</div></div></div></article>`).join('')||'<div class="empty">No games for week '+ncaafWeek+'.</div>';
- }catch(e){gl.innerHTML='<div class="empty">Schedule unavailable.</div>';}}
-for(let w=0;w<=14;w++)$('#ncaafWeekSel').insertAdjacentHTML('beforeend',`<option value="${w}"${w===4?' selected':''}>Week ${w}</option>`);
-$('#ncaafWeekSel').onchange=e=>{ncaafWeek=Number(e.target.value);renderNcaafSchedule();};
 $('#ncaafRefresh').onclick=renderNcaafBoard;
 async function renderNcaafStatus(){const cp=$('#ncaafCheckpoints');if(!cp)return;
  try{const rows=await qread('ncaaf_edge_checkpoints',{select:'requested_at,status,quotes_captured',order:'requested_at.desc',limit:10});
