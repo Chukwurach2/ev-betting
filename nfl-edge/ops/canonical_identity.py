@@ -88,6 +88,7 @@ def main(argv=None):
     mh = sports.market_history_table(args.sport)
     with psycopg.connect(dsn) as conn:
         # Extract events from the data array in each envelope
+        # Payload may be TEXT or JSONB; cast to jsonb for safety
         rows = conn.execute(f"""
             SELECT DISTINCT
                 game->>'id' as event_id,
@@ -95,7 +96,7 @@ def main(argv=None):
                 game->>'away_team' as away_team,
                 game->>'commence_time' as kickoff
             FROM public.{mh},
-                 jsonb_array_elements(payload->'data') as game
+                 jsonb_array_elements((payload::jsonb)->'data') as game
             WHERE game->>'id' IS NOT NULL
         """).fetchall()
         odds_events = []
