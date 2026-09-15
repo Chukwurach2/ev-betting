@@ -180,8 +180,18 @@ def main(argv=None):
         kickoff = oe.get("kickoff")
         if hasattr(kickoff, "strftime"):
             date_key = kickoff.strftime("%Y-%m-%d")
+            # Compute adjacent dates for timezone fallback
+            from datetime import timedelta
+            ko_date = kickoff.date() if hasattr(kickoff, "date") else None
+            adj_dates = []
+            if ko_date:
+                adj_dates = [
+                    (ko_date - timedelta(days=1)).isoformat(),
+                    (ko_date + timedelta(days=1)).isoformat(),
+                ]
         else:
             date_key = str(kickoff)[:10] if kickoff else ""
+            adj_dates = []
 
         home = normalize_team(oe.get("home", ""), aliases)
         away = normalize_team(oe.get("away", ""), aliases)
@@ -189,24 +199,44 @@ def main(argv=None):
         home_aliased = oe.get("home", "") in aliases
         away_aliased = oe.get("away", "") in aliases
 
-        # Try exact match
+        # Try exact date match
         candidates = cfbd_index.get((date_key, home, away), [])
+        match_date = date_key
+        date_shift = 0
 
-        # Try swapped (neutral site or data entry variation)
+        # Try swapped on exact date
         if not candidates:
             candidates = cfbd_index.get((date_key, away, home), [])
+
+        # Timezone fallback: try adjacent dates (deterministic order)
+        # Games played evening US time may land on different UTC dates
+        # in the two sources. Only if no exact-date match found.
+        if not candidates and adj_dates:
+            for i, adj in enumerate(adj_dates):
+                c = cfbd_index.get((adj, home, away), [])
+                if not c:
+                    c = cfbd_index.get((adj, away, home), [])
+                if c:
+                    candidates = c
+                    match_date = adj
+                    date_shift = -1 if i == 0 else 1
+                    break
 
         if len(candidates) == 1:
             cg = candidates[0]
             # Determine match type
-            if (date_key, home, away) in cfbd_index:
+            if date_shift != 0:
+                mtype = "date_shift"
+            elif (date_key, home, away) in cfbd_index:
                 mtype = "alias" if (home_aliased or away_aliased) else "exact"
             else:
                 mtype = "swapped"
             results["matched"].append({
                 "provider_event_id": oe["event_id"],
                 "cfbd_id": cg["id"],
-                "date": date_key,
+                "date": match_date,
+                "odds_date": date_key,
+                "date_shift": date_shift,
                 "odds_home": oe.get("home"),
                 "odds_away": oe.get("away"),
                 "cfbd_home": cg.get("homeTeam"),
@@ -264,8 +294,10 @@ def main(argv=None):
         "methodology": (
             "Deterministic matching on (date, normalized_home, normalized_away). "
             "Team names resolved via explicit alias table (team_aliases.json) "
-            "before text normalization. No fuzzy matching. Swapped home/away "
-            "tried as separate attempt. Ambiguous matches require manual review."
+            "before text normalization. Date matching: exact UTC date first, "
+            "then ±1 day fallback for timezone differences (evening US games). "
+            "No fuzzy matching. Swapped home/away tried as separate attempt. "
+            "Ambiguous matches require manual review."
         ),
         "normalization_rules": [
             "1. Explicit alias lookup (Odds API -> CFBD), 256 aliases",
