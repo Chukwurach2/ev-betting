@@ -1,0 +1,42 @@
+name: market-outcomes-f2
+
+on:
+  workflow_dispatch:
+    inputs:
+      sport:
+        description: "Sport key (tables follow ops/sports.py)"
+        required: false
+        default: "ncaaf"
+      seasons:
+        description: "Comma-separated seasons (2025 must stay sealed)"
+        required: false
+        default: "2022,2023,2024"
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Read NFL Edge source without resolving unrelated submodules
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: nfl-edge
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: python -m pip install -r nfl-edge/ops/requirements.txt
+      - name: Run market-vs-outcomes analysis (read-only, zero credits)
+        env:
+NFL_EDGE_DATABASE_URL: <redacted>
+        run: |
+          python nfl-edge/ops/market_outcomes.py \
+            --sport "${{ inputs.sport }}" \
+            --seasons "${{ inputs.seasons }}" \
+            --games "nfl-edge/model/research/fixtures/cfbd_games_2022.json,nfl-edge/model/research/fixtures/cfbd_games_2023.json,nfl-edge/model/research/fixtures/cfbd_games_2024.json" \
+            --out /tmp/market_outcomes.json
+      - name: Upload outcomes artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: market-outcomes-f2
+          path: /tmp/market_outcomes.json
