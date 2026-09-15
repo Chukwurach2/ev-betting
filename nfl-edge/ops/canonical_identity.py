@@ -59,8 +59,11 @@ def main(argv=None):
     # Priority: --cfbd-file arg > bundled reference file > live API fetch
     bundled = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                            "cfbd_2022_2024.json")
+    print(f"Looking for bundled CFBD at: {bundled}", file=sys.stderr)
+    print(f"Exists: {os.path.exists(bundled)}", file=sys.stderr)
     cfbd_source = args.cfbd_file or (bundled if os.path.exists(bundled) else None)
     if cfbd_source:
+        print(f"Loading CFBD from {cfbd_source}...", file=sys.stderr)
         with open(cfbd_source) as f:
             cfbd_games = json.load(f)
         print(f"CFBD: loaded {len(cfbd_games)} games from {cfbd_source}",
