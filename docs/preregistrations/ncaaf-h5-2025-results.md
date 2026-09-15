@@ -39,11 +39,13 @@ inspected. H4-small was not touched.
 
 ## Decision (frozen rule)
 
-**INCONCLUSIVE.**
+**INCONCLUSIVE — INSUFFICIENT ELIGIBLE SAMPLE (n=12).**
 
-n=12 < 100. Per the frozen three-way rule, this is INCONCLUSIVE.
-
-This is a **feasibility inconclusive**, not a statistical inconclusive.
+Per the frozen three-way rule (n < 100 → INCONCLUSIVE). This is a
+**design infeasibility**, not a statistical inconclusive in the ordinary
+sense. The preregistered hypothesis was not rejected, but neither did it
+receive a meaningful confirmation test. Distinct from observing n=125 with
+a Wilson interval spanning 52.4%.
 The test could not be conducted as specified because Wednesday
 early-window FCS coverage is insufficient. The 95% CI is wide
 ([32%, 81%]) and includes breakeven, but with n=12 the interval is
@@ -80,7 +82,9 @@ not informative.
 
 ## 2025 firewall status
 
-**RE-SEALED.** The H5 claim has been tested (to the extent feasible).
+**RE-SEALED.** Changing Wednesday → Friday after observing Wednesday's
+infeasibility would create H5-v2, a new hypothesis requiring new
+confirmation evidence. Not permitted on 2025. The H5 claim has been tested (to the extent feasible).
 No further 2025 queries are authorized for any hypothesis. The next
 2025 access requires a new frozen prereg and explicit user approval.
 

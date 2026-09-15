@@ -1,0 +1,29 @@
+# H5 forensic: decompose 2022-24 FBSvFCS 55.6% by window.
+# BURNED data only. Explanatory, not confirmatory. Zero API credits.
+name: H5 forensic decomposition
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: write
+jobs:
+  forensic:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Run forensic analysis
+        env:
+          NFL_EDGE_DATABASE_URL: ${{ secrets.NFL_EDGE_DATABASE_URL }}
+          CFBD_API_KEY: ${{ secrets.CFBD_API_KEY }}
+        run: |
+          pip install psycopg2-binary 2>&1 | tail -1
+          python3 nfl-edge/ops/h5_forensic.py
+      - name: Upload results
+        uses: actions/upload-artifact@v4
+        with:
+          name: h5-forensic-results
+          path: h5_forensic_output.json
+          retention-days: 90
