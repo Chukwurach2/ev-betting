@@ -78,6 +78,32 @@ pushes are counted and excluded from rate denominators.
 - The script fails closed: any unhandled exception or integrity breach
   produces no artifact and a failed run.
 
+## Amendment A3 — spread sign recovery (2026-09-15, during artifact validation)
+
+**Bug found in production run 35002977504.** The historical quotes table
+stores spread lines as `|spread|`: `backfill_history.py` pairs spread
+selections by `abs(line)` and persists the absolute value. F2's `analyze()`
+computed the home-cover indicator as `home_margin + line` with that absolute
+line, which is not the home side's cover: for a home favorite laying N, the
+condition evaluated was `margin > -N` instead of `margin > N`. Symptom in the
+artifact: the spread "cover rate" rose monotonically with |line| (50% in
+[0,3), 69% in [3,7), 75% in [7,14), 89% in [14,inf)), while totals — stored
+signed — sat at ~50% in every bucket.
+
+**Fix (forced by the prereg, no alternatives tried):** the prereg specifies
+"probability of the home side covering (spreads)" and "de-vigged consensus
+home-cover/over probability ... vs realized cover/over rate". The signed home
+line is recovered from the consensus home fair probability: home favored
+(`p > 0.5`) lays points, so `signed = -|line|`; otherwise `signed = +|line|`
+(`p == 0.5` is exact either way). Cover is `(home_margin + signed) > 0`,
+push when `== 0`. Line buckets remain on |spread| (magnitude), unchanged.
+
+The spread outcome sections (calibration, by_season/window/matchup/
+conference/line_bucket, closing_efficiency) of the 35002977504 artifact are
+superseded; its totals sections, matching integrity (2456/2470 = 99.4%),
+and freeze gate (135/135) remain valid. Matching, the 95% gate, and the
+frozen dataset are untouched by this fix.
+
 ## Amendment A2 — identity matching (2026-09-15, before any aggregate
 outcome analysis was viewed)
 
@@ -150,10 +176,12 @@ keys on `(event_id, season)` (provider IDs can repeat across seasons);
 `matchup_class` labels `FBSvFCS` only when exactly one team is FBS and one is
 FCS (FCS-vs-FCS is `other/unknown`).
 
-Limitation noted: prefix substitution is one-directional and could in
-principle collide if the provider ever listed a school whose name extends an
-alias key (e.g. "Albany State" vs the `albany`→`ualbany` alias). The provider
-lists no such school in 2022–2024; the ±36h kickoff check is a second factor.
+Limitation noted: the one-directional alias table could in principle collide
+if the provider listed a school whose name extends an alias key. Two guards
+cover the known case: `albanystate` shadows `albany` in the table (Albany
+State is a distinct DII school and resolves to itself), and longest-prefix
+resolution prefers the more specific school. The provider lists no such
+ambiguous school in 2022–2024; the ±36h kickoff check is a second factor.
 
 ## Amendment A1 (2026-09-15, before any outcomes viewed)
 

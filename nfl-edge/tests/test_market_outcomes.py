@@ -101,15 +101,34 @@ class TestOutcomes(unittest.TestCase):
                                "swapped": False}}
 
     def test_spread_cover(self):
-        # home -3.5, wins by 4 -> cover
-        out = mo.analyze(self._selected(-3.5, 0.6), self._matched(24, 20), [2024])
+        # stored line is |spread|: home -3.5 (favored, p=0.6), wins by 4 -> cover
+        out = mo.analyze(self._selected(3.5, 0.6), self._matched(24, 20), [2024])
         self.assertEqual(out["n_played"], 1)
         self.assertEqual(out["by_window"]["early"]["rate"], 1.0)
 
     def test_spread_push(self):
-        out = mo.analyze(self._selected(-4.0, 0.6), self._matched(24, 20), [2024])
+        # home -4, wins by exactly 4 -> push
+        out = mo.analyze(self._selected(4.0, 0.6), self._matched(24, 20), [2024])
         self.assertEqual(out["n_pushes"], 1)
         self.assertEqual(out["n_played"], 0)
+
+    def test_spread_sign_recovery_favorite_no_cover(self):
+        # Amendment A3: home -7 (p=0.65), wins by only 3 -> no cover
+        out = mo.analyze(self._selected(7.0, 0.65), self._matched(27, 24),
+                         [2024])
+        self.assertEqual(out["by_window"]["early"]["rate"], 0.0)
+
+    def test_spread_sign_recovery_underdog_cover(self):
+        # Amendment A3: home +7 underdog (p=0.35), loses by 3 -> covers
+        out = mo.analyze(self._selected(7.0, 0.35), self._matched(20, 23),
+                         [2024])
+        self.assertEqual(out["by_window"]["early"]["rate"], 1.0)
+
+    def test_spread_sign_recovery_underdog_no_cover(self):
+        # Amendment A3: home +7 underdog (p=0.35), loses by 10 -> no cover
+        out = mo.analyze(self._selected(7.0, 0.35), self._matched(17, 27),
+                         [2024])
+        self.assertEqual(out["by_window"]["early"]["rate"], 0.0)
 
     def test_total_over(self):
         out = mo.analyze(self._selected(40.5, 0.55, "FULL_GAME_TOTAL"),
@@ -122,12 +141,12 @@ class TestOutcomes(unittest.TestCase):
         self.assertEqual(out["n_pushes"], 1)
 
     def test_matchup_and_conf_splits(self):
-        out = mo.analyze(self._selected(-3.5, 0.6), self._matched(), [2024])
+        out = mo.analyze(self._selected(3.5, 0.6), self._matched(), [2024])
         self.assertIn("FBSvFBS", out["by_matchup"])
         self.assertIn("P4", out["by_conference"])
 
     def test_fbs_fcs_class(self):
-        sel = self._selected(-21.5, 0.7)
+        sel = self._selected(21.5, 0.7)
         m = {("e1", 2024): {"game": _game(homeClassification="fbs",
                                          awayClassification="fcs",
                                          awayConference="Missouri Valley",
@@ -217,10 +236,10 @@ class TestIdentityAmendmentA2(unittest.TestCase):
         self.assertIn(("e1", 2022), matched)
         self.assertTrue(matched[("e1", 2022)]["swapped"])
         self.assertEqual(integ["swapped_matched"], 1)
-        # Spread on provider home (LSU) -2.5: LSU margin = 23-24 = -1,
-        # diff = -1 + -2.5 < 0 -> no cover (outcome 0, not a push/win).
+        # Spread on provider home (LSU) -2.5, stored as |2.5|: LSU margin =
+        # 23-24 = -1, diff = -1 + -2.5 < 0 -> no cover (outcome 0).
         sel = {("e1", 2022, 1, "early", "draftkings", "FULL_GAME_SPREAD"):
-               {"line": -2.5, "fair_prob": 0.6, "home": "LSU Tigers",
+               {"line": 2.5, "fair_prob": 0.6, "home": "LSU Tigers",
                 "away": "Florida State Seminoles",
                 "kickoff": "2022-09-04 23:30:00+00:00"}}
         out = mo.analyze(sel, matched, [2022])
@@ -243,7 +262,7 @@ class TestIdentityAmendmentA2(unittest.TestCase):
         events = {("e1", 2022): ("LSU Tigers", "Florida State Seminoles", ko)}
         matched, _ = mo.match_events(events, idx)
         sel = {("e1", 2022, 1, "early", "draftkings", "FULL_GAME_SPREAD"):
-               {"line": -2.5, "fair_prob": 0.6, "home": "LSU Tigers",
+               {"line": 2.5, "fair_prob": 0.6, "home": "LSU Tigers",
                 "away": "Florida State Seminoles",
                 "kickoff": "2022-09-04 23:30:00+00:00"}}
         out = mo.analyze(sel, matched, [2022])
@@ -256,7 +275,7 @@ class TestIdentityAmendmentA2(unittest.TestCase):
         def sel(season, window):
             return {(f"e1", season, 1, window, "draftkings",
                      "FULL_GAME_SPREAD"):
-                    {"line": -3.5, "fair_prob": 0.6, "home": "Ohio State",
+                    {"line": 3.5, "fair_prob": 0.6, "home": "Ohio State",
                      "away": "Michigan",
                      "kickoff": f"{season}-11-30 17:00:00+00:00"}}
         selected = {}

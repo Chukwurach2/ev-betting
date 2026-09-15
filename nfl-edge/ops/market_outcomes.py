@@ -300,7 +300,14 @@ def analyze(selected, matched, seasons):
         p = statistics.median(c["probs"])
         hm = hp - ap
         if market == "FULL_GAME_SPREAD":
-            diff = hm + line
+            # Historical quotes store spread lines as |spread|
+            # (backfill_history.py pairs by abs(line)). The prereg
+            # specifies the HOME side's cover, so recover the signed home
+            # line from the consensus home fair probability: a home
+            # favorite (p > 0.5) lays points -> negative line.
+            # Amendment A3 (2026-09-15).
+            signed_line = -line if p > 0.5 else line
+            diff = hm + signed_line
             if diff == 0:
                 outcome, push = None, True
             else:
