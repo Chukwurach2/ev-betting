@@ -202,9 +202,9 @@ def main(argv=None):
             continue
         if g["id"] not in matched_cfbd_ids:
             # Only count FBS games (avoid FCS noise)
-            # Check classification
-            hc = g.get("homeClassification", "")
-            ac = g.get("awayClassification", "")
+            # Check classification (may be None in CFBD JSON)
+            hc = g.get("homeClassification") or ""
+            ac = g.get("awayClassification") or ""
             if "fbs" in hc.lower() or "fbs" in ac.lower():
                 results["unmatched_cfbd"].append({
                     "cfbd_id": g["id"],
