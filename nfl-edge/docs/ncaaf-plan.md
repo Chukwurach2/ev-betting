@@ -128,3 +128,66 @@ Parameterize. Never fork into two divergent codebases.
 - Live 2026 capture cadence vs quota (phase D design).
 - Whether 57 games × books × snapshots changes the promotion sample math
   (larger prospective laboratory than NFL — revisit after phase F).
+
+## 7. Contract amendment (2026-09-15, user-directed)
+
+Sections 1–6 above remain the frozen original. This amendment revises the
+research path; where it conflicts with the original, the amendment governs.
+
+### Revised phase path
+
+- **E ✓ Frozen dataset** — done 2026-09-15 (fingerprint
+  `684c58410968c440a6d7500582ac9ecf`; receipt `docs/ncaaf-dataset-freeze.md`).
+- **F Market-efficiency map / baselines** — comprehensive alpha map of the
+  frozen **2022–24 development sample only; 2025 stays sealed**. Per market
+  (spread, total) × decision window: de-vigged consensus accuracy vs outcomes,
+  book disagreement, line movement toward close, market-implied calibration.
+  Establishes the baseline every challenger must beat.
+- **G Preregistered v0 + 2022–24 walk-forward** — simple market+team-strength
+  benchmark, nested chronological walk-forward inside 2022–24. 2025 untouched.
+- **H Preregistered challenger tournament on 2022–24** — genuinely
+  differentiated hypotheses, each separately preregistered: opponent-adjusted
+  efficiency, pace/explosiveness, matchup interactions, injuries/QB
+  information, weather, travel/rest, market disagreement, price movement,
+  nonlinear models. v0 is never repeatedly modified; challengers are separate.
+- **Freeze the complete strategy** — market(s), model, selection thresholds,
+  execution rules — then and only then open 2025.
+- **I One-shot untouched 2025 evaluation** — the sealed holdout is spent once,
+  on the frozen strategy. No re-tuning on 2025, ever.
+- **J Freeze production candidate.**
+- **K Prospective 2026 evidence from the freeze timestamp onward** — a
+  prospective eligibility timestamp is recorded when the final model/strategy
+  hash freezes. 2026 data collected before that timestamp is archived, not
+  prospective confirmation. Promotion only if executable CLV / calibration /
+  ROI evidence survives on post-freeze 2026 data.
+
+### Research rules
+
+1. **2025 is genuinely untouched** until the complete strategy is frozen.
+   All research, feature/model selection, and thresholds use 2022–24 with
+   nested chronological walk-forward.
+2. **No "one experiment per day" constraint.** Protection comes from the
+   experiment registry, immutable results, hypothesis-family accounting,
+   multiple-testing correction, and untouched confirmation — not calendar days.
+   Multiple independent preregistered experiments may run efficiently.
+3. **Beat the market, not football.** Every candidate must demonstrate
+   incremental information relative to the contemporaneous betting market.
+   Raw prediction accuracy is not the target.
+4. **Execution is part of the research.** Backtests use only information
+   available at the decision window, actual lines/odds available then,
+   same-book de-vigging, realistic selection rules, pushes/voids, fixed-unit
+   returns. Closing lines are an evaluation benchmark, never model input.
+5. **Winner-selection metric (in order):** out-of-sample incremental
+   calibration / log loss vs market → residual predictive power → CLV-like
+   price movement where measurable → stability across seasons/books/line
+   buckets → executable ROI with uncertainty. Historical ROI alone never
+   selects the winner.
+6. **Market/decision-window discovery is legitimate alpha research** on
+   2022–24 (e.g. totals at T-24 carry signal while spreads at T-90 do not).
+   What is forbidden: discovering anything on 2025/2026 and retroactively
+   calling it preregistered.
+7. **PASS is valid; picks are the objective.** Thresholds are never lowered to
+   manufacture bets, but the program actively searches across legitimate
+   hypotheses, markets, and windows. If repeated clean research finds no
+   exploitable edge in NCAAF spreads/totals, we move to another information
+   set or contract instead of endlessly optimizing the same problem.

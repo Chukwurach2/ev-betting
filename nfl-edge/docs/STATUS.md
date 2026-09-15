@@ -49,6 +49,10 @@ Provider timestamps are the freshness authority everywhere.
 4. ~~Bulk 2022–2025 acquisition → **audit E** → fingerprint/freeze~~ — done 2026-09-15
    (180/180 snapshots, 686,578 quotes, fingerprint `684c58410968c440a6d7500582ac9ecf`;
    receipt: `docs/ncaaf-dataset-freeze.md`)
-5. **Baseline F** → preregister/evaluate **G**
+5. ~~**Baseline F** → preregister/evaluate **G**~~ — restructured 2026-09-15
+   (see ncaaf-plan.md §7): F = market-efficiency map on 2022–24 (2025 sealed) →
+   G = preregistered v0 + walk-forward → H = challenger tournament on 2022–24 →
+   freeze strategy → I = one-shot 2025 evaluation → J = freeze candidate →
+   K = prospective 2026 from freeze timestamp → promotion on executable evidence
 
 No modeling before the phase-E audit passes. No scope expansion.
