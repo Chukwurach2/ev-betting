@@ -1,0 +1,41 @@
+name: opportunity-lifetime
+
+on:
+  workflow_dispatch:
+    inputs:
+      sport:
+        description: "Sport key"
+        required: false
+        default: "ncaaf"
+      days:
+        description: "Lookback days"
+        required: false
+        default: "7"
+
+jobs:
+  lifetime:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: nfl-edge
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: python -m pip install -r nfl-edge/ops/requirements.txt
+      - name: Measure opportunity lifetime (read-only, zero credits)
+        env:
+          NFL_EDGE_DATABASE_URL: ${{ secrets.NFL_EDGE_DATABASE_URL }}
+        run: |
+          python nfl-edge/ops/opportunity_lifetime.py \
+            --sport "${{ inputs.sport }}" \
+            --days "${{ inputs.days }}" \
+            --out /tmp/opportunity_lifetime.json
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: opportunity-lifetime
+          path: /tmp/opportunity_lifetime.json
