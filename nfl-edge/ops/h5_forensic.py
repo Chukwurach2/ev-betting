@@ -32,10 +32,8 @@ def main():
         fp = f"nfl-edge/model/research/fixtures/cfbd_games_{season}.json"
         idx = mo.load_games(fp)
         games_idx.update(idx)
-    print(f"CFBD games: {len(games)}", file=sys.stderr)
+    print(f"CFBD games indexed: {len(games_idx)}", file=sys.stderr)
     
-    # Build games index (same as F2)
-    # games_idx built above
     
     # Query historical quotes
     import psycopg
