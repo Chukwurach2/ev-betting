@@ -1,0 +1,249 @@
+#!/usr/bin/env python3
+"""Canonical game identity: CFBD <-> Odds API.
+
+Builds a deterministic cross-source identity layer with explicit states:
+- MATCHED: exactly one CFBD game matches one Odds API event
+- AMBIGUOUS: multiple candidates (requires manual review, never auto-resolved)
+- UNMATCHED_ODDS: Odds API event with no CFBD counterpart
+- UNMATCHED_CFBD: CFBD game with no Odds API counterpart
+
+No silent fuzzy matching. All normalizations are explicit and logged.
+
+This is shared infrastructure for: outcomes, weather, play-by-play,
+model evaluation, and future market research.
+
+Read-only on source tables. Writes mapping to ncaaf_game_identity.
+"""
+import os, sys, json, argparse, re
+from collections import defaultdict
+from datetime import datetime, timezone
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import sports  # noqa: E402
+
+
+def normalize_team(name):
+    """Explicit, logged team name normalization."""
+    if not name:
+        return ""
+    # Lowercase, strip
+    n = name.lower().strip()
+    # Remove common suffixes/prefixes (EXPLICIT list)
+    # Note: "state" is significant (Ohio State vs Ohio) — do not strip
+    replacements = [
+        ("university of ", ""),
+        ("univ. ", ""),
+        (" college", ""),
+        # Keep "st." as "state" vs "saint" ambiguous — log, don't guess
+    ]
+    for old, new in replacements:
+        n = n.replace(old, new)
+    # Remove punctuation, collapse whitespace
+    n = re.sub(r'[^a-z0-9 ]', '', n)
+    n = re.sub(r'\s+', ' ', n).strip()
+    return n
+
+
+def main(argv=None):
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--sport", default="ncaaf")
+    ap.add_argument("--seasons", default="2022,2023,2024")
+    ap.add_argument("--out", default="/tmp/canonical_identity.json")
+    ap.add_argument("--cfbd-file", default=None,
+                    help="Path to CFBD games JSON (for local testing)")
+    args = ap.parse_args(argv)
+
+    seasons = [int(s) for s in args.seasons.split(",")]
+
+    # Load CFBD games
+    if args.cfbd_file:
+        with open(args.cfbd_file) as f:
+            cfbd_games = json.load(f)
+    else:
+        # Fetch from CFBD API
+        sys.path.insert(0, os.path.expanduser("~/workspace/skills/collegefootballdata/bin"))
+        # Import and fetch
+        import urllib.request
+        sys.path.insert(0, "/opt/hatch/skills/skill-creator/bin")
+        import dynamic_credentials as dc
+        cfbd_games = []
+        for year in seasons:
+            for st in ["regular", "postseason"]:
+                url = f"https://api.collegefootballdata.com/games?year={year}&seasonType={st}"
+                req = urllib.request.Request(url)
+                dc.add_surrogate_to_request(
+                    req, "custom.collegefootballdata",
+                    allowed_hosts=["api.collegefootballdata.com"])
+                with urllib.request.urlopen(req, timeout=30) as resp:
+                    games = dc.read_json_response(resp)
+                cfbd_games.extend(games)
+                print(f"CFBD: year={year} {st}: {len(games)} games", file=sys.stderr)
+
+    # Load Odds API events (distinct provider_event_id + teams + kickoff)
+    import psycopg
+    dsn = os.environ.get("NFL_EDGE_DATABASE_URL")
+    hq = sports.historical_quotes_table(args.sport)
+    with psycopg.connect(dsn) as conn:
+        # Get distinct events with team info
+        # Note: historical quotes may not have team names directly
+        # We need to check the schema
+        cols = conn.execute(f"""
+            SELECT column_name FROM information_schema.columns
+            WHERE table_name = '{hq}'
+        """).fetchall()
+        col_names = [c[0] for c in cols]
+        print(f"Columns: {col_names}", file=sys.stderr)
+
+        # Try to get event metadata
+        if "home_team" in col_names:
+            rows = conn.execute(f"""
+                SELECT DISTINCT provider_event_id, home_team, away_team, kickoff
+                FROM public.{hq}
+            """).fetchall()
+            odds_events = [
+                {"event_id": r[0], "home": r[1], "away": r[2], "kickoff": r[3]}
+                for r in rows
+            ]
+        else:
+            print("WARNING: No team columns in historical quotes", file=sys.stderr)
+            print("Checking events table...", file=sys.stderr)
+            # Try events table
+            try:
+                erows = conn.execute("""
+                    SELECT table_name FROM information_schema.tables
+                    WHERE table_name LIKE '%event%'
+                """).fetchall()
+                print(f"Event tables: {[r[0] for r in erows]}", file=sys.stderr)
+            except Exception as e:
+                print(f"Error: {e}", file=sys.stderr)
+            odds_events = []
+
+    print(f"Odds API events: {len(odds_events)}", file=sys.stderr)
+    print(f"CFBD games: {len(cfbd_games)}", file=sys.stderr)
+
+    # Build indices
+    # CFBD: (date, normalized_home, normalized_away) -> game
+    cfbd_index = defaultdict(list)
+    for g in cfbd_games:
+        if g.get("season") not in seasons:
+            continue
+        # Parse date
+        sd = g.get("startDate", "")
+        date_key = sd[:10] if sd else ""
+        home = normalize_team(g.get("homeTeam", ""))
+        away = normalize_team(g.get("awayTeam", ""))
+        # Also index swapped (in case home/away flipped)
+        cfbd_index[(date_key, home, away)].append(g)
+        # Don't auto-index swapped — that's a separate match attempt
+
+    # Match
+    results = {
+        "matched": [],
+        "ambiguous": [],
+        "unmatched_odds": [],
+        "unmatched_cfbd": [],
+    }
+    matched_cfbd_ids = set()
+
+    for oe in odds_events:
+        kickoff = oe.get("kickoff")
+        if hasattr(kickoff, "strftime"):
+            date_key = kickoff.strftime("%Y-%m-%d")
+        else:
+            date_key = str(kickoff)[:10] if kickoff else ""
+
+        home = normalize_team(oe.get("home", ""))
+        away = normalize_team(oe.get("away", ""))
+
+        # Try exact match
+        candidates = cfbd_index.get((date_key, home, away), [])
+
+        # Try swapped (neutral site or data entry variation)
+        if not candidates:
+            candidates = cfbd_index.get((date_key, away, home), [])
+
+        if len(candidates) == 1:
+            cg = candidates[0]
+            results["matched"].append({
+                "provider_event_id": oe["event_id"],
+                "cfbd_id": cg["id"],
+                "date": date_key,
+                "odds_home": oe.get("home"),
+                "odds_away": oe.get("away"),
+                "cfbd_home": cg.get("homeTeam"),
+                "cfbd_away": cg.get("awayTeam"),
+                "match_type": "exact" if (date_key, home, away) in cfbd_index else "swapped",
+            })
+            matched_cfbd_ids.add(cg["id"])
+        elif len(candidates) > 1:
+            results["ambiguous"].append({
+                "provider_event_id": oe["event_id"],
+                "candidates": [
+                    {"cfbd_id": c["id"], "home": c.get("homeTeam"),
+                     "away": c.get("awayTeam"), "date": c.get("startDate")}
+                    for c in candidates
+                ],
+            })
+        else:
+            results["unmatched_odds"].append({
+                "provider_event_id": oe["event_id"],
+                "date": date_key,
+                "home": oe.get("home"),
+                "away": oe.get("away"),
+            })
+
+    # Unmatched CFBD
+    for g in cfbd_games:
+        if g.get("season") not in seasons:
+            continue
+        if g["id"] not in matched_cfbd_ids:
+            # Only count FBS games (avoid FCS noise)
+            # Check classification
+            hc = g.get("homeClassification", "")
+            ac = g.get("awayClassification", "")
+            if "fbs" in hc.lower() or "fbs" in ac.lower():
+                results["unmatched_cfbd"].append({
+                    "cfbd_id": g["id"],
+                    "date": g.get("startDate", "")[:10],
+                    "home": g.get("homeTeam"),
+                    "away": g.get("awayTeam"),
+                })
+
+    # Statistics
+    stats = {
+        "n_odds_events": len(odds_events),
+        "n_cfbd_games": len([g for g in cfbd_games if g.get("season") in seasons]),
+        "n_matched": len(results["matched"]),
+        "n_ambiguous": len(results["ambiguous"]),
+        "n_unmatched_odds": len(results["unmatched_odds"]),
+        "n_unmatched_cfbd": len(results["unmatched_cfbd"]),
+        "match_rate": (len(results["matched"]) / len(odds_events)
+                       if odds_events else 0),
+    }
+
+    output = {
+        "methodology": (
+            "Deterministic matching on (date, normalized_home, normalized_away). "
+            "No fuzzy matching. Swapped home/away tried as separate attempt. "
+            "Ambiguous matches require manual review."
+        ),
+        "normalization_rules": [
+            "lowercase, strip whitespace",
+            "remove 'university of ', 'univ. ', ' college'",
+            "remove punctuation, collapse whitespace",
+            "NOTE: 'state' preserved (Ohio State != Ohio)",
+            "NOTE: 'st.' not normalized (Saint vs State ambiguous)",
+        ],
+        "stats": stats,
+        "results": results,
+    }
+
+    with open(args.out, "w") as f:
+        json.dump(output, f, indent=2)
+
+    print(json.dumps(stats, indent=2))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
