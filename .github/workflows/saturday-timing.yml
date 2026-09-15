@@ -1,0 +1,36 @@
+name: saturday-timing
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Saturdays 10am-10pm ET (14:00-02:00 UTC), every 15 minutes
+    # 10:00 ET = 14:00 UTC, 22:00 ET = 02:00 UTC (next day)
+    - cron: '*/15 14-23 * * 6'
+    - cron: '*/15 0-2 * * 0'
+
+jobs:
+  timing:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: nfl-edge
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: python -m pip install -r nfl-edge/ops/requirements.txt
+      - name: Collect timing quotes (totals-only, 1 credit)
+        env:
+          NFL_EDGE_DATABASE_URL: ${{ secrets.NFL_EDGE_DATABASE_URL }}
+          ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+        run: |
+          python nfl-edge/ops/saturday_timing.py \
+            --out /tmp/saturday_timing.json
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: saturday-timing
+          path: /tmp/saturday_timing.json

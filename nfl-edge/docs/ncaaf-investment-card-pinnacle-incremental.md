@@ -62,3 +62,23 @@ with its own frozen rule and firewall. It would NOT modify candidate #1.
 
 Close the Pinnacle family. The Phase F "Pinnacle lead/lag" lead is exhausted.
 Move to the next family (pace/explosiveness, weather, etc.).
+
+## Result (2026-09-15)
+
+**CLOSED — NULL.** Run 35017887926.
+
+- n=1,884 events, R²=0.056
+- Pinnacle Wed→Fri change: β=0.028, p=0.29 (not significant)
+- Consensus momentum: β=0.071, p=0.012 (significant)
+- Pressure_Fri: β=42.8, p<0.001
+
+**Interpretation:** Pinnacle's Wed→Fri change contains no incremental information
+about Fri→Sat consensus movement beyond consensus momentum and the candidate #1
+pressure signal.
+
+**Important distinction:** The pressure_Fri coefficient surviving as a control is
+*robustness evidence within the same burned 2022-24 pool*, not independent
+confirmation. It shows the effect doesn't disappear under controls. Genuine
+independent confirmation remains the untouched post-Oct-31 sample.
+
+No Pinnacle variants. Family closed.
