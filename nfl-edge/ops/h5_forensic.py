@@ -26,22 +26,11 @@ def wilson(k, n, z=1.96):
 
 def main():
     seasons = [2022, 2023, 2024]
-    # Fetch CFBD games (API key from env)
-    import urllib.request
-    CFBD_KEY = os.environ.get("CFBD_API_KEY", "")
-    
-    def cfbd_get(url):
-        req = urllib.request.Request(url)
-        if CFBD_KEY:
-            req.add_header("Authorization", f"Bearer {CFBD_KEY}")
-        with urllib.request.urlopen(req, timeout=30) as resp:
-            return json.load(resp)
-    
+    # Load CFBD games from fixtures (same as F2)
     games = []
     for season in seasons:
-        for st in ["regular", "postseason"]:
-            url = f"https://api.collegefootballdata.com/games?year={season}&seasonType={st}"
-            games.extend(cfbd_get(url))
+        fp = f"nfl-edge/model/research/fixtures/cfbd_games_{season}.json"
+        games.extend(json.load(open(fp)))
     print(f"CFBD games: {len(games)}", file=sys.stderr)
     
     # Build games index (same as F2)
@@ -89,12 +78,11 @@ def main():
                                      "decisive": 0, "pushes": 0, "n_books": []})
     by_season_window = defaultdict(lambda: {"covers": 0, "decisive": 0})
     
-    # Need CFBD lines for sign oracle
+    # Load CFBD lines from fixtures (same as F2)
     lines_by_id = {}
     for season in seasons:
-        for st in ["regular", "postseason"]:
-            url = f"https://api.collegefootballdata.com/lines?year={season}&seasonType={st}"
-            for l in cfbd_get(url):
+        fp = f"nfl-edge/model/research/fixtures/cfbd_lines_{season}.json"
+        for l in json.load(open(fp)):
                     if l.get("lines"):
                         try:
                             lines_by_id[l["id"]] = float(l["lines"][0].get("spread", 0))
