@@ -58,11 +58,19 @@ def match_events(events, games_idx):
     matched = {}
     integrity = {"events_total": len(events), "matched": 0,
                  "no_candidate": 0, "conflict": 0, "not_completed": 0,
-                 "null_scores": 0}
+                 "null_scores": 0, "key_missing": 0,
+                 "key_found_kickoff_miss": 0, "swapped_would_match": 0}
     for (eid, season), (home, away, kickoff) in events.items():
         key = (season, norm_name(home), norm_name(away))
+        swapped = (season, norm_name(away), norm_name(home))
+        key_cands = games_idx.get(key, [])
+        swapped_cands = games_idx.get(swapped, [])
+        if not key_cands and not swapped_cands:
+            integrity["key_missing"] += 1
+            integrity["no_candidate"] += 1
+            continue
         cands = []
-        for g in games_idx.get(key, []):
+        for g in key_cands:
             try:
                 sd = parse_ts(g["startDate"])
             except Exception:
@@ -70,6 +78,16 @@ def match_events(events, games_idx):
             if abs(sd - kickoff) <= KICKOFF_TOLERANCE:
                 cands.append((abs(sd - kickoff), g))
         if not cands:
+            integrity["key_found_kickoff_miss"] += 1
+            # would the swapped home/away have matched on kickoff?
+            for g in swapped_cands:
+                try:
+                    sd = parse_ts(g["startDate"])
+                except Exception:
+                    continue
+                if abs(sd - kickoff) <= KICKOFF_TOLERANCE:
+                    integrity["swapped_would_match"] += 1
+                    break
             integrity["no_candidate"] += 1
             continue
         cands.sort(key=lambda c: c[0])
@@ -302,6 +320,14 @@ def main(argv=None):
     if match_rate < 0.95:
         print(f"MATCH INTEGRITY FAILED: {match_rate:.3f} < 0.95",
               file=sys.stderr)
+        print(f"matching detail: {json.dumps(match_integrity)}",
+              file=sys.stderr)
+        ev_items = list(events.items())[:5]
+        print("sample events (home, away, kickoff):",
+              [(h, a, str(k)) for (_, _), (h, a, k) in ev_items],
+              file=sys.stderr)
+        idx_keys = list(games_idx.keys())[:5]
+        print("sample cfbd index keys:", idx_keys, file=sys.stderr)
         return 1
     with open(args.out, "w") as f:
         json.dump(result, f, indent=2, default=str)
