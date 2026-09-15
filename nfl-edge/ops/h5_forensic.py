@@ -27,14 +27,15 @@ def wilson(k, n, z=1.96):
 def main():
     seasons = [2022, 2023, 2024]
     # Load CFBD games from fixtures (same as F2)
-    games = []
+    games_idx = {}
     for season in seasons:
         fp = f"nfl-edge/model/research/fixtures/cfbd_games_{season}.json"
-        games.extend(json.load(open(fp)))
+        idx = mo.load_games(fp)
+        games_idx.update(idx)
     print(f"CFBD games: {len(games)}", file=sys.stderr)
     
     # Build games index (same as F2)
-    games_idx = mo.build_games_index(games)
+    # games_idx built above
     
     # Query historical quotes
     import psycopg
