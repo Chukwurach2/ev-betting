@@ -36,13 +36,13 @@ def main():
     
     
     # Query historical quotes
-    import psycopg22
+    import psycopg2
     dsn = os.environ.get("NFL_EDGE_DATABASE_URL")
     hq = ms.sports.historical_quotes_table("ncaaf")
     cols = ("provider_event_id, home_team, away_team, kickoff, book_key,"
             " market, selection, line, american_odds, fair_probability,"
             " observed_at")
-    import psycopg22
+    import psycopg2
     with psycopg2.connect(dsn) as conn:
         cur = conn.cursor()
         cur.execute(f"SELECT {cols} FROM public.{hq}")
