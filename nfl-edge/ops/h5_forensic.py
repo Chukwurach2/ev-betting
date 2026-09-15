@@ -26,20 +26,22 @@ def wilson(k, n, z=1.96):
 
 def main():
     seasons = [2022, 2023, 2024]
-    # Fetch CFBD games
+    # Fetch CFBD games (API key from env)
     import urllib.request
-    sys.path.insert(0, "/opt/hatch/skills/skill-creator/bin")
-    import dynamic_credentials as dc
+    CFBD_KEY = os.environ.get("CFBD_API_KEY", "")
+    
+    def cfbd_get(url):
+        req = urllib.request.Request(url)
+        if CFBD_KEY:
+            req.add_header("Authorization", f"Bearer {CFBD_KEY}")
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            return json.load(resp)
     
     games = []
     for season in seasons:
         for st in ["regular", "postseason"]:
             url = f"https://api.collegefootballdata.com/games?year={season}&seasonType={st}"
-            req = urllib.request.Request(url)
-            dc.add_surrogate_to_request(req, "custom.collegefootballdata",
-                                        allowed_hosts=["api.collegefootballdata.com"])
-            with urllib.request.urlopen(req, timeout=30) as resp:
-                games.extend(dc.read_json_response(resp))
+            games.extend(cfbd_get(url))
     print(f"CFBD games: {len(games)}", file=sys.stderr)
     
     # Build games index (same as F2)
@@ -92,11 +94,7 @@ def main():
     for season in seasons:
         for st in ["regular", "postseason"]:
             url = f"https://api.collegefootballdata.com/lines?year={season}&seasonType={st}"
-            req = urllib.request.Request(url)
-            dc.add_surrogate_to_request(req, "custom.collegefootballdata",
-                                        allowed_hosts=["api.collegefootballdata.com"])
-            with urllib.request.urlopen(req, timeout=30) as resp:
-                for l in dc.read_json_response(resp):
+            for l in cfbd_get(url):
                     if l.get("lines"):
                         try:
                             lines_by_id[l["id"]] = float(l["lines"][0].get("spread", 0))
