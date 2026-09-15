@@ -356,6 +356,11 @@ def main(argv=None):
               file=sys.stderr)
         idx_keys = list(games_idx.keys())[:5]
         print("sample cfbd index keys:", idx_keys, file=sys.stderr)
+        missing = sorted({(h, a) for (eid, s), (h, a, k)
+                          in events.items()
+                          if (eid, s) not in matched})
+        print(f"unmatched teams ({len(missing)}):", missing[:150],
+              file=sys.stderr)
         return 1
     with open(args.out, "w") as f:
         json.dump(result, f, indent=2, default=str)
