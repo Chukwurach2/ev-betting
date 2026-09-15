@@ -1,0 +1,49 @@
+name: h3-residual
+
+on:
+  workflow_dispatch:
+    inputs:
+      sport:
+        description: "Sport key"
+        required: false
+        default: "ncaaf"
+      seasons:
+        description: "Comma-separated seasons (2025 must stay sealed)"
+        required: false
+        default: "2022,2023,2024"
+      sensitivity:
+        description: "Elo init: full (2019-21 burn-in), zero_init, burnin_2020_21"
+        required: false
+        default: "full"
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: nfl-edge
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: python -m pip install -r nfl-edge/ops/requirements.txt
+      - name: Run H3 residual model (read-only, zero credits)
+        env:
+          NFL_EDGE_DATABASE_URL: ${{ secrets.NFL_EDGE_DATABASE_URL }}
+        run: |
+          python nfl-edge/ops/h3_residual.py \
+            --sport "${{ inputs.sport }}" \
+            --seasons "${{ inputs.seasons }}" \
+            --sensitivity "${{ inputs.sensitivity }}" \
+            --games "nfl-edge/model/research/fixtures/cfbd_games_2022.json,nfl-edge/model/research/fixtures/cfbd_games_2023.json,nfl-edge/model/research/fixtures/cfbd_games_2024.json" \
+            --burnin-games "nfl-edge/model/research/fixtures/cfbd_games_2019.json,nfl-edge/model/research/fixtures/cfbd_games_2020.json,nfl-edge/model/research/fixtures/cfbd_games_2021.json" \
+            --lines "nfl-edge/model/research/fixtures/cfbd_lines_2022.json,nfl-edge/model/research/fixtures/cfbd_lines_2023.json,nfl-edge/model/research/fixtures/cfbd_lines_2024.json" \
+            --out /tmp/h3_residual.json
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: h3-residual
+          path: /tmp/h3_residual.json
