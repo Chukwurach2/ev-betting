@@ -87,28 +87,26 @@ def main(argv=None):
     hq = sports.historical_quotes_table(args.sport)
     mh = sports.market_history_table(args.sport)
     with psycopg.connect(dsn) as conn:
-        # Extract events from the data array in each envelope
-        # Payload may be TEXT or JSONB; cast to jsonb for safety
+        # Extract events from payload->'data' array
+        # (confirmed via direct Neon inspection 2026-09-15)
         rows = conn.execute(f"""
             SELECT DISTINCT
-                game->>'id' as event_id,
-                game->>'home_team' as home_team,
-                game->>'away_team' as away_team,
-                game->>'commence_time' as kickoff
-            FROM public.{mh},
-                 jsonb_array_elements((payload::jsonb)->'data') as game
-            WHERE game->>'id' IS NOT NULL
+                event->>'id' AS odds_event_id,
+                event->>'home_team' AS home_team,
+                event->>'away_team' AS away_team,
+                (event->>'commence_time')::timestamptz AS commence_time
+            FROM public.{mh} mh
+            CROSS JOIN LATERAL jsonb_array_elements(mh.payload->'data') AS event
+            WHERE event->>'id' IS NOT NULL
+              AND event->>'home_team' IS NOT NULL
+              AND event->>'away_team' IS NOT NULL
+              AND event->>'commence_time' IS NOT NULL
         """).fetchall()
         odds_events = []
         for r in rows:
             eid, home, away, kickoff = r
-            # Parse kickoff
-            try:
-                ko = datetime.fromisoformat(kickoff.replace("Z", "+00:00")) if kickoff else None
-            except:
-                ko = None
             odds_events.append({
-                "event_id": eid, "home": home, "away": away, "kickoff": ko
+                "event_id": eid, "home": home, "away": away, "kickoff": kickoff
             })
 
     print(f"Odds API events: {len(odds_events)}", file=sys.stderr)
