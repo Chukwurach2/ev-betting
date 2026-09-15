@@ -1,0 +1,35 @@
+name: fingerprint-dataset
+
+on:
+  workflow_dispatch:
+    inputs:
+      sport:
+        description: "Sport key: nfl or ncaaf (tables follow ops/sports.py)"
+        required: false
+        default: "nfl"
+
+jobs:
+  fingerprint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Read NFL Edge source without resolving unrelated submodules
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: nfl-edge
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: python -m pip install -r nfl-edge/ops/requirements.txt
+      - name: Compute dataset fingerprint
+        env:
+          NFL_EDGE_DATABASE_URL: ${{ secrets.NFL_EDGE_DATABASE_URL }}
+        run: |
+          python nfl-edge/ops/fingerprint_dataset.py \
+            --sport "${{ inputs.sport }}" | tee /tmp/dataset_fingerprint.json
+      - name: Upload fingerprint artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dataset-fingerprint
+          path: /tmp/dataset_fingerprint.json
