@@ -1,0 +1,39 @@
+name: pressure-shadow
+
+on:
+  workflow_dispatch:
+    inputs:
+      sport:
+        description: "Sport key"
+        required: false
+        default: "ncaaf"
+  schedule:
+    # Twice daily shadow run through firewall (Oct 31)
+    - cron: '15 11,23 * * *'
+
+jobs:
+  shadow:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: nfl-edge
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: python -m pip install -r nfl-edge/ops/requirements.txt
+      - name: Generate shadow signals (frozen v1.0, zero credits)
+        env:
+          NFL_EDGE_DATABASE_URL: ${{ secrets.NFL_EDGE_DATABASE_URL }}
+        run: |
+          python nfl-edge/ops/pressure_shadow.py \
+            --sport "${{ inputs.sport || 'ncaaf' }}" \
+            --out /tmp/pressure_shadow_signals.json
+      - name: Upload signals artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pressure-shadow-signals
+          path: /tmp/pressure_shadow_signals.json
