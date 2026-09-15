@@ -56,9 +56,15 @@ def main(argv=None):
     seasons = [int(s) for s in args.seasons.split(",")]
 
     # Load CFBD games
-    if args.cfbd_file:
-        with open(args.cfbd_file) as f:
+    # Priority: --cfbd-file arg > bundled reference file > live API fetch
+    bundled = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                           "cfbd_2022_2024.json")
+    cfbd_source = args.cfbd_file or (bundled if os.path.exists(bundled) else None)
+    if cfbd_source:
+        with open(cfbd_source) as f:
             cfbd_games = json.load(f)
+        print(f"CFBD: loaded {len(cfbd_games)} games from {cfbd_source}",
+              file=sys.stderr)
     else:
         # Fetch from CFBD API
         sys.path.insert(0, os.path.expanduser("~/workspace/skills/collegefootballdata/bin"))
