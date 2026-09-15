@@ -47,7 +47,10 @@ def main(argv=None):
         trajectories[key].append((ts, odds))
 
     # For each trajectory, measure continuous runs at same price
-    lifetimes_min = []
+    # INTERVAL-CENSORED: with 15-min polling, if price seen at t=0 and t=15
+    # but gone at t=30, lifetime is in [15, 30), not "22.5 min".
+    # We report lower and upper bounds, never point estimates.
+    lifetimes = []  # (lower_min, upper_min)
     n_trajectories = len(trajectories)
     n_price_changes = 0
 
@@ -57,23 +60,28 @@ def main(argv=None):
             continue
         run_start = obs[0][0]
         run_price = obs[0][1]
+        last_seen = obs[0][0]
         for i in range(1, len(obs)):
             ts, price = obs[i]
             prev_ts, prev_price = obs[i-1]
             gap_min = (ts - prev_ts).total_seconds() / 60
             if price != run_price or gap_min > 30:
-                # Run ended: price changed or gap too large
-                lifetime = (prev_ts - run_start).total_seconds() / 60
-                if lifetime > 0:
-                    lifetimes_min.append(lifetime)
+                # Run ended. Lower bound = last_seen - run_start.
+                # Upper bound = ts - run_start (disappeared sometime before ts).
+                lower = (last_seen - run_start).total_seconds() / 60
+                upper = (ts - run_start).total_seconds() / 60
+                if lower > 0:
+                    lifetimes.append((lower, upper))
                 if price != run_price:
                     n_price_changes += 1
                 run_start = ts
                 run_price = price
-        # Final run (censored — still alive at end of window)
-        final_lifetime = (obs[-1][0] - run_start).total_seconds() / 60
-        if final_lifetime > 0:
-            lifetimes_min.append(final_lifetime)
+            last_seen = ts
+        # Final run is right-censored: still alive at end of window
+        # Lower bound = last_seen - run_start, upper = infinity
+        final_lower = (last_seen - run_start).total_seconds() / 60
+        if final_lower > 0:
+            lifetimes.append((final_lower, float('inf')))
 
     def pct(xs, p):
         xs = sorted(xs)
@@ -83,23 +91,40 @@ def main(argv=None):
             return xs[-1]
         return xs[lo] + (xs[hi] - xs[lo]) * (k - lo)
 
+    # Separate interval-censored from right-censored
+    interval = [(lo, hi) for lo, hi in lifetimes if hi != float('inf')]
+    right_cens = [lo for lo, hi in lifetimes if hi == float('inf')]
+
+    # For interval-censored: report distribution of lower bounds and upper bounds
+    # separately. Never imply point precision.
+    lower_bounds = [lo for lo, hi in interval]
+    upper_bounds = [hi for lo, hi in interval]
+
     result = {
         "window_days": args.days,
         "n_trajectories": n_trajectories,
-        "n_price_runs": len(lifetimes_min),
+        "n_price_runs": len(lifetimes),
         "n_price_changes": n_price_changes,
-        "lifetime_minutes": {
-            "mean": round(statistics.fmean(lifetimes_min), 1) if lifetimes_min else 0,
-            "median": round(pct(lifetimes_min, 50), 1) if lifetimes_min else 0,
-            "p25": round(pct(lifetimes_min, 25), 1) if lifetimes_min else 0,
-            "p75": round(pct(lifetimes_min, 75), 1) if lifetimes_min else 0,
-            "p90": round(pct(lifetimes_min, 90), 1) if lifetimes_min else 0,
-        },
-        "interpretation": (
-            "Median lifetime = typical minutes a displayed totals price "
-            "survives unchanged. If median >> 15min, the 15-min cadence "
-            "captures most opportunities. If median ~15min or less, "
-            "higher-frequency collection may be needed for execution timing."
+        "n_interval_censored": len(interval),
+        "n_right_censored": len(right_cens),
+        "lifetime_lower_bounds_min": {
+            "mean": round(statistics.fmean(lower_bounds), 1) if lower_bounds else 0,
+            "median": round(pct(lower_bounds, 50), 1) if lower_bounds else 0,
+            "p25": round(pct(lower_bounds, 25), 1) if lower_bounds else 0,
+            "p75": round(pct(lower_bounds, 75), 1) if lower_bounds else 0,
+        } if lower_bounds else {},
+        "lifetime_upper_bounds_min": {
+            "mean": round(statistics.fmean(upper_bounds), 1) if upper_bounds else 0,
+            "median": round(pct(upper_bounds, 50), 1) if upper_bounds else 0,
+            "p25": round(pct(upper_bounds, 25), 1) if upper_bounds else 0,
+            "p75": round(pct(upper_bounds, 75), 1) if upper_bounds else 0,
+        } if upper_bounds else {},
+        "methodology_note": (
+            "INTERVAL-CENSORED: With 15-min polling, lifetimes are reported as "
+            "[lower, upper) bounds, not point estimates. If a price is seen at "
+            "t=0 and t=15 but gone at t=30, lifetime is in [15, 30). "
+            "Right-censored runs (still alive at window end) contribute only "
+            "lower bounds. Do not interpret medians as 'the price lasts X minutes'."
         ),
     }
     with open(args.out, "w") as f:
