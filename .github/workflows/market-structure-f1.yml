@@ -1,0 +1,41 @@
+name: market-structure-f1
+
+on:
+  workflow_dispatch:
+    inputs:
+      sport:
+        description: "Sport key (tables follow ops/sports.py)"
+        required: false
+        default: "ncaaf"
+      seasons:
+        description: "Comma-separated seasons (2025 must stay sealed)"
+        required: false
+        default: "2022,2023,2024"
+
+jobs:
+  map:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Read NFL Edge source without resolving unrelated submodules
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: nfl-edge
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: python -m pip install -r nfl-edge/ops/requirements.txt
+      - name: Run market-structure map (read-only, zero credits)
+        env:
+          NFL_EDGE_DATABASE_URL: ${{ secrets.NFL_EDGE_DATABASE_URL }}
+        run: |
+          python nfl-edge/ops/market_structure.py \
+            --sport "${{ inputs.sport }}" \
+            --seasons "${{ inputs.seasons }}" \
+            --out /tmp/market_structure.json
+      - name: Upload map artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: market-structure-f1
+          path: /tmp/market_structure.json
