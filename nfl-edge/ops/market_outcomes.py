@@ -361,6 +361,28 @@ def main(argv=None):
                           if (eid, s) not in matched})
         print(f"unmatched teams ({len(missing)}):", missing[:150],
               file=sys.stderr)
+        # verbose: for each unmatched event, nearest CFBD games by kickoff
+        if os.environ.get("F2_VERBOSE_UNMATCHED"):
+            sg = {}
+            for (s, kh, ka), gl in games_idx.items():
+                sg.setdefault(s, []).extend(gl)
+            for (eid, season), (h, a, k) in sorted(
+                    events.items(), key=lambda kv: str(kv[1][2])):
+                if (eid, season) in matched:
+                    continue
+                near = []
+                for g in sg.get(season, []):
+                    try:
+                        sd = parse_ts(g["startDate"])
+                    except Exception:
+                        continue
+                    d = abs(sd - k)
+                    if d <= dt.timedelta(hours=72):
+                        near.append((d, g["homeTeam"], g["awayTeam"],
+                                     str(sd)))
+                near.sort()
+                print(f"UNMATCHED {h} vs {a} ko={k} season={season} "
+                      f"near={near[:4]}", file=sys.stderr)
         return 1
     with open(args.out, "w") as f:
         json.dump(result, f, indent=2, default=str)

@@ -29,6 +29,7 @@ jobs:
       - name: Run market-vs-outcomes analysis (read-only, zero credits)
         env:
           NFL_EDGE_DATABASE_URL: ${{ secrets.NFL_EDGE_DATABASE_URL }}
+          F2_VERBOSE_UNMATCHED: "1"
         run: |
           python nfl-edge/ops/market_outcomes.py \
             --sport "${{ inputs.sport }}" \
