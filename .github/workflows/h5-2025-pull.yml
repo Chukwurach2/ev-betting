@@ -1,0 +1,58 @@
+# H5 2025 one-shot confirmation: targeted historical pull.
+# CLAIM-SCOPED: pulls ONLY the 11 Wednesdays needed for H5's frozen test.
+# - Markets: spreads only. Regions: us only.
+# - Output: workflow artifact (NOT the main database tables).
+# - Cost: ~110 credits (11 x 10).
+# Frozen prereg: docs/preregistrations/ncaaf-h5-confirmation-2025.md
+# This workflow pulls data; it does NOT run the test or inspect results.
+name: H5 2025 targeted pull
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: write
+jobs:
+  pull:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Pull 11 H5 Wednesday snapshots
+        env:
+          THE_ODDS_API_KEY: ${{ secrets.THE_ODDS_API_KEY }}
+        run: |
+          python3 - << 'PYEOF'
+          import json, os, urllib.request, urllib.parse
+          API_KEY = os.environ["THE_ODDS_API_KEY"]
+          WEDNESDAYS = [
+              "2025-08-20T12:00:00Z", "2025-08-27T12:00:00Z", "2025-09-03T12:00:00Z",
+              "2025-09-10T12:00:00Z", "2025-09-17T12:00:00Z", "2025-09-24T12:00:00Z",
+              "2025-10-01T12:00:00Z", "2025-10-15T12:00:00Z", "2025-11-05T12:00:00Z",
+              "2025-11-12T12:00:00Z", "2025-11-19T12:00:00Z",
+          ]
+          all_data = {}
+          for w in WEDNESDAYS:
+              params = urllib.parse.urlencode({
+                  "apiKey": API_KEY, "date": w,
+                  "regions": "us", "markets": "spreads",
+              })
+              url = f"https://api.the-odds-api.com/v4/historical/sports/americanfootball_ncaaf/odds?{params}"
+              req = urllib.request.Request(url)
+              with urllib.request.urlopen(req, timeout=60) as resp:
+                  data = json.load(resp)
+                  headers = dict(resp.headers)
+              games = data.get("data", data) if isinstance(data, dict) else data
+              print(f"{w}: {len(games)} games, "
+                    f"credits remaining: {headers.get('x-requests-remaining', '?')}")
+              all_data[w] = data
+          json.dump(all_data, open("h5_2025_snapshots.json", "w"))
+          print(f"Saved {len(all_data)} snapshots")
+          PYEOF
+      - name: Upload H5 snapshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: h5-2025-snapshots
+          path: h5_2025_snapshots.json
+          retention-days: 90
