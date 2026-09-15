@@ -110,18 +110,26 @@ def main():
         # Consensus (median, min 3 books)
         if len(c["books"]) < 3:
             continue
-        consensus = statistics.median(c["lines"])
+        line = statistics.median(c["lines"])  # |spread| per F2
         
-        # Outcome
+        # Outcome with sign recovery (F2 Amendment A4)
         if m.get("swapped"):
             hp, ap = g["awayPoints"], g["homePoints"]
         else:
             hp, ap = g["homePoints"], g["awayPoints"]
         if hp is None or ap is None:
             continue
-        margin = hp - ap
-        diff = margin + consensus
-        if abs(diff) < 0.001:
+        cfbd_spread = lines_by_id.get(g.get("id"))
+        if cfbd_spread is None:
+            continue  # no sign oracle, exclude
+        if m.get("swapped"):
+            home_favored = cfbd_spread > 0
+        else:
+            home_favored = cfbd_spread < 0
+        signed_line = -line if home_favored else line
+        hm = hp - ap
+        diff = hm + signed_line
+        if diff == 0:
             result = "push"
         elif diff > 0:
             result = "cover"
