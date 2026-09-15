@@ -51,7 +51,7 @@ class MarketStructureTest(unittest.TestCase):
                      ev("e1", "fanduel", -3.0, 0.54))
 
     def test_select_pairs_modal_and_reference(self):
-        sel, integ, matched = ms.select_pairs(self.rows, self.plan)
+        sel, integ, matched = ms.select_pairs(self.rows, self.plan, [2024])
         self.assertEqual(matched, {self.t})
         self.assertEqual(integ["unmatched_quotes"], 0)
         self.assertEqual(integ["identity_violations"], 0)
@@ -64,7 +64,7 @@ class MarketStructureTest(unittest.TestCase):
         bad = _row("e1", "Other", "Away", self.ko, "draftkings",
                    "FULL_GAME_SPREAD", "Other", -3.0, -110, 0.55,
                    self.t - dt.timedelta(seconds=262))
-        sel, integ, _ = ms.select_pairs(self.rows + [bad], self.plan)
+        sel, integ, _ = ms.select_pairs(self.rows + [bad], self.plan, [2024])
         self.assertEqual(integ["identity_violations"], 1)
         self.assertFalse(any(k[0] == "e1" for k in sel))
 
@@ -72,11 +72,11 @@ class MarketStructureTest(unittest.TestCase):
         far = _row("e9", "H", "A", self.ko, "draftkings", "FULL_GAME_SPREAD",
                    "H", -3.0, -110, 0.55, _req(2023, 1, 1, 0, 0))
         far2 = dict(far, selection="A", fair_probability=0.45)
-        sel, integ, _ = ms.select_pairs(self.rows + [far, far2], self.plan)
+        sel, integ, _ = ms.select_pairs(self.rows + [far, far2], self.plan, [2024])
         self.assertEqual(integ["unmatched_quotes"], 2)
 
     def test_analyze_disagreement_and_pinnacle(self):
-        sel, integ, _ = ms.select_pairs(self.rows, self.plan)
+        sel, integ, _ = ms.select_pairs(self.rows, self.plan, [2024])
         out = ms.analyze(sel, integ, [2024])
         key = "FULL_GAME_SPREAD/early/s2024/[3,7)"
         self.assertIn(key, out["disagreement"])
@@ -89,7 +89,7 @@ class MarketStructureTest(unittest.TestCase):
         self.assertAlmostEqual(pv["abs_pinnacle_deviation"]["mean"], 0.5)
 
     def test_analyze_movement_needs_all_windows(self):
-        sel, integ, _ = ms.select_pairs(self.rows, self.plan)
+        sel, integ, _ = ms.select_pairs(self.rows, self.plan, [2024])
         out = ms.analyze(sel, integ, [2024])
         m = out["movement"]["FULL_GAME_SPREAD"]
         self.assertEqual(m["book_level_abs_late_minus_early"]["n"], 0)
@@ -99,6 +99,36 @@ class MarketStructureTest(unittest.TestCase):
         self.assertEqual(
             ms.match_window(self.t - dt.timedelta(seconds=262), self.plan),
             self.t)
+
+    def test_season_filter_excludes_2025(self):
+        ko25 = _req(2025, 9, 6, 16, 0)
+        rows25 = _pair_rows("e25", "Home", "Away", ko25, "draftkings",
+                            "FULL_GAME_SPREAD", -3.0, 0.55,
+                            _req(2025, 9, 3, 12, 0) -
+                            dt.timedelta(seconds=262))
+        sel, integ, _ = ms.select_pairs(self.rows + rows25, self.plan,
+                                        [2024])
+        self.assertGreater(integ["excluded_by_season"], 0)
+        self.assertFalse(any(k[0] == "e25" for k in sel))
+
+    def test_identity_scoped_per_season(self):
+        # same provider event id reused in another season is fine
+        t23 = _req(2023, 9, 6, 12, 0)  # Wed -> early
+        plan2 = {self.t: (2024, 1, "early"), t23: (2023, 1, "early")}
+        ko23 = _req(2023, 9, 9, 16, 0)
+        obs23 = t23 - dt.timedelta(seconds=262)
+        rows23 = _pair_rows("e1", "Cats", "Dogs", ko23, "draftkings",
+                            "FULL_GAME_SPREAD", -7.0, 0.60, obs23)
+        sel, integ, _ = ms.select_pairs(self.rows + rows23, plan2,
+                                        [2023, 2024])
+        self.assertEqual(integ["identity_violations"], 0)
+        self.assertTrue(any(k[0] == "e1" and k[1] == 2023 for k in sel))
+        self.assertTrue(any(k[0] == "e1" and k[1] == 2024 for k in sel))
+
+    def test_kickoff_season_bowls(self):
+        self.assertEqual(ms.kickoff_season(_req(2025, 1, 6, 20, 0)), 2024)
+        self.assertEqual(ms.kickoff_season(_req(2024, 9, 1, 12, 0)), 2024)
+        self.assertEqual(ms.kickoff_season(_req(2024, 7, 1, 12, 0)), 2023)
 
 
 if __name__ == "__main__":

@@ -89,44 +89,62 @@ def match_window(observed_at, plan, sorted_times=None):
     return best
 
 
-def select_pairs(rows, plan):
+def kickoff_season(kickoff):
+    """Season a game belongs to: kickoff in Aug-Dec -> that year,
+    Jan-Jul -> prior year (bowls)."""
+    return kickoff.year if kickoff.month >= 8 else kickoff.year - 1
+
+
+def select_pairs(rows, plan, seasons):
     """Group quotes -> one selected pair per (event, window, book, market).
 
-    Returns (selected, integrity) where selected maps
+    Rows whose kickoff-derived season is outside `seasons` are excluded
+    before window matching (2025 never enters the analysis).
+
+    Returns (selected, integrity, matched_instants) where selected maps
     (event_id, season, week, window, book, market) ->
     {"line": ref_line, "fair_prob": ref_fair_prob,
      "home": home, "away": away, "kickoff": kickoff}.
     """
     integrity = {"unmatched_quotes": 0, "identity_violations": 0,
-                 "events_dropped": 0, "quotes_read": len(rows)}
-    # event identity validation
-    ident = {}
-    bad_events = set()
-    for r in rows:
-        eid = r["provider_event_id"]
-        key = (r["home_team"], r["away_team"], str(r["kickoff"]))
-        if eid in ident and ident[eid] != key:
-            bad_events.add(eid)
-        ident[eid] = key
-    integrity["identity_violations"] = len(bad_events)
+                 "events_dropped": 0, "quotes_read": len(rows),
+                 "excluded_by_season": 0}
+    rows = [r for r in rows if kickoff_season(r["kickoff"]) in seasons]
+    integrity["excluded_by_season"] = integrity["quotes_read"] - len(rows)
 
-    # match windows
-    grouped = {}
-    matched_instants = set()
+    # match windows first; identity is validated per (event_id, plan season)
+    matched = []
     sorted_times = sorted((t.timestamp(), t) for t in plan)
     for r in rows:
-        if r["provider_event_id"] in bad_events:
-            continue
         t = match_window(r["observed_at"], plan, sorted_times)
         if t is None:
             integrity["unmatched_quotes"] += 1
             continue
-        matched_instants.add(t)
         season, week, window = plan[t]
+        matched.append((r, season, week, window, t))
+
+    # event identity validation, scoped per (event_id, season)
+    ident = {}
+    bad = set()
+    for r, season, _, _, _ in matched:
+        eid = r["provider_event_id"]
+        key = (r["home_team"], r["away_team"], str(r["kickoff"]))
+        skey = (eid, season)
+        if skey in ident and ident[skey] != key:
+            bad.add(skey)
+        ident[skey] = key
+    integrity["identity_violations"] = len(bad)
+    integrity["events_dropped"] = len(bad)
+
+    grouped = {}
+    matched_instants = set()
+    for r, season, week, window, t in matched:
+        if (r["provider_event_id"], season) in bad:
+            continue
+        matched_instants.add(t)
         key = (r["provider_event_id"], season, week, window,
                r["book_key"], r["market"])
         grouped.setdefault(key, []).append(r)
-    integrity["events_dropped"] = len(bad_events)
 
     selected = {}
     for key, rs in grouped.items():
@@ -302,7 +320,7 @@ def main(argv=None):
          "book_key", "market", "selection", "line", "american_odds",
          "fair_probability", "observed_at"], r)) for r in rows]
 
-    selected, integrity, matched = select_pairs(recs, plan)
+    selected, integrity, matched = select_pairs(recs, plan, seasons)
     freeze_ok = len(matched) == expected_snapshots
 
     result = {

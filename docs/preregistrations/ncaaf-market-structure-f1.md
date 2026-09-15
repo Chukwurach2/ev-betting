@@ -71,3 +71,12 @@
   preregistered* challenger in Phase H — it is not evidence of an edge.
 - Findings must be reported with the full distribution (not just the mean)
   and with the sample sizes behind each cell.
+
+## Amendment A1 (2026-09-15, before any results viewed)
+
+- Season scope is enforced by kickoff-derived season (Aug–Dec → that year,
+  Jan–Jul bowls → prior year); rows outside 2022–24 are excluded before
+  window matching. 2025 never enters the analysis.
+- Game-identity validation is scoped per (provider_event_id, season): the
+  provider reuses event ids across seasons, which is legitimate and must not
+  count as a violation.
