@@ -30,6 +30,10 @@ on:
         description: 'Set to true to delete legacy-format (data-only payload) snapshots in range and re-fetch them with the current code'
         required: false
         default: 'false'
+      repair_snapshot_at:
+        description: 'ISO timestamp of one stored snapshot with incomplete quotes (e.g. DiskFull mid-write); deletes its quotes+payload so it is cleanly re-fetched'
+        required: false
+        default: ''
 permissions:
   contents: read
 concurrency:
@@ -105,4 +109,5 @@ jobs:
             --regions "${{ inputs.regions }}" \
             --markets "${{ inputs.markets }}" \
             --max-credits "${{ inputs.max_credits }}" \
-            $([ "${{ inputs.recapture }}" = "true" ] && echo "--recapture")
+            $([ "${{ inputs.recapture }}" = "true" ] && echo "--recapture") \
+            ${{ inputs.repair_snapshot_at != '' && format('--repair-snapshot-at "{0}"', inputs.repair_snapshot_at) || '' }}

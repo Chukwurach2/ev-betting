@@ -316,6 +316,12 @@ def main(argv=None):
                          "planned requested time, with their quotes, before "
                          "fetching. Used once to replace pre-change smoke "
                          "rows; logged explicitly.")
+    ap.add_argument("--repair-snapshot-at", default=None,
+                    help="ISO timestamp of a single stored snapshot whose "
+                         "quotes are incomplete (e.g. a DiskFull interrupted "
+                         "the insert loop). Deletes that snapshot's quotes "
+                         "and payload before the run so it is cleanly "
+                         "re-fetched. Logged explicitly.")
     args = ap.parse_args(argv)
 
     cfg = sports.get(args.sport)
@@ -354,10 +360,27 @@ def main(argv=None):
     if not dsn:
         raise SystemExit("NFL_EDGE_DATABASE_URL is required")
     conn = psycopg.connect(dsn, connect_timeout=10)
-    conn.autocommit = True
 
     spent = 0
     stored_snaps = stored_quotes = skipped = 0
+    if args.repair_snapshot_at:
+        # Targeted repair: drop the incomplete snapshot's quotes and payload
+        # so the normal idempotent flow below re-fetches it cleanly.
+        # (Autocommit-era partial writes, e.g. the 2026-09-15 DiskFull, left
+        # single-sided pairs; the skip check below would otherwise keep them.)
+        rs = args.repair_snapshot_at
+        qn = conn.execute(
+            ("DELETE FROM public.%s WHERE abs(extract(epoch from "
+             "(observed_at - %%s::timestamptz))) < 1800") % hq_table,
+            (rs,)).rowcount
+        mn = conn.execute(
+            ("DELETE FROM public.%s WHERE abs(extract(epoch from "
+             "(snapshot_at - %%s::timestamptz))) < 1800 "
+             "AND regions=%%s AND markets=%%s") % mh_table,
+            (rs, args.regions, args.markets)).rowcount
+        conn.commit()
+        print("repaired snapshot %s (deleted %d quotes, %d payload rows)"
+              % (rs, qn, mn), flush=True)
     try:
         for season, week, when in plan:
             if args.recapture:
@@ -380,6 +403,7 @@ def main(argv=None):
                         (old_snap, args.regions, args.markets))
                     print("recaptured legacy snapshot %s (deleted %d quotes)"
                           % (old_snap, qn), flush=True)
+                conn.commit()  # commit recapture deletes before the skip check
             # Skip snapshots already captured (within 30 min of request).
             # A receipt WITHOUT any stored quotes for the requested markets
             # is an incomplete capture (e.g. the 2026-09-12 moneyline pilot
@@ -399,7 +423,9 @@ def main(argv=None):
                 (args.regions, args.markets, when, expected_markets)).fetchone()
             if row:
                 skipped += 1
+                conn.commit()  # close the read-only implicit txn
                 continue
+            conn.commit()  # close the read-only implicit txn before fetching
             print("fetching sport=%s season=%d week=%d at=%s" %
                   (args.sport, season, week, when.isoformat()), flush=True)
             envelope, headers = fetch_snapshot(args.sport, when, args.regions,
@@ -412,30 +438,34 @@ def main(argv=None):
                 pass
             snap_at = validated_snapshot_time(envelope, when)
             books = snapshot_books(envelope)
-            conn.execute(
-                ("INSERT INTO public.%s "
-                 "(snapshot_at, regions, markets, requested_at, "
-                 "provider_snapshot_id, books_present, payload, credits_used) "
-                 "VALUES (%%s,%%s,%%s,%%s,%%s,%%s,%%s,%%s) "
-                 "ON CONFLICT DO NOTHING") % mh_table,
-                (snap_at, args.regions, args.markets, when,
-                 when.isoformat(), books,
-                 json.dumps(envelope),
-                 int(last) if last and str(last).isdigit() else None))
-            stored_snaps += 1
-            quotes = normalize_snapshot(envelope, args.regions, args.markets)
-            for q in quotes:
+            # Per-snapshot transaction: a mid-write failure (e.g. DiskFull)
+            # rolls back the whole snapshot so the idempotent skip check
+            # above never sees a partial pair set.
+            with conn.transaction():
                 conn.execute(
                     ("INSERT INTO public.%s "
-                     "(quote_id, provider_event_id, home_team, away_team, kickoff, "
-                     "sportsbook, book_key, market, selection, line, american_odds, "
-                     "fair_probability, observed_at, ny_licensed) "
-                     "VALUES (%%(quote_id)s,%%(provider_event_id)s,%%(home_team)s,%%(away_team)s, "
-                     "%%(kickoff)s,%%(sportsbook)s,%%(book_key)s,%%(market)s,%%(selection)s, "
-                     "%%(line)s,%%(american_odds)s,%%(fair_probability)s,%%(observed_at)s, "
-                     "%%(ny_licensed)s) "
-                     "ON CONFLICT (quote_id) DO NOTHING") % hq_table, q)
-                stored_quotes += 1
+                     "(snapshot_at, regions, markets, requested_at, "
+                     "provider_snapshot_id, books_present, payload, credits_used) "
+                     "VALUES (%%s,%%s,%%s,%%s,%%s,%%s,%%s,%%s) "
+                     "ON CONFLICT DO NOTHING") % mh_table,
+                    (snap_at, args.regions, args.markets, when,
+                     when.isoformat(), books,
+                     json.dumps(envelope),
+                     int(last) if last and str(last).isdigit() else None))
+                stored_snaps += 1
+                quotes = normalize_snapshot(envelope, args.regions, args.markets)
+                for q in quotes:
+                    conn.execute(
+                        ("INSERT INTO public.%s "
+                         "(quote_id, provider_event_id, home_team, away_team, kickoff, "
+                         "sportsbook, book_key, market, selection, line, american_odds, "
+                         "fair_probability, observed_at, ny_licensed) "
+                         "VALUES (%%(quote_id)s,%%(provider_event_id)s,%%(home_team)s,%%(away_team)s, "
+                         "%%(kickoff)s,%%(sportsbook)s,%%(book_key)s,%%(market)s,%%(selection)s, "
+                         "%%(line)s,%%(american_odds)s,%%(fair_probability)s,%%(observed_at)s, "
+                         "%%(ny_licensed)s) "
+                         "ON CONFLICT (quote_id) DO NOTHING") % hq_table, q)
+                    stored_quotes += 1
             print("stored sport=%s season=%d week=%d snapshot=%s quotes=%d books=%d credits_last=%s remaining=%s" %
                   (args.sport, season, week, snap_at, len(quotes), len(books), last, remaining))
             try:
