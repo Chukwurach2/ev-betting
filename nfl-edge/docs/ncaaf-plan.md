@@ -177,6 +177,21 @@ research path; where it conflicts with the original, the amendment governs.
    available at the decision window, actual lines/odds available then,
    same-book de-vigging, realistic selection rules, pushes/voids, fixed-unit
    returns. Closing lines are an evaluation benchmark, never model input.
+5b. **Executability/coverage feasibility gate (2026-09-15, from H5 lesson).**
+   Before spending any clean holdout (2025) or prospective confirmation data
+   on a frozen strategy, verify — WITHOUT looking at outcomes — that the
+   frozen contract produces enough eligible observations to test. Specifically:
+   - Run the frozen selection/eligibility logic on the confirmation sample's
+     *market data only* (no outcomes, no covers, no P&L).
+   - Count eligible observations (meeting window, book minimum, sign oracle,
+     and all other frozen filters).
+   - If eligible n < preregistered minimum (e.g., n < 100), DO NOT proceed.
+     Record "INCONCLUSIVE — INSUFFICIENT ELIGIBLE SAMPLE" without spending
+     the confirmation. The hypothesis remains unresolved; the holdout stays
+     sealed for a future feasible design.
+   - This gate would have caught H5's n=12 problem before spending 110 credits
+     and H5's one-shot 2025 confirmation. Feasibility is checked on market
+     structure, not outcomes — it consumes no alpha.
 5. **Winner-selection metric (in order):** out-of-sample incremental
    calibration / log loss vs market → residual predictive power → CLV-like
    price movement where measurable → stability across seasons/books/line
