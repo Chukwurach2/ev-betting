@@ -79,44 +79,34 @@ def main(argv=None):
                 cfbd_games.extend(games)
                 print(f"CFBD: year={year} {st}: {len(games)} games", file=sys.stderr)
 
-    # Load Odds API events (distinct provider_event_id + teams + kickoff)
+    # Load Odds API events from market_history JSON payloads
+    # (team names are in the raw snapshot envelopes, not quote columns)
     import psycopg
     dsn = os.environ.get("NFL_EDGE_DATABASE_URL")
     hq = sports.historical_quotes_table(args.sport)
+    mh = sports.market_history_table(args.sport)
     with psycopg.connect(dsn) as conn:
-        # Get distinct events with team info
-        # Note: historical quotes may not have team names directly
-        # We need to check the schema
-        cols = conn.execute(f"""
-            SELECT column_name FROM information_schema.columns
-            WHERE table_name = '{hq}'
+        # Get distinct events from market_history payloads
+        rows = conn.execute(f"""
+            SELECT DISTINCT
+                payload->>'id' as event_id,
+                payload->>'home_team' as home_team,
+                payload->>'away_team' as away_team,
+                payload->>'commence_time' as kickoff
+            FROM public.{mh}
+            WHERE payload->>'id' IS NOT NULL
         """).fetchall()
-        col_names = [c[0] for c in cols]
-        print(f"Columns: {col_names}", file=sys.stderr)
-
-        # Try to get event metadata
-        if "home_team" in col_names:
-            rows = conn.execute(f"""
-                SELECT DISTINCT provider_event_id, home_team, away_team, kickoff
-                FROM public.{hq}
-            """).fetchall()
-            odds_events = [
-                {"event_id": r[0], "home": r[1], "away": r[2], "kickoff": r[3]}
-                for r in rows
-            ]
-        else:
-            print("WARNING: No team columns in historical quotes", file=sys.stderr)
-            print("Checking events table...", file=sys.stderr)
-            # Try events table
+        odds_events = []
+        for r in rows:
+            eid, home, away, kickoff = r
+            # Parse kickoff
             try:
-                erows = conn.execute("""
-                    SELECT table_name FROM information_schema.tables
-                    WHERE table_name LIKE '%event%'
-                """).fetchall()
-                print(f"Event tables: {[r[0] for r in erows]}", file=sys.stderr)
-            except Exception as e:
-                print(f"Error: {e}", file=sys.stderr)
-            odds_events = []
+                ko = datetime.fromisoformat(kickoff.replace("Z", "+00:00")) if kickoff else None
+            except:
+                ko = None
+            odds_events.append({
+                "event_id": eid, "home": home, "away": away, "kickoff": ko
+            })
 
     print(f"Odds API events: {len(odds_events)}", file=sys.stderr)
     print(f"CFBD games: {len(cfbd_games)}", file=sys.stderr)
