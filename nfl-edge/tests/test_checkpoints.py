@@ -77,6 +77,16 @@ class CheckpointTests(unittest.TestCase):
         store=MemoryStore()
         collect(cps,store,lambda c:[{'observed_at':self.now.isoformat()}],lambda:next(times),100)
         self.assertEqual(store.rows[cps[0].key]['status'],'missed')
+    def test_unavailable_count_matches_store_status(self):
+        # Regression: the store recorded 'unavailable' when a paid fetch
+        # returned only stale quotes, but the run summary counted it as
+        # 'failed', inflating failure telemetry vs database truth.
+        cps=[c for c in plan([self.game],self.now) if c.state=='due']
+        store=MemoryStore()
+        counts=collect(cps,store,lambda c:[{'observed_at':(self.now-dt.timedelta(seconds=1)).isoformat()}],lambda:self.now,100)
+        self.assertEqual(store.rows[cps[0].key]['status'],'unavailable')
+        self.assertEqual(counts['unavailable'],1)
+        self.assertEqual(counts['failed'],0)
     def test_collection_failure_reason_is_safe_and_actionable(self):
         cp=[c for c in plan([self.game],self.now) if c.state=='due'][0]
         store=MemoryStore()

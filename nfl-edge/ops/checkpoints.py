@@ -94,7 +94,7 @@ def collect(checkpoints,store,fetch_quotes,clock,remaining,max_requests=2,reserv
         raise ValueError('Invalid request cap')
     if not isinstance(cost_per_request,int) or isinstance(cost_per_request,bool) or not 1<=cost_per_request<=16:
         raise ValueError('Invalid request cost')
-    used=0; counts={'captured':0,'missed':0,'duplicate':0,'deferred':0,'failed':0,'requests':0,'credits_budgeted':0}
+    used=0; counts={'captured':0,'missed':0,'unavailable':0,'duplicate':0,'deferred':0,'failed':0,'requests':0,'credits_budgeted':0}
     for checkpoint in checkpoints:
         now=instant(clock())
         missed=checkpoint.state=='missed' or now>=checkpoint.deadline
@@ -129,7 +129,7 @@ def collect(checkpoints,store,fetch_quotes,clock,remaining,max_requests=2,reserv
                 elif checkpoint.target<=observed<=ended and (ended-observed).total_seconds()<=900:
                     valid.append(q)
             store.finish(checkpoint,ended,'captured' if valid else 'unavailable',valid,None)
-            counts['captured' if valid else 'failed']+=1
+            counts['captured' if valid else 'unavailable']+=1
         except Exception as error:
             store.finish(checkpoint,instant(clock()),'failed',[],safe_collection_error(error))
             counts['failed']+=1

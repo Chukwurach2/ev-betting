@@ -347,8 +347,9 @@ def main(argv=None):
             record_heartbeat(connection, HEARTBEAT_COMPONENTS[sport], {
                 'credits_remaining': quota(headers).get('remaining'),
                 'checkpoints': {k: _summary.get(k) for k in
-                                ('captured', 'missed', 'duplicate', 'deferred',
-                                 'failed', 'requests', 'credits_budgeted')},
+                                ('captured', 'missed', 'unavailable', 'duplicate',
+                                 'deferred', 'failed', 'requests',
+                                 'credits_budgeted')},
             })
         except Exception as e:  # noqa: BLE001 - heartbeat is advisory only
             print(json.dumps({'heartbeat': 'failed',
