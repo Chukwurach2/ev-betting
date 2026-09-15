@@ -81,20 +81,22 @@ def main(argv=None):
 
     # Load Odds API events from market_history JSON payloads
     # (team names are in the raw snapshot envelopes, not quote columns)
+    # Envelope structure: {"timestamp": ..., "data": [{id, home_team, away_team, commence_time, ...}]}
     import psycopg
     dsn = os.environ.get("NFL_EDGE_DATABASE_URL")
     hq = sports.historical_quotes_table(args.sport)
     mh = sports.market_history_table(args.sport)
     with psycopg.connect(dsn) as conn:
-        # Get distinct events from market_history payloads
+        # Extract events from the data array in each envelope
         rows = conn.execute(f"""
             SELECT DISTINCT
-                payload->>'id' as event_id,
-                payload->>'home_team' as home_team,
-                payload->>'away_team' as away_team,
-                payload->>'commence_time' as kickoff
-            FROM public.{mh}
-            WHERE payload->>'id' IS NOT NULL
+                game->>'id' as event_id,
+                game->>'home_team' as home_team,
+                game->>'away_team' as away_team,
+                game->>'commence_time' as kickoff
+            FROM public.{mh},
+                 jsonb_array_elements(payload->'data') as game
+            WHERE game->>'id' IS NOT NULL
         """).fetchall()
         odds_events = []
         for r in rows:
