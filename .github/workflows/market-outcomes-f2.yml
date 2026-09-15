@@ -34,6 +34,7 @@ jobs:
             --sport "${{ inputs.sport }}" \
             --seasons "${{ inputs.seasons }}" \
             --games "nfl-edge/model/research/fixtures/cfbd_games_2022.json,nfl-edge/model/research/fixtures/cfbd_games_2023.json,nfl-edge/model/research/fixtures/cfbd_games_2024.json" \
+            --lines "nfl-edge/model/research/fixtures/cfbd_lines_2022.json,nfl-edge/model/research/fixtures/cfbd_lines_2023.json,nfl-edge/model/research/fixtures/cfbd_lines_2024.json" \
             --out /tmp/market_outcomes.json
       - name: Upload outcomes artifact
         uses: actions/upload-artifact@v4

@@ -78,7 +78,43 @@ pushes are counted and excluded from rate denominators.
 - The script fails closed: any unhandled exception or integrity breach
   produces no artifact and a failed run.
 
+## Amendment A4 — spread sign from CFBD pre-game lines (2026-09-15, during artifact validation)
+
+**Amendment A3 was wrong and is superseded.** The `fair_probability` on a
+spread quote is the de-vigged probability of *covering the spread*, which
+is ~0.50 by construction for both sides — it carries no information about
+which team is favored to win. Using `p > 0.5` as the favorite oracle flips
+the sign essentially at random (production run 35003460992: spread buckets
+still 66–85%, calibration p clustered at 0.50). The sign is fundamentally
+unrecoverable from spread prices alone: (line=|7|, prices=(-110,-110)) is
+consistent with both home -7 and home +7.
+
+**Fix:** the favorite is recovered from CFBD pre-game betting lines, a
+free, point-in-time-safe source (published before kickoff). New immutable
+repo fixtures `nfl-edge/model/research/fixtures/cfbd_lines_{2022,2023,2024}.json`
+(median spread across providers per game; negative = CFBD home favored):
+2022 sha256 `46a2cbe241ac7eb82466fd87114e4cf389c8f3f4ff43afdd689cad23fc2b7990` (1,459 games),
+2023 sha256 `38df6935294d3f050c87dff3778d7d9bb4e3afffb678502e1fd8fdb533d47a95` (1,413 games),
+2024 sha256 `94700b105d748fcadb9ad6ef83bb63172cf4453cc899e1d17f312346c4c2f0ce` (1,557 games).
+For each spread row, `signed = -|line|` if the provider's home team is
+favored per the CFBD median spread, else `+|line|`. When orientation was
+swapped (provider home = CFBD away), the sign flips. Cross-provider sign
+disagreement is 2.7% (79/2935 multi-provider games), confined to
+pick'em-ish spreads (|spread| ≤ 2) where the sign is immaterial. Games with
+no CFBD line are excluded from spread cover analysis and counted as
+`n_spread_no_sign` (never guessed). Only the SIGN is taken from CFBD; line
+magnitudes, probabilities, and all market data remain the frozen provider
+dataset.
+
+The spread outcome sections of runs 35002977504 and 35003460992 are
+superseded. Totals sections, matching (2456/2470), and the freeze gate
+(135/135) were never affected.
+
 ## Amendment A3 — spread sign recovery (2026-09-15, during artifact validation)
+
+**SUPERSEDED by A4 (same day).** The `p > 0.5` oracle is invalid: spread
+fair probabilities are cover probabilities (~0.50), not win probabilities.
+Retained here for the audit trail; the code now uses the CFBD sign oracle.
 
 **Bug found in production run 35002977504.** The historical quotes table
 stores spread lines as `|spread|`: `backfill_history.py` pairs spread

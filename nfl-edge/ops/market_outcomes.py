@@ -109,6 +109,19 @@ def load_games(path):
     return idx
 
 
+def load_lines(path):
+    """CFBD pre-game lines fixture: {cfbd_game_id: median spread}.
+
+    The spread is from the CFBD home team's perspective (negative = home
+    favored). Used ONLY to recover the favorite (sign) for historical
+    spread lines, which are stored as |spread|. Point-in-time safe:
+    pre-game lines published before kickoff. Amendment A4 (2026-09-15).
+    """
+    with open(path) as f:
+        recs = json.load(f)
+    return {r["id"]: r["spread_median"] for r in recs}
+
+
 def match_events(events, games_idx):
     """events: {(eid, season): (home, away, kickoff)}. Returns
     (matched, integrity) with matched[(eid, season)] =
@@ -270,7 +283,7 @@ def decile_bins(rows):
     return out
 
 
-def analyze(selected, matched, seasons):
+def analyze(selected, matched, seasons, lines_by_id=None):
     # consensus per (eid, season, window, market)
     cons = {}
     for (eid, season, week, window, book, market), v in selected.items():
@@ -280,6 +293,7 @@ def analyze(selected, matched, seasons):
         c["lines"].append(v["line"])
         c["probs"].append(v["fair_prob"])
 
+    n_no_sign = 0  # spread rows with no CFBD line to recover the favorite
     rows = []  # one per (event, window, market) with outcome
     for (eid, season, window, market), c in cons.items():
         m = matched.get((eid, season))
@@ -301,12 +315,22 @@ def analyze(selected, matched, seasons):
         hm = hp - ap
         if market == "FULL_GAME_SPREAD":
             # Historical quotes store spread lines as |spread|
-            # (backfill_history.py pairs by abs(line)). The prereg
-            # specifies the HOME side's cover, so recover the signed home
-            # line from the consensus home fair probability: a home
-            # favorite (p > 0.5) lays points -> negative line.
-            # Amendment A3 (2026-09-15).
-            signed_line = -line if p > 0.5 else line
+            # (backfill_history.py pairs by abs(line)). Recover the
+            # favorite (sign) from CFBD pre-game lines: the median CFBD
+            # spread is from the CFBD home team's perspective (negative =
+            # home favored). If orientation was swapped, the provider's
+            # home team is CFBD's away team, so the sign flips.
+            # Amendment A4 (2026-09-15). Rows with no CFBD line are
+            # excluded from spread cover analysis (counted, not guessed).
+            cfbd_spread = (lines_by_id or {}).get(g.get("id"))
+            if cfbd_spread is None:
+                n_no_sign += 1
+                continue
+            if m["swapped"]:
+                home_favored = cfbd_spread > 0
+            else:
+                home_favored = cfbd_spread < 0
+            signed_line = -line if home_favored else line
             diff = hm + signed_line
             if diff == 0:
                 outcome, push = None, True
@@ -370,6 +394,7 @@ def analyze(selected, matched, seasons):
         "n_event_windows": len(rows),
         "n_played": len(played),
         "n_pushes": pushes,
+        "n_spread_no_sign": n_no_sign,
         "calibration": cal,
         "by_season": split(lambda r: r["season"]),
         "by_window": split(lambda r: r["window"]),
@@ -388,6 +413,10 @@ def main(argv=None):
     ap.add_argument("--games", required=True,
                     help="CFBD /games JSON file(s), comma-separated "
                          "(years 2022-2024 only)")
+    ap.add_argument("--lines", default=None,
+                    help="CFBD pre-game /lines JSON file(s), comma-separated "
+                         "(years 2022-2024 only). Used ONLY to recover the "
+                         "favorite (sign) for |spread| lines. Amendment A4.")
     ap.add_argument("--out", default="/tmp/market_outcomes.json")
     args = ap.parse_args(argv)
     seasons = [int(s) for s in args.seasons.split(",")]
@@ -396,6 +425,10 @@ def main(argv=None):
     for gp in args.games.split(","):
         for key, glist in load_games(gp.strip()).items():
             games_idx.setdefault(key, []).extend(glist)
+    lines_by_id = {}
+    if args.lines:
+        for lp in args.lines.split(","):
+            lines_by_id.update(load_lines(lp.strip()))
     plan = ms.build_plan(args.sport, seasons)
     expected_snapshots = len(plan)
 
@@ -436,7 +469,7 @@ def main(argv=None):
                          "expected_snapshots": expected_snapshots,
                          "pass": freeze_ok},
         "integrity": integrity,
-        **analyze(selected, matched, seasons),
+        **analyze(selected, matched, seasons, lines_by_id),
     }
     if not freeze_ok:
         print(f"FREEZE CHECK FAILED: {len(matched_instants)} != "
