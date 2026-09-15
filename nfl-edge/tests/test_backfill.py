@@ -78,7 +78,9 @@ class NormalizeTests(unittest.TestCase):
         self.assertEqual(len(qs), 6)
         by_key = {(q["book_key"], q["market"], q["selection"]): q for q in qs}
         q = by_key[("pinnacle", "FULL_GAME_SPREAD", "Baltimore Ravens")]
-        self.assertEqual(q["line"], 2.5)
+        # Signed line: Baltimore -2.5 (favored). Stored signed since 2026-09-15
+        # (was |spread| before; see F2 Amendments A3/A4).
+        self.assertEqual(q["line"], -2.5)
         self.assertEqual(q["observed_at"], "2024-09-11T12:00:00Z")
         self.assertFalse(q["ny_licensed"])  # pinnacle is signal-only
         dk = by_key[("draftkings", "FULL_GAME_SPREAD", "Kansas City Chiefs")]

@@ -275,11 +275,17 @@ def normalize_snapshot(envelope, regions, markets):
                                                 implied(pair[1][2]))
                     if fair is None:
                         continue
-                    for (name, _, price), fq in zip(pair, fair):
+                    # Store the SIGNED line per selection (spread: negative =
+                    # selection favored), matching the live collector
+                    # (collect_checkpoints.pair_quotes). The abs() above is
+                    # only for pairing the two sides. Fixed 2026-09-15:
+                    # storing |spread| loses the favorite and breaks cover
+                    # determination (see F2 Amendments A3/A4).
+                    for (name, sline, price), fq in zip(pair, fair):
                         qid = hashlib.sha256(
                             ("%s|%s|%s|%s|%s|%s|%s" % (
                                 snap_at, event_id, book_key, market, name,
-                                line, price)).encode()).hexdigest()
+                                sline, price)).encode()).hexdigest()
                         quotes.append({
                             "quote_id": qid,
                             "provider_event_id": event_id,
@@ -287,7 +293,7 @@ def normalize_snapshot(envelope, regions, markets):
                             "kickoff": kickoff,
                             "sportsbook": title, "book_key": book_key,
                             "market": market, "selection": name,
-                            "line": line, "american_odds": price,
+                            "line": sline, "american_odds": price,
                             "fair_probability": fq,
                             "observed_at": snap_at,
                             "ny_licensed": book_key in NY_BOOK_KEYS,
