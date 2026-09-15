@@ -30,7 +30,64 @@ P4 = {"SEC", "Big Ten", "Big 12", "ACC", "Pac-12"}
 
 def norm_name(s):
     s = unicodedata.normalize("NFKD", str(s)).encode("ascii", "ignore").decode()
+    # keep the "A&M" abbreviation intact ("Texas A&M" -> "texasam") ...
+    s = s.replace("A&M", "AM").replace("a&m", "am")
+    # ... but expand a standalone "&" ("William & Mary" -> "williamandmary")
+    s = s.replace("&", " and ")
     return "".join(c for c in s.lower() if c.isalnum())
+
+
+# Frozen school-name alias table (prereg amendment A2, 2026-09-15):
+# provider-style normalized prefix -> CFBD canonical form. Applied before
+# matching. Order matters: 'albanystate' shadows 'albany' (Albany State is
+# a distinct DII school, not UAlbany). Frozen; any addition is a further
+# preregistered amendment.
+SCHOOL_ALIASES = {
+    "appalachianstate": "appstate",          # CFBD "App State"
+    "albanystate": "albanystate",             # distinct DII school; shadows 'albany'
+    "albany": "ualbany",                     # CFBD "UAlbany"
+    "umass": "massachusetts",                # CFBD "Massachusetts"
+    "citadel": "thecitadel",                 # CFBD "The Citadel"
+    "southeasternlouisiana": "selouisiana",  # CFBD "SE Louisiana"
+    "houstonbaptist": "houstonchristian",    # renamed; CFBD "Houston Christian"
+    "youngstownst": "youngstownstate",       # CFBD "Youngstown State"
+    "southernmississippi": "southernmiss",   # CFBD "Southern Miss"
+    "texasamcommerce": "easttexasam",        # renamed Nov 2024; CFBD "East Texas A&M"
+    "liu": "longislanduniversity",           # CFBD "Long Island University"
+    "stfrancis": "saintfrancis",             # CFBD "Saint Francis" (PA school)
+}
+
+
+def alias_school(n):
+    for old, new in SCHOOL_ALIASES.items():
+        if n.startswith(old):
+            return new + n[len(old):]
+    return n
+
+
+def build_school_index(games_idx):
+    """Per-season CFBD school names, longest first (for longest-prefix match)."""
+    schools = {}
+    for (season, kh, ka), glist in games_idx.items():
+        s = schools.setdefault(season, set())
+        s.add(kh)
+        s.add(ka)
+    return {season: sorted(ss, key=len, reverse=True)
+            for season, ss in schools.items()}
+
+
+def best_school(t, schools_sorted):
+    """Longest CFBD school name in prefix relation with t (either direction).
+
+    Longest-prefix wins: e.g. provider 'Texas A&M' ('texasam...') resolves
+    to CFBD 'texasam' (Texas A&M), never to the shorter 'texas' — so a
+    provider-listed Georgia-vs-Texas A&M event cannot false-match CFBD's
+    Texas-vs-Georgia game.
+    """
+    for s in schools_sorted:
+        if t.startswith(s) or s.startswith(t):
+            return s
+    return None
 
 
 def parse_ts(s):
@@ -54,84 +111,107 @@ def load_games(path):
 
 def match_events(events, games_idx):
     """events: {(eid, season): (home, away, kickoff)}. Returns
-    (matched, integrity) with matched[(eid, season)] = game dict.
+    (matched, integrity) with matched[(eid, season)] =
+    {"game": game dict, "swapped": bool}.
 
+    Identity-only matching on team names + kickoff, never on scores.
     The odds provider names NCAAF teams '{School} {Mascot}' (e.g.
-    'Duke Blue Devils') while CFBD uses the school name ('Duke'), so keys
-    match on normalized prefix in either direction, plus the other team
-    and kickoff proximity. Matches are still identity-only, never on
-    scores."""
+    'Duke Blue Devils') while CFBD uses the school name ('Duke'). Each
+    provider team name is resolved to the longest CFBD school name in
+    prefix relation (after the frozen SCHOOL_ALIASES substitution), so
+    'Texas A&M' can never resolve to 'Texas'. A CFBD game matches when both
+    teams resolve to its schools and kickoffs agree within +-36h. When the
+    same two teams appear with home/away reversed (neutral-site designation
+    differences), the event matches with swapped=True and scores are
+    realigned to the provider's orientation in analyze(). Unmatched events
+    get a deterministic reason code (phantom / kickoff_miss /
+    team_mislabel / conflict / not_completed / null_scores).
+    """
     matched = {}
     integrity = {"events_total": len(events), "matched": 0,
-                 "no_candidate": 0, "conflict": 0, "not_completed": 0,
-                 "null_scores": 0, "key_missing": 0,
-                 "key_found_kickoff_miss": 0, "swapped_would_match": 0,
-                 "prefix_fallback_used": 0}
-    # per-season flat lists for prefix fallback
+                 "swapped_matched": 0, "alias_used": 0,
+                 "unmatched_reasons": {}}
+    # per-season flat lists for name matching
     season_games = {}
     for (season, kh, ka), glist in games_idx.items():
         season_games.setdefault(season, []).extend(
             (kh, ka, g) for g in glist)
+    school_idx = build_school_index(games_idx)
 
-    def prefix(a, b):
-        return a.startswith(b) or b.startswith(a)
+    def bump_reason(reason):
+        d = integrity["unmatched_reasons"]
+        d[reason] = d.get(reason, 0) + 1
 
     for (eid, season), (home, away, kickoff) in events.items():
-        eh, ea = norm_name(home), norm_name(away)
-        key = (season, eh, ea)
-        swapped = (season, ea, eh)
-        key_cands = games_idx.get(key, [])
-        swapped_cands = games_idx.get(swapped, [])
-        if not key_cands and not swapped_cands:
-            # prefix fallback over the season's games
-            fb, fb_swapped = [], []
+        eh0, ea0 = norm_name(home), norm_name(away)
+        eh, ea = alias_school(eh0), alias_school(ea0)
+        if (eh, ea) != (eh0, ea0):
+            integrity["alias_used"] += 1
+        schools = school_idx.get(season, [])
+        bh, ba = best_school(eh, schools), best_school(ea, schools)
+        cands = []  # (kickoff_diff, game, swapped)
+        seen = set()
+        if bh is not None and ba is not None:
             for kh, ka, g in season_games.get(season, []):
-                if prefix(eh, kh) and prefix(ea, ka):
-                    fb.append(g)
-                elif prefix(eh, ka) and prefix(ea, kh):
-                    fb_swapped.append(g)
-            if fb or fb_swapped:
-                integrity["prefix_fallback_used"] += 1
-            key_cands, swapped_cands = fb, fb_swapped
-        if not key_cands and not swapped_cands:
-            integrity["key_missing"] += 1
-            integrity["no_candidate"] += 1
-            continue
-        cands = []
-        for g in key_cands:
-            try:
-                sd = parse_ts(g["startDate"])
-            except Exception:
-                continue
-            if abs(sd - kickoff) <= KICKOFF_TOLERANCE:
-                cands.append((abs(sd - kickoff), g))
-        if not cands:
-            integrity["key_found_kickoff_miss"] += 1
-            # would the swapped home/away have matched on kickoff?
-            for g in swapped_cands:
+                if bh == kh and ba == ka:
+                    swapped = False
+                elif bh == ka and ba == kh:
+                    swapped = True
+                else:
+                    continue
+                gid = g.get("id", id(g))
+                if gid in seen:
+                    continue
+                seen.add(gid)
                 try:
                     sd = parse_ts(g["startDate"])
                 except Exception:
                     continue
                 if abs(sd - kickoff) <= KICKOFF_TOLERANCE:
-                    integrity["swapped_would_match"] += 1
-                    break
-            integrity["no_candidate"] += 1
+                    cands.append((abs(sd - kickoff), g, swapped))
+        if not cands:
+            bump_reason(classify_unmatched(
+                bh, ba, season, kickoff, season_games))
             continue
         cands.sort(key=lambda c: c[0])
         if len(cands) > 1 and cands[0][0] == cands[1][0]:
-            integrity["conflict"] += 1
+            bump_reason("conflict")
             continue
-        g = cands[0][1]
+        _, g, swapped = cands[0]
         if not g.get("completed"):
-            integrity["not_completed"] += 1
+            bump_reason("not_completed")
             continue
         if g.get("homePoints") is None or g.get("awayPoints") is None:
-            integrity["null_scores"] += 1
+            bump_reason("null_scores")
             continue
-        matched[(eid, season)] = g
+        matched[(eid, season)] = {"game": g, "swapped": swapped}
         integrity["matched"] += 1
+        if swapped:
+            integrity["swapped_matched"] += 1
     return matched, integrity
+
+
+def classify_unmatched(bh, ba, season, kickoff, season_games):
+    """Deterministic reason code for an event with no in-tolerance match.
+
+    bh/ba are the resolved CFBD school names (or None).
+    """
+    if bh is None and ba is None:
+        return "phantom"  # neither team matches any CFBD school
+    for kh, ka, g in season_games.get(season, []):
+        try:
+            sd = parse_ts(g["startDate"])
+        except Exception:
+            continue
+        if abs(sd - kickoff) > KICKOFF_TOLERANCE:
+            continue
+        if bh in (kh, ka) or ba in (kh, ka):
+            # a CFBD game at a close kickoff shares a team, but the
+            # pairing didn't match: provider team-name error or a
+            # speculative listing (e.g. wrong championship matchup)
+            return "team_mislabel"
+    # teams resolve to real schools, but no game near this kickoff
+    return "kickoff_miss"  # e.g. postponed beyond +-36h, or canceled
 
 
 def matchup_class(g):
@@ -139,7 +219,8 @@ def matchup_class(g):
     ac = (g.get("awayClassification") or "").lower()
     if hc == "fbs" and ac == "fbs":
         return "FBSvFBS"
-    if "fcs" in (hc, ac):
+    # exactly one FBS and one FCS; FCS-vs-FCS (or anything else) is other
+    if (hc == "fbs") != (ac == "fbs") and "fcs" in (hc, ac):
         return "FBSvFCS"
     return "other/unknown"
 
@@ -201,12 +282,23 @@ def analyze(selected, matched, seasons):
 
     rows = []  # one per (event, window, market) with outcome
     for (eid, season, window, market), c in cons.items():
-        g = matched.get((eid, season))
-        if g is None:
+        m = matched.get((eid, season))
+        if m is None:
             continue
+        g = m["game"]
+        # Realign scores to the provider's orientation: the spread line is
+        # quoted on the provider's home team, so the home margin must be
+        # that team's margin even when CFBD lists home/away reversed
+        # (neutral-site designation differences, swapped=True).
+        if m["swapped"]:
+            hp, ap = g["awayPoints"], g["homePoints"]
+            hconf, hclass = g.get("awayConference"), g.get("awayClassification")
+        else:
+            hp, ap = g["homePoints"], g["awayPoints"]
+            hconf, hclass = g.get("homeConference"), g.get("homeClassification")
         line = statistics.median(c["lines"])
         p = statistics.median(c["probs"])
-        hm = g["homePoints"] - g["awayPoints"]
+        hm = hp - ap
         if market == "FULL_GAME_SPREAD":
             diff = hm + line
             if diff == 0:
@@ -215,7 +307,7 @@ def analyze(selected, matched, seasons):
                 outcome, push = (1 if diff > 0 else 0), False
             lb = bucket(line, SPREAD_BUCKETS)
         else:
-            diff = (g["homePoints"] + g["awayPoints"]) - line
+            diff = (hp + ap) - line
             if diff == 0:
                 outcome, push = None, True
             else:
@@ -225,8 +317,7 @@ def analyze(selected, matched, seasons):
                      "market": market, "line": round(line, 2),
                      "p": round(p, 4), "outcome": outcome, "push": push,
                      "matchup": matchup_class(g),
-                     "conf": conf_group(g.get("homeConference"),
-                                        g.get("homeClassification")),
+                     "conf": conf_group(hconf, hclass),
                      "line_bucket": lb})
 
     played = [r for r in rows if not r["push"]]
@@ -251,17 +342,18 @@ def analyze(selected, matched, seasons):
                  if r["market"] == m and r["window"] == "early"]
         late = [(r["p"], r["outcome"]) for r in played
                 if r["market"] == m and r["window"] == "late"]
-        eids_e = {r["eid"] for r in played
+        # pair on (event, season): provider IDs can repeat across seasons
+        eids_e = {(r["eid"], r["season"]) for r in played
                   if r["market"] == m and r["window"] == "early"}
-        eids_l = {r["eid"] for r in played
+        eids_l = {(r["eid"], r["season"]) for r in played
                   if r["market"] == m and r["window"] == "late"}
         common = eids_e & eids_l
         early_c = [(r["p"], r["outcome"]) for r in played
                    if r["market"] == m and r["window"] == "early"
-                   and r["eid"] in common]
+                   and (r["eid"], r["season"]) in common]
         late_c = [(r["p"], r["outcome"]) for r in played
                   if r["market"] == m and r["window"] == "late"
-                  and r["eid"] in common]
+                  and (r["eid"], r["season"]) in common]
         eff[m] = {"early": summarize(early), "late": summarize(late),
                   "paired_common_events": len(common),
                   "early_paired": summarize(early_c),
@@ -361,28 +453,8 @@ def main(argv=None):
                           if (eid, s) not in matched})
         print(f"unmatched teams ({len(missing)}):", missing[:150],
               file=sys.stderr)
-        # verbose: for each unmatched event, nearest CFBD games by kickoff
-        if os.environ.get("F2_VERBOSE_UNMATCHED"):
-            sg = {}
-            for (s, kh, ka), gl in games_idx.items():
-                sg.setdefault(s, []).extend(gl)
-            for (eid, season), (h, a, k) in sorted(
-                    events.items(), key=lambda kv: str(kv[1][2])):
-                if (eid, season) in matched:
-                    continue
-                near = []
-                for g in sg.get(season, []):
-                    try:
-                        sd = parse_ts(g["startDate"])
-                    except Exception:
-                        continue
-                    d = abs(sd - k)
-                    if d <= dt.timedelta(hours=72):
-                        near.append((d, g["homeTeam"], g["awayTeam"],
-                                     str(sd)))
-                near.sort()
-                print(f"UNMATCHED {h} vs {a} ko={k} season={season} "
-                      f"near={near[:4]}", file=sys.stderr)
+        print(f"unmatched reasons: {json.dumps(match_integrity['unmatched_reasons'])}",
+              file=sys.stderr)
         return 1
     with open(args.out, "w") as f:
         json.dump(result, f, indent=2, default=str)
