@@ -18,16 +18,49 @@ jobs:
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
+        with:
+          sparse-checkout: nfl-edge
+          sparse-checkout-cone-mode: false
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
       - name: Install dependencies
         run: python -m pip install -r nfl-edge/ops/requirements.txt
+      - name: Preflight canonical identity
+        shell: bash
+        run: |
+          set -euxo pipefail
+          echo "PWD=$(pwd)"
+          python --version
+          test -n "${NFL_EDGE_DATABASE_URL:-}" || {
+            echo "::error::NFL_EDGE_DATABASE_URL is missing"
+            exit 10
+          }
+          test -f nfl-edge/ops/canonical_identity.py || {
+            echo "::error::canonical_identity.py missing"
+            find . -maxdepth 4 -type f | sort | head -200
+            exit 11
+          }
+          test -f nfl-edge/ops/cfbd_2022_2024.json || {
+            echo "::error::CFBD reference file missing"
+            find nfl-edge -type f | sort
+            exit 12
+          }
+          ls -lh nfl-edge/ops/cfbd_2022_2024.json
+          python - <<'PY'
+          import importlib
+          for package in ("psycopg",):
+              importlib.import_module(package)
+              print("dependency OK:", package)
+          PY
+        env:
+          NFL_EDGE_DATABASE_URL: ${{ secrets.NFL_EDGE_DATABASE_URL }}
       - name: Build canonical identity mapping (read-only)
         env:
           NFL_EDGE_DATABASE_URL: ${{ secrets.NFL_EDGE_DATABASE_URL }}
         run: |
-          python nfl-edge/ops/canonical_identity.py \
+          set -euxo pipefail
+          python -u nfl-edge/ops/canonical_identity.py \
             --sport "${{ inputs.sport }}" \
             --seasons "${{ inputs.seasons }}" \
             --out /tmp/canonical_identity.json

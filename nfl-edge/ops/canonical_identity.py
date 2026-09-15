@@ -17,6 +17,10 @@ Read-only on source tables. Writes mapping to ncaaf_game_identity.
 import os, sys, json, argparse, re
 from collections import defaultdict
 from datetime import datetime, timezone
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parent
+CFBD_PATH = HERE / "cfbd_2022_2024.json"
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import sports  # noqa: E402
@@ -56,12 +60,12 @@ def main(argv=None):
     seasons = [int(s) for s in args.seasons.split(",")]
 
     # Load CFBD games
-    # Priority: --cfbd-file arg > bundled reference file > live API fetch
-    bundled = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                           "cfbd_2022_2024.json")
-    print(f"Looking for bundled CFBD at: {bundled}", file=sys.stderr)
-    print(f"Exists: {os.path.exists(bundled)}", file=sys.stderr)
-    cfbd_source = args.cfbd_file or (bundled if os.path.exists(bundled) else None)
+    # Priority: --cfbd-file arg > bundled reference file (resolved relative
+    # to this script, not the working directory) > live API fetch
+    bundled = str(CFBD_PATH) if CFBD_PATH.exists() else None
+    print(f"Bundled CFBD path: {CFBD_PATH}", file=sys.stderr)
+    print(f"Exists: {CFBD_PATH.exists()}", file=sys.stderr)
+    cfbd_source = args.cfbd_file or bundled
     if cfbd_source:
         print(f"Loading CFBD from {cfbd_source}...", file=sys.stderr)
         with open(cfbd_source) as f:
