@@ -2,12 +2,16 @@ name: audit-dataset
 on:
   workflow_dispatch:
     inputs:
+      sport:
+        description: "Sport key: nfl or ncaaf (tables follow ops/sports.py)"
+        required: false
+        default: "nfl"
       seasons:
         description: "Comma-separated seasons (2022+ only)"
         required: false
         default: "2022,2023,2024"
       weeks:
-        description: "Week range, e.g. 1-18"
+        description: "Week range, e.g. 1-18 for NFL or 0-14 for NCAAF"
         required: false
         default: "1-18"
 jobs:
@@ -30,6 +34,7 @@ jobs:
           # Capture the audit exit code first, then always print the report,
           # and fail the step at the end if the audit failed (never mask it).
           python nfl-edge/ops/audit_dataset.py \
+            --sport "${{ inputs.sport }}" \
             --seasons "${{ inputs.seasons }}" \
             --weeks "${{ inputs.weeks }}" \
             --out /tmp/dataset_audit.json \
