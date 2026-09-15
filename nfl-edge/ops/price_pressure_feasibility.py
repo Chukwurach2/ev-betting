@@ -9,7 +9,9 @@ We count how many such contracts have >=3 distinct books with paired
 de-vig fair probabilities.
 """
 import os, sys, json, argparse
-sys.path.insert(0, os.path.join(os.path.dirname(__file__)))
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import sports  # noqa: E402
 
 def main(argv=None):
     ap = argparse.ArgumentParser()
@@ -24,7 +26,6 @@ def main(argv=None):
         return 2
 
     import psycopg
-    from ops import sports
 
     dsn = os.environ.get("NFL_EDGE_DATABASE_URL")
     if not dsn:
