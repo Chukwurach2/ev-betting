@@ -46,7 +46,9 @@ Provider timestamps are the freshness authority everywhere.
 1. ~~Gate 1: collector review~~ — done 2026-09-13
 2. ~~Gate 2: probe C infrastructure validation~~ — done 2026-09-13
 3. **Gate 3: D live** — 2026 prospective accumulation running now
-4. Bulk 2022–2025 acquisition → **audit E** → fingerprint/freeze
+4. ~~Bulk 2022–2025 acquisition → **audit E** → fingerprint/freeze~~ — done 2026-09-15
+   (180/180 snapshots, 686,578 quotes, fingerprint `684c58410968c440a6d7500582ac9ecf`;
+   receipt: `docs/ncaaf-dataset-freeze.md`)
 5. **Baseline F** → preregister/evaluate **G**
 
 No modeling before the phase-E audit passes. No scope expansion.
