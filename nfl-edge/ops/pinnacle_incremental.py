@@ -49,7 +49,7 @@ def main(argv=None):
     # (event, season, week, window) -> {"pinnacle": [...], "others": [...]}
     # Each list: (book, line, selection, fair_prob)
     events = defaultdict(lambda: {"pinnacle": [], "others": []})
-    for r in recs:
+    for r in rows:
         eid, book, sel, line, fp, obs = r
         t = match_window(obs, plan)
         if t is None:
