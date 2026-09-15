@@ -44,6 +44,49 @@ This dramatically reduces ROI-noise mining.
 **2025 remains unopened** through all 2022–24 work. Finalist selection and
 complete freeze precede the single 2025 question.
 
+
+### What counts as a test (formalized 2026-09-15)
+
+The research ledger tracks **claim-bearing tests**, not every descriptive
+analysis. The moment an analysis can change what we deploy, promote, or
+carry forward, it becomes a counted test.
+
+**1. Exploratory / contract checks (no alpha consumed).**
+Descriptive maps, schema validation, identity checks, data-quality checks,
+feature availability checks. These do not consume alpha **provided their
+outputs are not used to choose among competing hypotheses based on
+historical performance.**
+
+**2. Confirmatory family tests (alpha consumed).**
+One preregistered primary claim per family on 2022–24. Holm-Bonferroni
+across the four active families (H1, H3, H4, H5).
+
+**3. Failed family = burned family on that dataset.**
+No H1b/H1c feature tinkering after seeing failure and relabeling it fresh.
+A materially revised version becomes a **new hypothesis family** requiring
+new confirmation data. A failed test constrains future interpretation just
+as much as a positive one.
+
+**4. Positive family = discovered candidate, not production edge.**
+Advances to untouched 2025 confirmation only if its complete specification
+was frozen before opening 2025.
+
+**5. Definition choice counts as search when outcome-informed.**
+If three plausible exposures exist and historical performance determines the
+choice, that is effectively three searches. Either preregister one from
+domain logic or explicitly count/correct for all three.
+
+**6. Mechanism analysis (explanatory only).**
+After a failure or discovery, mechanism analysis on burned data is allowed
+to **design the next hypothesis** — never to claim new confirmatory
+evidence from the same sample.
+
+**The hierarchy:**
+many analyses → few claim-bearing tests → multiplicity correction →
+frozen finalists → one-shot 2025 confirmation → prospective 2026 evidence.
+
+Creative searching is welcome; it is not free.
+
 ### The null is a first-class result
 Phase F established a formidable baseline: ~50.5% home cover, |p−0.5|
 ≈ 0.1pp, calibrated probabilities. H is not trying to predict football
@@ -59,7 +102,7 @@ Each H prereg defines, BEFORE seeing results:
 - Betting viability bar (Stage 2, if reached)
 - Conditions under which the hypothesis is **abandoned**
 
-## The five hypotheses
+## The hypotheses (four active, one dormant)
 
 ### H1: Inter-window market-movement prediction (highest priority)
 **Q:** Using information at window t, can we predict direction/magnitude of
@@ -79,14 +122,11 @@ Report magnitude with uncertainty; no arbitrary knockout threshold.
 mean |Δ|). If predictable, it's directly executable (beat the move).
 **Prereg:** `ncaaf-h1-movement.md`.
 
-### H2: Pinnacle lead/lag dynamics
-**Q:** Does a **change** at Pinnacle predict subsequent **consensus**
-movement?
-**Stage 1:** Timestamped Pinnacle line changes → consensus movement in the
-next window. Null: Pinnacle changes have no predictive power for consensus.
-**Distinct from F:** F showed Pinnacle's *static level* ≈ consensus. This
-tests *changes*, not levels.
-**Prereg:** `ncaaf-h2-pinnacle-lead.md`.
+### H2: Pinnacle lead/lag dynamics — DORMANT
+**Status:** HELD. Three weekly snapshots cannot distinguish leadership from
+ordinary information arrival. Activates only with high-frequency/prospective
+timestamps. Does not consume alpha while dormant.
+**Prereg:** `ncaaf-h2-pinnacle-lead.md` (held).
 
 ### H3: Football-information residual model
 **Q:** Does opponent-adjusted team strength predict the **residual** —
