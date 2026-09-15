@@ -12,6 +12,23 @@ NFL v1.3 remains frozen and completely isolated; NCAAF uses idle research capaci
 - **Prospective:** every 2026-season observation — live captures and any historical
   pull timestamped after the cutoff. Prospective data is never training data.
   No 2026 result feeds back into any model, threshold, feature, or market selection.
+- **2026 information firewall (frozen 2026-09-15):** `2026-11-01T03:59:59Z`
+  (2026-10-31T23:59:59 America/New_York). This is a GLOBAL boundary across all
+  NCAAF research — no hypothesis family gets its own firewall.
+  - Through firewall: development / feasibility pool. May be used for measurement
+    validation, timestamp QA, engineering checks, and prospective development of
+    measurement mechanics. NOT for tuning betting rules against outcomes.
+  - After firewall: reserved prospective evidence pool. Untouched until a complete
+    claim is preregistered. Once frozen, the date never moves because of results.
+    If confirmation yields too few eligible observations, the answer is
+    "insufficient prospective evidence," not boundary recycling.
+  - Collection and blinded infrastructure QA continue after the firewall
+    (missing rows, request failures, schema quality, latency). Operational health
+    inspection must not examine outcome relationships or change hypotheses based
+    on post-boundary performance.
+  - An exposure ledger records every dataset/time-range/field exposure:
+    what was seen, whether outcomes were exposed, which hypothesis family,
+    and when. Anything inspected in a claim-bearing way is burned.
 
 ### 1.2 Scope
 - Phase-1 markets: **FBS spreads and totals only.**
