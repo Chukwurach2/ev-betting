@@ -54,17 +54,45 @@ def load_games(path):
 
 def match_events(events, games_idx):
     """events: {(eid, season): (home, away, kickoff)}. Returns
-    (matched, integrity) with matched[(eid, season)] = game dict."""
+    (matched, integrity) with matched[(eid, season)] = game dict.
+
+    The odds provider names NCAAF teams '{School} {Mascot}' (e.g.
+    'Duke Blue Devils') while CFBD uses the school name ('Duke'), so keys
+    match on normalized prefix in either direction, plus the other team
+    and kickoff proximity. Matches are still identity-only, never on
+    scores."""
     matched = {}
     integrity = {"events_total": len(events), "matched": 0,
                  "no_candidate": 0, "conflict": 0, "not_completed": 0,
                  "null_scores": 0, "key_missing": 0,
-                 "key_found_kickoff_miss": 0, "swapped_would_match": 0}
+                 "key_found_kickoff_miss": 0, "swapped_would_match": 0,
+                 "prefix_fallback_used": 0}
+    # per-season flat lists for prefix fallback
+    season_games = {}
+    for (season, kh, ka), glist in games_idx.items():
+        season_games.setdefault(season, []).extend(
+            (kh, ka, g) for g in glist)
+
+    def prefix(a, b):
+        return a.startswith(b) or b.startswith(a)
+
     for (eid, season), (home, away, kickoff) in events.items():
-        key = (season, norm_name(home), norm_name(away))
-        swapped = (season, norm_name(away), norm_name(home))
+        eh, ea = norm_name(home), norm_name(away)
+        key = (season, eh, ea)
+        swapped = (season, ea, eh)
         key_cands = games_idx.get(key, [])
         swapped_cands = games_idx.get(swapped, [])
+        if not key_cands and not swapped_cands:
+            # prefix fallback over the season's games
+            fb, fb_swapped = [], []
+            for kh, ka, g in season_games.get(season, []):
+                if prefix(eh, kh) and prefix(ea, ka):
+                    fb.append(g)
+                elif prefix(eh, ka) and prefix(ea, kh):
+                    fb_swapped.append(g)
+            if fb or fb_swapped:
+                integrity["prefix_fallback_used"] += 1
+            key_cands, swapped_cands = fb, fb_swapped
         if not key_cands and not swapped_cands:
             integrity["key_missing"] += 1
             integrity["no_candidate"] += 1

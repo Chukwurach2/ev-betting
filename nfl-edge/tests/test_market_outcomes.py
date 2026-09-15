@@ -40,6 +40,19 @@ class TestMatching(unittest.TestCase):
         matched, _ = mo.match_events(events, self.idx)
         self.assertIn(("e1", 2024), matched)
 
+    def test_mascot_suffix_prefix_fallback(self):
+        # provider: '{School} {Mascot}'; CFBD: school name only
+        g = _game(homeTeam="Duke", awayTeam="Florida State")
+        idx = {}
+        key = (2024, mo.norm_name("Duke"), mo.norm_name("Florida State"))
+        idx[key] = [g]
+        ko = dt.datetime(2024, 11, 30, 17, 5, tzinfo=dt.timezone.utc)
+        events = {("e1", 2024): ("Duke Blue Devils",
+                                 "Florida State Seminoles", ko)}
+        matched, integ = mo.match_events(events, idx)
+        self.assertIn(("e1", 2024), matched)
+        self.assertEqual(integ["prefix_fallback_used"], 1)
+
     def test_kickoff_outside_tolerance(self):
         ko = dt.datetime(2024, 12, 5, 17, 0, tzinfo=dt.timezone.utc)
         events = {("e1", 2024): ("Ohio State", "Michigan", ko)}
