@@ -31,11 +31,13 @@ jobs:
     timeout-minutes: 12
     env:
       # Hard credit caps (see ops/saturday_timing.py). Measured 2026-09-16:
-      # one event-odds call (totals-only, us) = 1 provider credit, so a
-      # full ~70-game Saturday slate costs ~70 credits per 15-min run.
-      # 48 runs x ~70 = ~3,360/day worst case against the 20k key.
-      TIMING_MAX_CREDITS_PER_RUN: "80"
-      TIMING_MAX_CREDITS_DAY: "4000"
+      # ONE bulk /odds call (totals-only, us) = 1 provider credit per
+      # 15-minute tick, so all 48 Saturday runs cost 48 credits expected.
+      # The 55/day ceiling reserves headroom ONLY for explicitly logged
+      # retries (max one per tick, same tick timestamp); retries never
+      # add observation slots or shift the cadence.
+      TIMING_MAX_CREDITS_PER_RUN: "4"
+      TIMING_MAX_CREDITS_DAY: "55"
       # Standing quota isolation: the NFL collector has priority. The
       # timing experiment stands down below this shared-key floor.
       NCAAF_EDGE_MIN_QUOTA_REMAINING: "2000"
