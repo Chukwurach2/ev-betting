@@ -4,7 +4,7 @@ Usage (from a workflow step, after the component's work completed):
     HEARTBEAT_DETAIL='{"odds_credits_remaining": 492}' \
       python ops/heartbeat.py collector
 
-Components: schedule_sync, collector, picks, settlement.
+Components: schedule_sync, collector, picks, settlement, prop_collector.
 Exits 0 on success, nonzero on failure (so a missed heartbeat is loud).
 """
 from __future__ import annotations

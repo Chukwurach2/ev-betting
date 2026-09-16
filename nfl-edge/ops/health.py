@@ -29,9 +29,20 @@ THRESHOLDS = {
     "collector": dt.timedelta(minutes=150),
     "picks": dt.timedelta(minutes=150),
     "settlement": dt.timedelta(hours=30),
+    # NFL prospective prop layer (non-core research infrastructure): staleness
+    # escalates to degraded, never down — it must not flap the shadow
+    # pipeline's status. Design §6.2: deliberately non-core, unlike the
+    # featured collector which stays core.
+    "prop_collector": dt.timedelta(hours=6),
 }
 # Core components whose staleness means the pipeline is down (in season).
 CORE = ("schedule_sync", "collector", "picks")
+# Non-core research components that have never produced a heartbeat are
+# "not yet commissioned", not broken: they report "missing" WITHOUT
+# escalating (pre-calibration the prop layer has no staleness to measure,
+# and a permanent pre-launch DEGRADED would spam the §6.3 alert). Once a
+# heartbeat exists, staleness escalates to degraded — never down.
+NEVER_COMMISSIONED_OK = ("prop_collector",)
 # Below this many remaining provider credits, report degraded.
 CREDITS_WARN_BELOW = 60
 # If no game kicks off within this window, the league is idle: stale
@@ -44,8 +55,15 @@ _SEVERITY = {"ok": 0, "idle": 0, "degraded": 1, "down": 2}
 
 
 def evaluate(heartbeats: dict[str, dict], now: dt.datetime,
-             upcoming_games: int) -> dict:
-    """Pure health logic. heartbeats maps component -> {last_ok_at, detail}."""
+             upcoming_games: int, completeness_missed: dict | None = None) -> dict:
+    """Pure health logic. heartbeats maps component -> {last_ok_at, detail}.
+
+    completeness_missed maps component -> missed-snapshot count for the
+    latest checkpoint window (read from nfl_prop_completeness by check());
+    it is exposed in the component detail for visibility — a missed single
+    snapshot is degraded-worthy context in detail, while the component
+    status flips only on sustained staleness.
+    """
     in_season = upcoming_games > 0
     components: dict[str, dict] = {}
     worst = "ok"
@@ -65,10 +83,21 @@ def evaluate(heartbeats: dict[str, dict], now: dt.datetime,
         else:
             age = (now - hb["last_ok_at"]).total_seconds()
             status = "ok" if age <= limit.total_seconds() else "stale"
-        components[name] = {"status": status, "age_seconds":
-                            None if age is None else round(age)}
+        entry: dict = {"status": status, "age_seconds":
+                       None if age is None else round(age)}
+        if completeness_missed and name in completeness_missed:
+            entry["missed_snapshots"] = completeness_missed[name]
+        components[name] = entry
         if status in ("stale", "missing"):
-            escalate("down" if name in CORE else "degraded")
+            # Non-core components never go down. A non-core research
+            # component that never produced a heartbeat is not yet
+            # commissioned: visible as "missing", no escalation.
+            if name in CORE:
+                escalate("down")
+            elif status == "missing" and name in NEVER_COMMISSIONED_OK:
+                pass
+            else:
+                escalate("degraded")
 
     credits_remaining = None
     detail = (heartbeats.get("collector") or {}).get("detail") or {}
@@ -108,8 +137,39 @@ def check(conn) -> dict:
         upcoming = int(cur.fetchone()[0])
     except Exception:
         upcoming = 0
+    # Prop-layer completeness: missed snapshots for the latest checkpoint
+    # window, visible in the same health payload immediately (design §6.2).
+    # Prop-layer completeness: missed snapshots for the latest (season,
+    # week) window, visible in the same health payload immediately
+    # (design §6.2). A missed single snapshot is degraded-worthy context in
+    # the detail payload; the component status flips on sustained
+    # staleness, not on one gap.
+    completeness_missed = {}
+    try:
+        cur.execute("""
+            SELECT checkpoint_name, SUM(missed)::int AS missed
+            FROM public.nfl_prop_completeness
+            WHERE (season, week) = (
+                SELECT season, week
+                FROM public.nfl_prop_completeness
+                ORDER BY season DESC NULLS LAST, week DESC NULLS LAST
+                LIMIT 1
+            )
+            GROUP BY checkpoint_name
+        """)
+        rows = cur.fetchall()
+        if rows:
+            by_checkpoint = {r[0]: (r[1] or 0) for r in rows}
+            completeness_missed["prop_collector"] = {
+                "by_checkpoint": by_checkpoint,
+                "total": sum(by_checkpoint.values()),
+            }
+    except Exception:
+        # View/table absent (pre-migration) — completeness is unknown,
+        # never fatal to the health check.
+        pass
     now = dt.datetime.now(dt.timezone.utc)
-    return evaluate(heartbeats, now, upcoming)
+    return evaluate(heartbeats, now, upcoming, completeness_missed)
 
 
 def main() -> int:

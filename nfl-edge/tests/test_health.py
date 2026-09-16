@@ -17,7 +17,8 @@ def hb(minutes_ago, detail=None):
 
 def fresh_all(extra=None):
     h = {"schedule_sync": hb(10), "collector": hb(10),
-         "picks": hb(10), "settlement": hb(60)}
+         "picks": hb(10), "settlement": hb(60),
+         "prop_collector": hb(10)}
     if extra:
         h.update(extra)
     return h
