@@ -80,8 +80,23 @@ def resolve_tick(events_payload, nv_games, seasons, aliases=None):
     """
     if aliases is None:
         aliases = load_aliases()
-    oe_events = [normalize_live_event(e) for e in events_payload]
-    return match_events(oe_events, nv_games, aliases, seasons)
+    oe_events = []
+    malformed = 0
+    for e in events_payload:
+        try:
+            oe_events.append(normalize_live_event(e))
+        except ValueError:
+            # One malformed provider row must not kill the whole tick;
+            # the row is skipped and counted, never guessed.
+            malformed += 1
+    if not oe_events and events_payload:
+        # Every row malformed: fail loud, don't silently no-op.
+        raise ValueError(
+            f"resolve_tick: all {len(events_payload)} events-list rows malformed"
+        )
+    results = match_events(oe_events, nv_games, aliases, seasons)
+    results["malformed_rows_skipped"] = malformed
+    return results
 
 
 def match_by_canonical(results):

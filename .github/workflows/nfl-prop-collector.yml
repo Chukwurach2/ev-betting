@@ -3,12 +3,11 @@ name: nfl-prop-collector
 # NFL prospective prop/alternative-market collector (design:
 # nfl-edge/docs/nfl-prospective-prop-layer.md).
 #
-# BUILD PHASE: dry-run only. The scheduled and default dispatch runs execute
-# the full cycle (schedule enumeration, checkpoint planning, ID resolution,
-# projection, cap check) against a RECORDED events-list fixture and make
-# ZERO /odds calls and ZERO production-table writes. Live paid collection
-# requires BOTH the dispatch `live` input AND NFL_PROP_LIVE_OK=1; the build
-# phase authorizes neither.
+# LIVE (user-authorized 2026-09-16): scheduled runs collect live when the
+# repo variable NFL_PROP_LIVE_OK=1. Manual dispatch with live=false remains
+# the dry-run path (full cycle against a RECORDED events-list fixture, ZERO
+# /odds calls, ZERO production-table writes). Live paid collection requires
+# the dispatch `live` input OR a scheduled run, AND NFL_PROP_LIVE_OK=1.
 #
 # Per-run credit discipline: NFL_PROP_RUN_CREDIT_CAP (default 90) is checked
 # BEFORE any paid call; exceeding it aborts with zero paid calls
@@ -100,7 +99,7 @@ jobs:
           NFL_EDGE_DATABASE_URL: ${{ secrets.NFL_EDGE_DATABASE_URL }}
         run: python ops/migrate.py
       - name: Dry-run prop collection cycle
-        if: inputs.live != true
+        if: ${{ inputs.live != true && !(github.event_name == 'schedule' && vars.NFL_PROP_LIVE_OK == '1') }}
         env:
           NFL_EDGE_DATABASE_URL: ${{ secrets.NFL_EDGE_DATABASE_URL }}
         run: |
@@ -109,13 +108,13 @@ jobs:
             --simulate-odds ops/fixtures/nfl_prop_simulate_odds.json \
             --out /tmp/nfl_prop_dryrun.json
       - name: Upload dry-run artifact
-        if: inputs.live != true
+        if: ${{ inputs.live != true && !(github.event_name == 'schedule' && vars.NFL_PROP_LIVE_OK == '1') }}
         uses: actions/upload-artifact@v4
         with:
           name: nfl-prop-dryrun-${{ github.run_number }}
           path: /tmp/nfl_prop_dryrun.json
       - name: Live prop collection (requires NFL_PROP_LIVE_OK=1)
-        if: inputs.live == true
+        if: ${{ inputs.live == true || (github.event_name == 'schedule' && vars.NFL_PROP_LIVE_OK == '1') }}
         env:
           NFL_EDGE_DATABASE_URL: ${{ secrets.NFL_EDGE_DATABASE_URL }}
           THE_ODDS_API_KEY: ${{ secrets.THE_ODDS_API_KEY }}

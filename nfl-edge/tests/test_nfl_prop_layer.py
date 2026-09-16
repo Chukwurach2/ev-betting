@@ -131,6 +131,27 @@ class ResolveTickTest(unittest.TestCase):
         self.assertEqual(r1["matched"][0]["provider_event_id"], "tick1-id")
         self.assertEqual(r2["matched"][0]["provider_event_id"], "tick2-id")
 
+    def test_malformed_row_skipped_not_fatal(self):
+        # One malformed provider row must not kill the whole tick: the bad
+        # row is skipped and counted, the good row still resolves.
+        res = nfl_prop_identity.resolve_tick(
+            [{"id": "bad1", "home_team": "Buffalo Bills",
+              "away_team": "Detroit Lions"},  # no commence_time
+             {"id": "e1", "home_team": "Buffalo Bills",
+              "away_team": "Detroit Lions",
+              "commence_time": "2026-09-18T00:15:00Z"}],
+            self.GAMES, [2026], ALIASES)
+        self.assertEqual(len(res["matched"]), 1)
+        self.assertEqual(res["matched"][0]["provider_event_id"], "e1")
+        self.assertEqual(res["malformed_rows_skipped"], 1)
+
+    def test_all_rows_malformed_raises(self):
+        # Every row malformed: fail loud, don't silently no-op.
+        with self.assertRaises(ValueError):
+            nfl_prop_identity.resolve_tick(
+                [{"id": "bad1"}, {"id": "bad2", "commence_time": "nope"}],
+                self.GAMES, [2026], ALIASES)
+
 
 class ProjectionTest(unittest.TestCase):
     def test_nominal_and_margin(self):
