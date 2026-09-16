@@ -100,15 +100,52 @@ def main() -> None:
     out["snapshots_not_fully_matched"] = [
         s for s in snap_results if s["matched"] != s["n"]
     ]
-    out["candidate_histogram"] = {}
-    for s in snap_results:
-        if s["matched"] == s["n"]:
-            # normalize candidate to a pattern label
-            c = s["best_candidate"]
-            label = ("frac6Z" if ".%f" not in c and "T" in c and c.endswith("Z")
-                     and "." in c else c)
-            out["candidate_histogram"][s["best_candidate"][:26]] = \
-                out["candidate_histogram"].get(s["best_candidate"][:26], 0) + 1
+    # Check 1b: for rows NOT matching with the plain-Zulu timestamp, the
+    # difference must be per-row. Prime suspect: spread `line` — commit
+    # 0ba8f600 (2026-09-15) changed stored spread lines from |line| to
+    # signed AFTER quote_ids were hashed. Try line variants per market.
+    def line_variants(mkt, line):
+        s = str(line)
+        variants = {"stored": s}
+        try:
+            f = float(line)
+            variants["abs"] = str(abs(f)).rstrip("0").rstrip(".") \
+                if "." in str(abs(f)) else str(abs(f))
+            # normalize: match Python str(float) rendering
+            variants["abs"] = str(float(abs(f)))
+            variants["neg"] = str(float(-f))
+            variants["float"] = str(float(f))
+        except (ValueError, TypeError):
+            pass
+        return variants
+
+    snaps2: dict = {}
+    for (qid, eid, bkey, mkt, sel, line, price, fp, obs) in rows:
+        snaps2.setdefault(obs, []).append((qid, eid, bkey, mkt, sel, line, price))
+    matrix: dict = {}
+    examined = 0
+    for obs, srows in sorted(snaps2.items(), key=lambda kv: str(kv[0])):
+        zulu = obs.strftime("%Y-%m-%dT%H:%M:%S") + "Z"
+        for (qid, eid, bkey, mkt, sel, line, price) in srows:
+            key = (mkt, "neg" if str(line).startswith("-") else "pos")
+            cell = matrix.setdefault(key, {"n": 0, "stored": 0, "abs": 0,
+                                           "neg": 0, "float": 0})
+            cell["n"] += 1
+            for vname, vline in line_variants(mkt, line).items():
+                h = hashlib.sha256(
+                    ("%s|%s|%s|%s|%s|%s|%s"
+                     % (zulu, eid, bkey, mkt, sel, vline, price)).encode()
+                ).hexdigest()
+                if h == qid:
+                    cell[vname] += 1
+            examined += 1
+            if examined > 60000:
+                break
+        if examined > 60000:
+            break
+    out["line_variant_matrix_60k_sample"] = {
+        "%s/%s" % k: v for k, v in matrix.items()
+    }
 
     # Check 2: fair_probability re-derivation with backfill pairing logic
     groups: dict = {}
