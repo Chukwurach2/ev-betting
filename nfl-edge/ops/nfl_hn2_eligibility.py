@@ -81,7 +81,7 @@ MDE_SD_W = 5.0                  # planning assumption: wind SD (mph)
 MDE_CAP = 0.40                  # MDE above this (pts/mph) -> RETIRE-ON-POWER
 
 NFLVERSE_SCHEDULES_URL = ("https://github.com/nflverse/nflverse-data/releases"
-                          "/download/schedules/schedules.csv")
+                          "/download/schedules/games.csv")
 
 # Venue roof classes. INCLUDED = genuinely weather-exposed by structure.
 # Retractable-roof venues are excluded wholesale: gameday roof position is
