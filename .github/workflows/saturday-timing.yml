@@ -1,16 +1,44 @@
 name: saturday-timing
 
+# ONE-TIME experiment: Saturday 2026-09-19, 10:00-21:45 ET, every 15 min
+# (48 observation slots). The cron below fires on every Saturday, but
+# nfl-edge/ops/saturday_timing.py hard-gates on the experiment date:
+# runs outside 2026-09-19 (ET) exit before ANY provider API call as
+# zero-cost no-ops (status date_gate_skip). The date gate is a code
+# constant -- authorizing another Saturday requires a commit.
 on:
   workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry run: zero paid API calls, zero DB writes"
+        required: false
+        default: "false"
   schedule:
-    # Saturdays 10am-10pm ET (14:00-02:00 UTC), every 15 minutes
-    # 10:00 ET = 14:00 UTC, 22:00 ET = 02:00 UTC (next day)
+    # 48 runs total. 2026-09-19 is EDT (UTC-4).
+    # 10:00-19:45 ET = 14:00-23:45 UTC Saturday: 10h x 4 = 40 runs.
     - cron: '*/15 14-23 * * 6'
-    - cron: '*/15 0-2 * * 0'
+    # 20:00-21:45 ET = 00:00-01:45 UTC Sunday: 2h x 4 = 8 runs.
+    # (02:00 UTC = 22:00 ET is the exclusive window end: NOT included.)
+    - cron: '*/15 0-1 * * 0'
+
+concurrency:
+  group: saturday-timing
+  cancel-in-progress: false
 
 jobs:
   timing:
     runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      # Hard credit caps (see ops/saturday_timing.py). Measured 2026-09-16:
+      # one event-odds call (totals-only, us) = 1 provider credit, so a
+      # full ~70-game Saturday slate costs ~70 credits per 15-min run.
+      # 48 runs x ~70 = ~3,360/day worst case against the 20k key.
+      TIMING_MAX_CREDITS_PER_RUN: "80"
+      TIMING_MAX_CREDITS_DAY: "4000"
+      # Standing quota isolation: the NFL collector has priority. The
+      # timing experiment stands down below this shared-key floor.
+      NCAAF_EDGE_MIN_QUOTA_REMAINING: "2000"
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
@@ -22,15 +50,36 @@ jobs:
           python-version: "3.12"
       - name: Install dependencies
         run: python -m pip install -r nfl-edge/ops/requirements.txt
-      - name: Collect timing quotes (totals-only, 1 credit)
+      - name: Verify secrets
         env:
           NFL_EDGE_DATABASE_URL: ${{ secrets.NFL_EDGE_DATABASE_URL }}
-          ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+          THE_ODDS_API_KEY: ${{ secrets.THE_ODDS_API_KEY }}
         run: |
-          python nfl-edge/ops/saturday_timing.py \
-            --out /tmp/saturday_timing.json
+          python3 - <<'EOF'
+          import os
+          missing = [k for k in ("NFL_EDGE_DATABASE_URL", "THE_ODDS_API_KEY")
+                     if not os.environ.get(k)]
+          if missing:
+              raise SystemExit(f"missing secrets: {', '.join(missing)}")
+          print("secrets present")
+          EOF
+      - name: Apply additive migrations (timing tables)
+        env:
+          NFL_EDGE_DATABASE_URL: ${{ secrets.NFL_EDGE_DATABASE_URL }}
+        run: python nfl-edge/ops/migrate.py
+      - name: Collect timing quotes (totals-only)
+        env:
+          NFL_EDGE_DATABASE_URL: ${{ secrets.NFL_EDGE_DATABASE_URL }}
+          THE_ODDS_API_KEY: ${{ secrets.THE_ODDS_API_KEY }}
+        run: |
+          ARGS="--out /tmp/saturday_timing.json"
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            ARGS="$ARGS --dry-run"
+          fi
+          python nfl-edge/ops/saturday_timing.py $ARGS
       - name: Upload artifact
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: saturday-timing
+          name: saturday-timing-${{ github.run_number }}
           path: /tmp/saturday_timing.json

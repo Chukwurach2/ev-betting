@@ -1,16 +1,17 @@
 name: opportunity-lifetime
 
+# Read-only analysis of the Saturday timing experiment. Zero API credits.
+# Reads ONLY the dedicated timing tables (ncaaf_timing_quotes /
+# ncaaf_timing_runs / ncaaf_timing_book_states) -- never the live
+# odds-quotes table. Run after the 2026-09-19 collection completes.
+
 on:
   workflow_dispatch:
     inputs:
-      sport:
-        description: "Sport key"
+      experiment:
+        description: "Experiment key in the timing tables"
         required: false
-        default: "ncaaf"
-      days:
-        description: "Lookback days"
-        required: false
-        default: "7"
+        default: "saturday-timing"
 
 jobs:
   lifetime:
@@ -31,11 +32,11 @@ jobs:
           NFL_EDGE_DATABASE_URL: ${{ secrets.NFL_EDGE_DATABASE_URL }}
         run: |
           python nfl-edge/ops/opportunity_lifetime.py \
-            --sport "${{ inputs.sport }}" \
-            --days "${{ inputs.days }}" \
-            --out /tmp/opportunity_lifetime.json
+            --experiment "${{ inputs.experiment }}" \
+            --out /tmp/saturday_timing_analysis.json
       - name: Upload artifact
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: opportunity-lifetime
-          path: /tmp/opportunity_lifetime.json
+          name: opportunity-lifetime-${{ github.run_number }}
+          path: /tmp/saturday_timing_analysis.json
