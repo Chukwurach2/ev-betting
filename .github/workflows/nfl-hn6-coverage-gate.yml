@@ -1,0 +1,65 @@
+name: nfl-hn6-coverage-gate
+
+# H-N6 read-only coverage gate (frozen prereg
+# docs/preregistrations/nfl-h-n6-officiating-crew-totals-frozen.md).
+# Measures per-game totals-quote presence at the preregistered decision
+# snapshots. READ-ONLY: SELECTs only, free HTTP for nflverse reference
+# data, zero Odds API credits, no DB writes, no outcomes inspected.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: nfl-edge
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: python -m pip install -r nfl-edge/ops/requirements.txt
+      - name: Preflight coverage gate
+        shell: bash
+        run: |
+          set -euxo pipefail
+          test -n "${NFL_EDGE_DATABASE_URL:-}" || {
+            echo "::error::NFL_EDGE_DATABASE_URL is missing"
+            exit 10
+          }
+          test -f nfl-edge/ops/nfl_hn6_coverage_gate.py || {
+            echo "::error::nfl_hn6_coverage_gate.py missing"
+            exit 11
+          }
+          test -f nfl-edge/ops/nfl_canonical_identity.py || {
+            echo "::error::nfl_canonical_identity.py missing"
+            exit 12
+          }
+          test -f nfl-edge/ops/nflverse_schedules_2022_2024.json || {
+            echo "::error::nflverse schedules file missing"
+            exit 13
+          }
+          python - <<'PY'
+          import importlib
+          for package in ("psycopg",):
+              importlib.import_module(package)
+              print("dependency OK:", package)
+          PY
+        env:
+          NFL_EDGE_DATABASE_URL: ${{ secrets.NFL_EDGE_DATABASE_URL }}
+      - name: Run H-N6 coverage gate (read-only)
+        env:
+          NFL_EDGE_DATABASE_URL: ${{ secrets.NFL_EDGE_DATABASE_URL }}
+        run: |
+          set -euxo pipefail
+          python -u nfl-edge/ops/nfl_hn6_coverage_gate.py \
+            --out /tmp/nfl_hn6_coverage_gate.json
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nfl-hn6-coverage-gate
+          path: /tmp/nfl_hn6_coverage_gate.json
