@@ -1,0 +1,34 @@
+name: nfl-hd-pull
+
+# H-D minimum viable historical pull (PAID — user-authorized 2026-09-16 13:33 EDT).
+# 60 treated events x 2 markets, one call per event (both markets in one request).
+# HARD 1,200-credit ceiling enforced in-script (aborts rather than breaching).
+# Read-only on the provider; zero DB writes; zero outcome access.
+# Output: immutable pull log artifact (nfl_hd_pull.json).
+
+on:
+  workflow_dispatch:
+
+jobs:
+  pull:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: nfl-edge
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run H-D pull
+        env:
+          THE_ODDS_API_KEY: ${{ secrets.THE_ODDS_API_KEY }}
+        run: python nfl-edge/ops/nfl_hd_pull.py --out /tmp/nfl_hd_pull.json
+      - name: Upload pull log artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nfl-hd-pull-${{ github.run_number }}
+          path: /tmp/nfl_hd_pull.json

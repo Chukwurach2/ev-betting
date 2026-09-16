@@ -1,0 +1,767 @@
+{
+  "manifest_version": "1.0-frozen",
+  "source": "CI artifact run 35041420559, transcription errors corrected (see freeze receipt)",
+  "credit_ceiling": 1200,
+  "events": [
+    {
+      "nflverse_game_id": "2023_01_HOU_BAL",
+      "matchup": "HOU@BAL wk1",
+      "t_dec_utc": "2023-09-09T17:00:00Z",
+      "f_inches": 2.0,
+      "event_ids": [
+        "33368d4979d3475b77f5e9eb49648203"
+      ],
+      "event_ids_first_seen": [
+        "2023-09-10"
+      ]
+    },
+    {
+      "nflverse_game_id": "2023_01_ARI_WAS",
+      "matchup": "ARI@WAS wk1",
+      "t_dec_utc": "2023-09-09T17:00:00Z",
+      "f_inches": 2.0,
+      "event_ids": [
+        "175d9f07fc52d99b21bc772b1499c3d8"
+      ],
+      "event_ids_first_seen": [
+        "2023-09-10"
+      ]
+    },
+    {
+      "nflverse_game_id": "2023_01_PHI_NE",
+      "matchup": "PHI@NE wk1",
+      "t_dec_utc": "2023-09-09T20:25:00Z",
+      "f_inches": 1.0,
+      "event_ids": [
+        "0a368c64b212ecbad4ec46f6ff6c1af2"
+      ],
+      "event_ids_first_seen": [
+        "2023-09-10"
+      ]
+    },
+    {
+      "nflverse_game_id": "2023_02_KC_JAX",
+      "matchup": "KC@JAX wk2",
+      "t_dec_utc": "2023-09-16T17:00:00Z",
+      "f_inches": 1.0,
+      "event_ids": [
+        "450d0600bc30565494c6df8096e04976"
+      ],
+      "event_ids_first_seen": [
+        "2023-09-17"
+      ]
+    },
+    {
+      "nflverse_game_id": "2023_03_IND_BAL",
+      "matchup": "IND@BAL wk3",
+      "t_dec_utc": "2023-09-23T17:00:00Z",
+      "f_inches": 4.0,
+      "event_ids": [
+        "2c66bee99eec7cca649ecb6b249868fb"
+      ],
+      "event_ids_first_seen": [
+        "2023-09-24"
+      ]
+    },
+    {
+      "nflverse_game_id": "2023_03_DEN_MIA",
+      "matchup": "DEN@MIA wk3",
+      "t_dec_utc": "2023-09-23T17:00:00Z",
+      "f_inches": 4.0,
+      "event_ids": [
+        "2ff30bbaf02729644dc5dd83dd02ab12"
+      ],
+      "event_ids_first_seen": [
+        "2023-09-24"
+      ]
+    },
+    {
+      "nflverse_game_id": "2023_03_NE_NYJ",
+      "matchup": "NE@NYJ wk3",
+      "t_dec_utc": "2023-09-23T17:00:00Z",
+      "f_inches": 5.0,
+      "event_ids": [
+        "66edacbc3505803f401192da0fb09b49"
+      ],
+      "event_ids_first_seen": [
+        "2023-09-24"
+      ]
+    },
+    {
+      "nflverse_game_id": "2023_03_BUF_WAS",
+      "matchup": "BUF@WAS wk3",
+      "t_dec_utc": "2023-09-23T17:00:00Z",
+      "f_inches": 3.0,
+      "event_ids": [
+        "f049d09c797baccf11023b4cb7bc9b0b"
+      ],
+      "event_ids_first_seen": [
+        "2023-09-24"
+      ]
+    },
+    {
+      "nflverse_game_id": "2023_03_CAR_SEA",
+      "matchup": "CAR@SEA wk3",
+      "t_dec_utc": "2023-09-23T20:05:00Z",
+      "f_inches": 1.0,
+      "event_ids": [
+        "4b3ed4ec08352199ff98bdf14b247c88"
+      ],
+      "event_ids_first_seen": [
+        "2023-09-24"
+      ]
+    },
+    {
+      "nflverse_game_id": "2023_03_PHI_TB",
+      "matchup": "PHI@TB wk3",
+      "t_dec_utc": "2023-09-24T23:15:00Z",
+      "f_inches": 2.0,
+      "event_ids": [
+        "1e006c91ca2e69c339ed517495a2f428"
+      ],
+      "event_ids_first_seen": [
+        "2023-09-25"
+      ]
+    },
+    {
+      "nflverse_game_id": "2023_05_NYG_MIA",
+      "matchup": "NYG@MIA wk5",
+      "t_dec_utc": "2023-10-07T17:00:00Z",
+      "f_inches": 1.0,
+      "event_ids": [
+        "d72ca5073fe1d69e6cd3beb37e52c081",
+        "6ed123d675ff7026b7b8ae34d3b4a59f"
+      ],
+      "event_ids_first_seen": [
+        "2023-10-08",
+        "2023-10-08"
+      ]
+    },
+    {
+      "nflverse_game_id": "2023_06_SF_CLE",
+      "matchup": "SF@CLE wk6",
+      "t_dec_utc": "2023-10-14T17:00:00Z",
+      "f_inches": 1.0,
+      "event_ids": [
+        "417e02503976f3971e0750e60fff16e2",
+        "640fd44761340126d8d482cd2a819c4a"
+      ],
+      "event_ids_first_seen": [
+        "2023-10-15",
+        "2023-10-15"
+      ]
+    },
+    {
+      "nflverse_game_id": "2023_06_NYG_BUF",
+      "matchup": "NYG@BUF wk6",
+      "t_dec_utc": "2023-10-15T00:20:00Z",
+      "f_inches": 1.0,
+      "event_ids": [
+        "68b7be06e7590bd403fd52db5c1d1c35",
+        "a9dd32ca4851d736514da497d2a24bbb"
+      ],
+      "event_ids_first_seen": [
+        "2023-10-16",
+        "2023-10-16"
+      ]
+    },
+    {
+      "nflverse_game_id": "2023_08_NYJ_NYG",
+      "matchup": "NYJ@NYG wk8",
+      "t_dec_utc": "2023-10-28T17:00:00Z",
+      "f_inches": 1.0,
+      "event_ids": [
+        "259e887fe43f70831d9ff5f0b13d20ea",
+        "b82f30e931a965bc7277d187549ca294"
+      ],
+      "event_ids_first_seen": [
+        "2023-10-29",
+        "2023-10-29"
+      ]
+    },
+    {
+      "nflverse_game_id": "2023_08_JAX_PIT",
+      "matchup": "JAX@PIT wk8",
+      "t_dec_utc": "2023-10-28T17:00:00Z",
+      "f_inches": 2.0,
+      "event_ids": [
+        "b1ac8bca9348e03321aa9bb276a6aadb",
+        "d00525c4b0701d8762321e851ea97063"
+      ],
+      "event_ids_first_seen": [
+        "2023-10-29",
+        "2023-10-29"
+      ]
+    },
+    {
+      "nflverse_game_id": "2023_08_ATL_TEN",
+      "matchup": "ATL@TEN wk8",
+      "t_dec_utc": "2023-10-28T17:00:00Z",
+      "f_inches": 2.0,
+      "event_ids": [
+        "a13c16fa181d37e4603c793125a187fe",
+        "97819f71c474956d24e436f0465f1591"
+      ],
+      "event_ids_first_seen": [
+        "2023-10-29",
+        "2023-10-29"
+      ]
+    },
+    {
+      "nflverse_game_id": "2023_10_WAS_SEA",
+      "matchup": "WAS@SEA wk10",
+      "t_dec_utc": "2023-11-11T21:25:00Z",
+      "f_inches": 1.0,
+      "event_ids": [
+        "f7e8366f4bc62b8490b4324f8088bcab",
+        "e658ecc30213f84c4b68dc3cf5f3f44c"
+      ],
+      "event_ids_first_seen": [
+        "2023-11-12",
+        "2023-11-12"
+      ]
+    },
+    {
+      "nflverse_game_id": "2023_11_PHI_KC",
+      "matchup": "PHI@KC wk11",
+      "t_dec_utc": "2023-11-20T01:15:00Z",
+      "f_inches": 1.0,
+      "event_ids": [
+        "34e87b63f58243a144a3c716fa79c61e",
+        "7ada5a3ce1269f9c0953a196b5fb4a0c"
+      ],
+      "event_ids_first_seen": [
+        "2023-11-21",
+        "2023-11-21"
+      ]
+    },
+    {
+      "nflverse_game_id": "2023_12_PIT_CIN",
+      "matchup": "PIT@CIN wk12",
+      "t_dec_utc": "2023-11-25T18:00:00Z",
+      "f_inches": 2.0,
+      "event_ids": [
+        "4dc52e888473f9d445419321b93606f9",
+        "4fc56a4d2185021682448f394e367742"
+      ],
+      "event_ids_first_seen": [
+        "2023-11-26",
+        "2023-11-26"
+      ]
+    },
+    {
+      "nflverse_game_id": "2023_12_BUF_PHI",
+      "matchup": "BUF@PHI wk12",
+      "t_dec_utc": "2023-11-25T21:25:00Z",
+      "f_inches": 1.0,
+      "event_ids": [
+        "5e766a287ba24d40d9e40aa41efe19de",
+        "ed749f58474979a2601336af4596d47d"
+      ],
+      "event_ids_first_seen": [
+        "2023-11-26",
+        "2023-11-26"
+      ]
+    },
+    {
+      "nflverse_game_id": "2023_13_LAC_NE",
+      "matchup": "LAC@NE wk13",
+      "t_dec_utc": "2023-12-02T18:00:00Z",
+      "f_inches": 4.0,
+      "event_ids": [
+        "aee7b722e1c8ea7e70d3dc4165b8d48e",
+        "ad1bbe3e94716ca03c3059092cbd1eee"
+      ],
+      "event_ids_first_seen": [
+        "2023-12-03",
+        "2023-12-03"
+      ]
+    },
+    {
+      "nflverse_game_id": "2023_13_ATL_NYJ",
+      "matchup": "ATL@NYJ wk13",
+      "t_dec_utc": "2023-12-02T18:00:00Z",
+      "f_inches": 1.0,
+      "event_ids": [
+        "d9498cb661062746dfc500a20c3a87e8",
+        "8adf20ae245b218aa0f008be93442a19"
+      ],
+      "event_ids_first_seen": [
+        "2023-12-03",
+        "2023-12-03"
+      ]
+    },
+    {
+      "nflverse_game_id": "2023_13_ARI_PIT",
+      "matchup": "ARI@PIT wk13",
+      "t_dec_utc": "2023-12-02T18:00:00Z",
+      "f_inches": 2.0,
+      "event_ids": [
+        "76ae384526017414d68d617bf80b8aab",
+        "da4df5ecb534454b366e047b1909e1bb"
+      ],
+      "event_ids_first_seen": [
+        "2023-12-03",
+        "2023-12-03"
+      ]
+    },
+    {
+      "nflverse_game_id": "2023_13_CAR_TB",
+      "matchup": "CAR@TB wk13",
+      "t_dec_utc": "2023-12-02T21:05:00Z",
+      "f_inches": 1.0,
+      "event_ids": [
+        "b70cc20a6410503c2661e5074c3bedd8",
+        "43df28defee70f608e4cf44f51c3c351"
+      ],
+      "event_ids_first_seen": [
+        "2023-12-03",
+        "2023-12-03"
+      ]
+    },
+    {
+      "nflverse_game_id": "2023_14_LA_BAL",
+      "matchup": "LA@BAL wk14",
+      "t_dec_utc": "2023-12-09T18:00:00Z",
+      "f_inches": 4.0,
+      "event_ids": [
+        "c4fa37180b109663749897f5e7ddb134",
+        "82734cac4ffb5c36e55d0b5dd6bc62f8"
+      ],
+      "event_ids_first_seen": [
+        "2023-12-10",
+        "2023-12-10"
+      ]
+    },
+    {
+      "nflverse_game_id": "2023_14_HOU_NYJ",
+      "matchup": "HOU@NYJ wk14",
+      "t_dec_utc": "2023-12-09T18:00:00Z",
+      "f_inches": 5.0,
+      "event_ids": [
+        "affdea10708b9e802b8b0c445be6ce4b",
+        "ad9641812be259565c9f27efacbd6078"
+      ],
+      "event_ids_first_seen": [
+        "2023-12-10",
+        "2023-12-10"
+      ]
+    },
+    {
+      "nflverse_game_id": "2023_15_ATL_CAR",
+      "matchup": "ATL@CAR wk15",
+      "t_dec_utc": "2023-12-16T18:00:00Z",
+      "f_inches": 4.0,
+      "event_ids": [
+        "89a76d31332effa87075701f164a8e0a"
+      ],
+      "event_ids_first_seen": [
+        "2023-12-17"
+      ]
+    },
+    {
+      "nflverse_game_id": "2023_15_CHI_CLE",
+      "matchup": "CHI@CLE wk15",
+      "t_dec_utc": "2023-12-16T18:00:00Z",
+      "f_inches": 2.0,
+      "event_ids": [
+        "abf4a23e7c6b9dd94d13a3070a32a65f"
+      ],
+      "event_ids_first_seen": [
+        "2023-12-17"
+      ]
+    },
+    {
+      "nflverse_game_id": "2023_15_DAL_BUF",
+      "matchup": "DAL@BUF wk15",
+      "t_dec_utc": "2023-12-16T21:25:00Z",
+      "f_inches": 2.0,
+      "event_ids": [
+        "16807f51a2a89040e6573ff24bfcd9ab",
+        "b4a925302ef4769f63a996a6ba6548e0"
+      ],
+      "event_ids_first_seen": [
+        "2023-12-17",
+        "2023-12-17"
+      ]
+    },
+    {
+      "nflverse_game_id": "2023_15_PHI_SEA",
+      "matchup": "PHI@SEA wk15",
+      "t_dec_utc": "2023-12-18T01:15:00Z",
+      "f_inches": 1.0,
+      "event_ids": [
+        "7856ae92af5a45990c0673041c46917b",
+        "f51da6d224ba8d719fe220e807cd0442"
+      ],
+      "event_ids_first_seen": [
+        "2023-12-17",
+        "2023-12-19"
+      ]
+    },
+    {
+      "nflverse_game_id": "2023_16_CIN_PIT",
+      "matchup": "CIN@PIT wk16",
+      "t_dec_utc": "2023-12-22T21:30:00Z",
+      "f_inches": 1.0,
+      "event_ids": [
+        "d86898556d2e1132370891f1fc23603f",
+        "b99a12370b4b0a34cde90d66f19b4841"
+      ],
+      "event_ids_first_seen": [
+        "2023-12-23",
+        "2023-12-23"
+      ]
+    },
+    {
+      "nflverse_game_id": "2023_18_PIT_BAL",
+      "matchup": "PIT@BAL wk18",
+      "t_dec_utc": "2024-01-05T21:30:00Z",
+      "f_inches": 4.0,
+      "event_ids": [
+        "f1db1ea65e63375c8f6f9766dac5d4f7",
+        "f5160997517aa6f8f1876ee7e84f227e"
+      ],
+      "event_ids_first_seen": [
+        "2024-01-06",
+        "2024-01-07"
+      ]
+    },
+    {
+      "nflverse_game_id": "2023_18_NYJ_NE",
+      "matchup": "NYJ@NE wk18",
+      "t_dec_utc": "2024-01-06T18:00:00Z",
+      "f_inches": 1.0,
+      "event_ids": [
+        "fb5a05459a7e5616f95e2caa7732c20f"
+      ],
+      "event_ids_first_seen": [
+        "2024-01-07"
+      ]
+    },
+    {
+      "nflverse_game_id": "2023_18_PHI_NYG",
+      "matchup": "PHI@NYG wk18",
+      "t_dec_utc": "2024-01-06T21:25:00Z",
+      "f_inches": 1.0,
+      "event_ids": [
+        "66c7e39643ecae341addae9fff981d0b"
+      ],
+      "event_ids_first_seen": [
+        "2024-01-07"
+      ]
+    },
+    {
+      "nflverse_game_id": "2024_01_WAS_TB",
+      "matchup": "WAS@TB wk1",
+      "t_dec_utc": "2024-09-07T20:25:00Z",
+      "f_inches": 4.0,
+      "event_ids": [
+        "ba439e5505ce1ee745d2e48f2d2f31e6"
+      ],
+      "event_ids_first_seen": [
+        "2024-09-08"
+      ]
+    },
+    {
+      "nflverse_game_id": "2024_02_BUF_MIA",
+      "matchup": "BUF@MIA wk2",
+      "t_dec_utc": "2024-09-12T00:15:00Z",
+      "f_inches": 1.0,
+      "event_ids": [
+        "ddd9b67cf1d68282e1e8652000c0d015"
+      ],
+      "event_ids_first_seen": [
+        "2024-09-13"
+      ]
+    },
+    {
+      "nflverse_game_id": "2024_02_CLE_JAX",
+      "matchup": "CLE@JAX wk2",
+      "t_dec_utc": "2024-09-14T17:00:00Z",
+      "f_inches": 1.0,
+      "event_ids": [
+        "111ac41e21c6f16a2d3d1511f07e2004"
+      ],
+      "event_ids_first_seen": [
+        "2024-09-15"
+      ]
+    },
+    {
+      "nflverse_game_id": "2024_03_JAX_BUF",
+      "matchup": "JAX@BUF wk3",
+      "t_dec_utc": "2024-09-22T23:30:00Z",
+      "f_inches": 1.0,
+      "event_ids": [
+        "96be3ba73fc562e49a0120b5923c3213"
+      ],
+      "event_ids_first_seen": [
+        "2024-09-23"
+      ]
+    },
+    {
+      "nflverse_game_id": "2024_04_DAL_NYG",
+      "matchup": "DAL@NYG wk4",
+      "t_dec_utc": "2024-09-26T00:15:00Z",
+      "f_inches": 1.0,
+      "event_ids": [
+        "b08196b0745d9e2e0bebfe8627fc5a1f"
+      ],
+      "event_ids_first_seen": [
+        "2024-09-27"
+      ]
+    },
+    {
+      "nflverse_game_id": "2024_04_BUF_BAL",
+      "matchup": "BUF@BAL wk4",
+      "t_dec_utc": "2024-09-29T00:20:00Z",
+      "f_inches": 1.0,
+      "event_ids": [
+        "ce925c8cb892e1806399345e7885828d"
+      ],
+      "event_ids_first_seen": [
+        "2024-09-30"
+      ]
+    },
+    {
+      "nflverse_game_id": "2024_05_IND_JAX",
+      "matchup": "IND@JAX wk5",
+      "t_dec_utc": "2024-10-05T17:00:00Z",
+      "f_inches": 4.0,
+      "event_ids": [
+        "dba45197b1cd2dbafe7f83ebffd2be90"
+      ],
+      "event_ids_first_seen": [
+        "2024-10-06"
+      ]
+    },
+    {
+      "nflverse_game_id": "2024_05_DAL_PIT",
+      "matchup": "DAL@PIT wk5",
+      "t_dec_utc": "2024-10-06T00:20:00Z",
+      "f_inches": 2.0,
+      "event_ids": [
+        "504a7b09264059083346ab086141da30"
+      ],
+      "event_ids_first_seen": [
+        "2024-10-07"
+      ]
+    },
+    {
+      "nflverse_game_id": "2024_06_ARI_GB",
+      "matchup": "ARI@GB wk6",
+      "t_dec_utc": "2024-10-12T17:00:00Z",
+      "f_inches": 2.0,
+      "event_ids": [
+        "fb08594af963cff8fae2f93b2e0f4269"
+      ],
+      "event_ids_first_seen": [
+        "2024-10-13"
+      ]
+    },
+    {
+      "nflverse_game_id": "2024_08_BUF_SEA",
+      "matchup": "BUF@SEA wk8",
+      "t_dec_utc": "2024-10-26T20:05:00Z",
+      "f_inches": 1.0,
+      "event_ids": [
+        "9a263061dd1c784a20f393971744d176"
+      ],
+      "event_ids_first_seen": [
+        "2024-10-27"
+      ]
+    },
+    {
+      "nflverse_game_id": "2024_09_DET_GB",
+      "matchup": "DET@GB wk9",
+      "t_dec_utc": "2024-11-02T21:25:00Z",
+      "f_inches": 3.0,
+      "event_ids": [
+        "84d2187ad0c2a42b32879d3bcbaee8dd"
+      ],
+      "event_ids_first_seen": [
+        "2024-11-03"
+      ]
+    },
+    {
+      "nflverse_game_id": "2024_09_TB_KC",
+      "matchup": "TB@KC wk9",
+      "t_dec_utc": "2024-11-04T01:15:00Z",
+      "f_inches": 2.0,
+      "event_ids": [
+        "8f751d18969af50ec341e0b282e5b4d6"
+      ],
+      "event_ids_first_seen": [
+        "2024-11-05"
+      ]
+    },
+    {
+      "nflverse_game_id": "2024_10_MIN_JAX",
+      "matchup": "MIN@JAX wk10",
+      "t_dec_utc": "2024-11-09T18:00:00Z",
+      "f_inches": 1.0,
+      "event_ids": [
+        "a59741270a5f21dfb288838acf98537b"
+      ],
+      "event_ids_first_seen": [
+        "2024-11-10"
+      ]
+    },
+    {
+      "nflverse_game_id": "2024_10_PIT_WAS",
+      "matchup": "PIT@WAS wk10",
+      "t_dec_utc": "2024-11-09T18:00:00Z",
+      "f_inches": 1.0,
+      "event_ids": [
+        "928f8f873c2bf276d0b2a63a8f8941b4"
+      ],
+      "event_ids_first_seen": [
+        "2024-11-10"
+      ]
+    },
+    {
+      "nflverse_game_id": "2024_12_ARI_SEA",
+      "matchup": "ARI@SEA wk12",
+      "t_dec_utc": "2024-11-23T21:25:00Z",
+      "f_inches": 1.0,
+      "event_ids": [
+        "d9a2e1ead2367a3b0f46d247ed5b2906"
+      ],
+      "event_ids_first_seen": [
+        "2024-11-24"
+      ]
+    },
+    {
+      "nflverse_game_id": "2024_15_LA_SF",
+      "matchup": "LA@SF wk15",
+      "t_dec_utc": "2024-12-12T01:15:00Z",
+      "f_inches": 1.0,
+      "event_ids": [
+        "b89ffb3a984d693fd6e69cdc3f2d585a"
+      ],
+      "event_ids_first_seen": [
+        "2024-12-13"
+      ]
+    },
+    {
+      "nflverse_game_id": "2024_15_KC_CLE",
+      "matchup": "KC@CLE wk15",
+      "t_dec_utc": "2024-12-14T18:00:00Z",
+      "f_inches": 2.0,
+      "event_ids": [
+        "9db2aef33225a4bda04bbc7c33e50e63"
+      ],
+      "event_ids_first_seen": [
+        "2024-12-15"
+      ]
+    },
+    {
+      "nflverse_game_id": "2024_15_PIT_PHI",
+      "matchup": "PIT@PHI wk15",
+      "t_dec_utc": "2024-12-14T21:25:00Z",
+      "f_inches": 1.0,
+      "event_ids": [
+        "9cec3324e93aa4ece67f4ed4447bc212"
+      ],
+      "event_ids_first_seen": [
+        "2024-12-15"
+      ]
+    },
+    {
+      "nflverse_game_id": "2024_16_MIN_SEA",
+      "matchup": "MIN@SEA wk16",
+      "t_dec_utc": "2024-12-21T21:05:00Z",
+      "f_inches": 2.0,
+      "event_ids": [
+        "87ed34522672eabe6cb5b85c34c4e8ce"
+      ],
+      "event_ids_first_seen": [
+        "2024-12-22"
+      ]
+    },
+    {
+      "nflverse_game_id": "2024_17_SEA_CHI",
+      "matchup": "SEA@CHI wk17",
+      "t_dec_utc": "2024-12-26T01:15:00Z",
+      "f_inches": 1.0,
+      "event_ids": [
+        "1cc92f3601760bad475efd70d52ca482"
+      ],
+      "event_ids_first_seen": [
+        "2024-12-27"
+      ]
+    },
+    {
+      "nflverse_game_id": "2024_17_DEN_CIN",
+      "matchup": "DEN@CIN wk17",
+      "t_dec_utc": "2024-12-27T21:30:00Z",
+      "f_inches": 3.0,
+      "event_ids": [
+        "aa15f18a1c3124af14045b32185ff166"
+      ],
+      "event_ids_first_seen": [
+        "2024-12-28"
+      ]
+    },
+    {
+      "nflverse_game_id": "2024_17_NYJ_BUF",
+      "matchup": "NYJ@BUF wk17",
+      "t_dec_utc": "2024-12-28T18:00:00Z",
+      "f_inches": 1.0,
+      "event_ids": [
+        "eb5a71180b3558fdc20a896e98c00385"
+      ],
+      "event_ids_first_seen": [
+        "2024-12-29"
+      ]
+    },
+    {
+      "nflverse_game_id": "2024_17_TEN_JAX",
+      "matchup": "TEN@JAX wk17",
+      "t_dec_utc": "2024-12-28T18:00:00Z",
+      "f_inches": 1.0,
+      "event_ids": [
+        "68e8e424d470fb6d60f1b2f0a3f3d1e3"
+      ],
+      "event_ids_first_seen": [
+        "2024-12-29"
+      ]
+    },
+    {
+      "nflverse_game_id": "2024_17_CAR_TB",
+      "matchup": "CAR@TB wk17",
+      "t_dec_utc": "2024-12-28T18:00:00Z",
+      "f_inches": 1.0,
+      "event_ids": [
+        "cb4060acc9d027ca0069619ef9983415"
+      ],
+      "event_ids_first_seen": [
+        "2024-12-29"
+      ]
+    },
+    {
+      "nflverse_game_id": "2024_17_MIA_CLE",
+      "matchup": "MIA@CLE wk17",
+      "t_dec_utc": "2024-12-28T21:05:00Z",
+      "f_inches": 1.0,
+      "event_ids": [
+        "7c63b1e23a0c65ee07312131e1b7be7e"
+      ],
+      "event_ids_first_seen": [
+        "2024-12-29"
+      ]
+    },
+    {
+      "nflverse_game_id": "2024_17_ATL_WAS",
+      "matchup": "ATL@WAS wk17",
+      "t_dec_utc": "2024-12-29T01:20:00Z",
+      "f_inches": 4.0,
+      "event_ids": [
+        "5f99b5d40cf65d48be81c3812cd1e95e"
+      ],
+      "event_ids_first_seen": [
+        "2024-12-29"
+      ]
+    }
+  ]
+}

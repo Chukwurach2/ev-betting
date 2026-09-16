@@ -130,9 +130,9 @@ via the identity layer — never assumes one id spans time (confirmed in the wil
 | 2023_15_ATL_CAR | ATL@CAR wk15 | 2023-12-16T18:00:00 | 4.0 | 89a76d31332effa87075701f164a8e0a |
 | 2023_15_CHI_CLE | CHI@CLE wk15 | 2023-12-16T18:00:00 | 2.0 | abf4a23e7c6b9dd94d13a3070a32a65f |
 | 2023_15_DAL_BUF | DAL@BUF wk15 | 2023-12-16T21:25:00 | 2.0 | 16807f51a2a89040e6573ff24bfcd9ab, b4a925302ef4769f63a996a6ba6548e0 |
-| 2023_15_PHI_SEA | PHI@SEA wk15 | 2023-12-18T01:15:00 | 1.0 | 7856ae92af5a45990c0673041c46917b, f51da6d224ba8e807cd0442 |
+| 2023_15_PHI_SEA | PHI@SEA wk15 | 2023-12-18T01:15:00 | 1.0 | 7856ae92af5a45990c0673041c46917b, f51da6d224ba8d719fe220e807cd0442 |
 | 2023_16_CIN_PIT | CIN@PIT wk16 | 2023-12-22T21:30:00 | 1.0 | b99a12370b4b0a34cde90d66f19b4841, d86898556d2e1132370891f1fc23603f |
-| 2023_18_PIT_BAL | PIT@BAL wk18 | 2024-01-05T21:30:00 | 4.0 | f1db1ea65e63375c8f6f9766dac5d4f7, f5160997517aa4f8f1876ee7e84f227e |
+| 2023_18_PIT_BAL | PIT@BAL wk18 | 2024-01-05T21:30:00 | 4.0 | f1db1ea65e63375c8f6f9766dac5d4f7, f5160997517aa6f8f1876ee7e84f227e |
 | 2023_18_NYJ_NE | NYJ@NE wk18 | 2024-01-06T18:00:00 | 1.0 | fb5a05459a7e5616f95e2caa7732c20f |
 | 2023_18_PHI_NYG | PHI@NYG wk18 | 2024-01-06T21:25:00 | 1.0 | 66c7e39643ecae341addae9fff981d0b |
 | 2024_01_WAS_TB | WAS@TB wk1 | 2024-09-07T20:25:00 | 4.0 | ba439e5505ce1ee745d2e48f2d2f31e6 |
@@ -161,6 +161,27 @@ via the identity layer — never assumes one id spans time (confirmed in the wil
 | 2024_17_CAR_TB | CAR@TB wk17 | 2024-12-28T18:00:00 | 1.0 | cb4060acc9d027ca0069619ef9983415 |
 | 2024_17_MIA_CLE | MIA@CLE wk17 | 2024-12-28T21:05:00 | 1.0 | 7c63b1e23a0c65ee07312131e1b7be7e |
 | 2024_17_ATL_WAS | ATL@WAS wk17 | 2024-12-29T01:20:00 | 4.0 | 5f99b5d40cf65d48be81c3812cd1e95e |
+
+## 4a. Manifest correction addendum (2026-09-16, pre-freeze)
+
+Final free validation against the frozen canonical-identity artifact
+(run 35041420559, `canonical-identity-nfl`) found **2 transcription errors**
+in the §4 table above (verified: all other 58 games' id sets match the
+artifact exactly; all ids 32-hex; T_dec = floor5(kickoff−24h) verified
+against live nflverse schedules for all 60; 2024_18_HOU_TEN correctly
+absent from the artifact):
+
+- `2023_15_PHI_SEA`: `f51da6d224ba8e807cd0442` (23 chars, truncated) →
+  `f51da6d224ba8d719fe220e807cd0442`
+- `2023_18_PIT_BAL`: `f5160997517aa4f8f1876ee7e84f227e` →
+  `f5160997517aa6f8f1876ee7e84f227e` (one hex digit)
+
+Both rows above are corrected. The pull manifest
+(`nfl-edge/ops/nfl_hd_pull_manifest.json`) carries the corrected ids,
+ordered by first-seen odds_date; pull execution tries candidate ids in
+order and uses the first returning non-empty bookmakers at T_dec
+(empty responses are free). This is a mechanical data correction against
+the authoritative identity layer — not a specification change.
 
 ## 5. Findings the prereg must resolve (documented, not altered)
 
