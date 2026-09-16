@@ -1,0 +1,565 @@
+{
+  "AT&T Stadium": {
+    "city": "Arlington, TX",
+    "country": "US",
+    "mos_station": "KDFW",
+    "notes": "nflverse name for AT&T Stadium; retractable roof",
+    "roof": "retractable",
+    "status": "verified",
+    "teams": [
+      "DAL"
+    ],
+    "unavailable_reason": null,
+    "venue_key": "dal_att",
+    "verification": "IEM mos.json model=GFS runtime=2026-09-15T12:00:00Z -> 21 rows @ 2026-09-15T12:00:00Z",
+    "verified_at": "2026-09-16"
+  },
+  "Acrisure Stadium": {
+    "city": "Pittsburgh, PA",
+    "country": "US",
+    "mos_station": "KPIT",
+    "notes": "",
+    "roof": "outdoor",
+    "status": "verified",
+    "teams": [
+      "PIT"
+    ],
+    "unavailable_reason": null,
+    "venue_key": "pit_acrisure",
+    "verification": "IEM mos.json model=GFS runtime=2026-09-15T12:00:00Z -> 21 rows @ 2026-09-15T12:00:00Z",
+    "verified_at": "2026-09-16"
+  },
+  "Allegiant Stadium": {
+    "city": "Las Vegas, NV",
+    "country": "US",
+    "mos_station": "KLAS",
+    "notes": "",
+    "roof": "dome",
+    "status": "verified",
+    "teams": [
+      "LV"
+    ],
+    "unavailable_reason": null,
+    "venue_key": "lv_allegiant",
+    "verification": "IEM mos.json model=GFS runtime=2026-09-15T12:00:00Z -> 21 rows @ 2026-09-15T12:00:00Z",
+    "verified_at": "2026-09-16"
+  },
+  "Bank of America Stadium": {
+    "city": "Charlotte, NC",
+    "country": "US",
+    "mos_station": "KCLT",
+    "notes": "",
+    "roof": "outdoor",
+    "status": "verified",
+    "teams": [
+      "CAR"
+    ],
+    "unavailable_reason": null,
+    "venue_key": "car_bofa",
+    "verification": "IEM mos.json model=GFS runtime=2026-09-15T12:00:00Z -> 21 rows @ 2026-09-15T12:00:00Z",
+    "verified_at": "2026-09-16"
+  },
+  "Bernabeu": {
+    "city": "Madrid, Spain",
+    "country": "Spain",
+    "mos_station": null,
+    "notes": "2026 NFL Madrid game",
+    "roof": null,
+    "status": "unmatched",
+    "teams": [],
+    "unavailable_reason": "no NWS MOS station coverage outside the United States",
+    "venue_key": "int_bernabeu",
+    "verification": null,
+    "verified_at": null
+  },
+  "Caesars Superdome": {
+    "city": "New Orleans, LA",
+    "country": "US",
+    "mos_station": "KMSY",
+    "notes": "nflverse 2026 name; formerly Mercedes-Benz Superdome",
+    "roof": "dome",
+    "status": "verified",
+    "teams": [
+      "NO"
+    ],
+    "unavailable_reason": null,
+    "venue_key": "no_superdome",
+    "verification": "IEM mos.json model=GFS runtime=2026-09-15T12:00:00Z -> 21 rows @ 2026-09-15T12:00:00Z",
+    "verified_at": "2026-09-16"
+  },
+  "Empower Field at Mile High": {
+    "city": "Denver, CO",
+    "country": "US",
+    "mos_station": "KDEN",
+    "notes": "",
+    "roof": "outdoor",
+    "status": "verified",
+    "teams": [
+      "DEN"
+    ],
+    "unavailable_reason": null,
+    "venue_key": "den_milehigh",
+    "verification": "IEM mos.json model=GFS runtime=2026-09-15T12:00:00Z -> 21 rows @ 2026-09-15T12:00:00Z",
+    "verified_at": "2026-09-16"
+  },
+  "Estadio Banorte": {
+    "city": "Mexico City, Mexico",
+    "country": "Mexico",
+    "mos_station": null,
+    "notes": "nflverse 2026 name for Estadio Azteca; 2026 NFL Mexico City game",
+    "roof": null,
+    "status": "unmatched",
+    "teams": [],
+    "unavailable_reason": "no NWS MOS station coverage outside the United States",
+    "venue_key": "int_banorte",
+    "verification": null,
+    "verified_at": null
+  },
+  "EverBank Stadium": {
+    "city": "Jacksonville, FL",
+    "country": "US",
+    "mos_station": "KJAX",
+    "notes": "",
+    "roof": "outdoor",
+    "status": "verified",
+    "teams": [
+      "JAX"
+    ],
+    "unavailable_reason": null,
+    "venue_key": "jax_everbank",
+    "verification": "IEM mos.json model=GFS runtime=2026-09-15T12:00:00Z -> 21 rows @ 2026-09-15T12:00:00Z",
+    "verified_at": "2026-09-16"
+  },
+  "FC Bayern Munich Stadium": {
+    "city": "Munich, Germany",
+    "country": "Germany",
+    "mos_station": null,
+    "notes": "nflverse 2026 name for Allianz Arena; 2026 NFL Munich game",
+    "roof": null,
+    "status": "unmatched",
+    "teams": [],
+    "unavailable_reason": "no NWS MOS station coverage outside the United States",
+    "venue_key": "int_munich",
+    "verification": null,
+    "verified_at": null
+  },
+  "Ford Field": {
+    "city": "Detroit, MI",
+    "country": "US",
+    "mos_station": "KDTW",
+    "notes": "",
+    "roof": "dome",
+    "status": "verified",
+    "teams": [
+      "DET"
+    ],
+    "unavailable_reason": null,
+    "venue_key": "det_ford",
+    "verification": "IEM mos.json model=GFS runtime=2026-09-15T12:00:00Z -> 21 rows @ 2026-09-15T12:00:00Z",
+    "verified_at": "2026-09-16"
+  },
+  "GEHA Field at Arrowhead Stadium": {
+    "city": "Kansas City, MO",
+    "country": "US",
+    "mos_station": "KMCI",
+    "notes": "",
+    "roof": "outdoor",
+    "status": "verified",
+    "teams": [
+      "KC"
+    ],
+    "unavailable_reason": null,
+    "venue_key": "kc_arrowhead",
+    "verification": "IEM mos.json model=GFS runtime=2026-09-15T12:00:00Z -> 21 rows @ 2026-09-15T12:00:00Z",
+    "verified_at": "2026-09-16"
+  },
+  "Gillette Stadium": {
+    "city": "Foxborough, MA",
+    "country": "US",
+    "mos_station": "KBOS",
+    "notes": "",
+    "roof": "outdoor",
+    "status": "verified",
+    "teams": [
+      "NE"
+    ],
+    "unavailable_reason": null,
+    "venue_key": "ne_gillette",
+    "verification": "IEM mos.json model=GFS runtime=2026-09-15T12:00:00Z -> 21 rows @ 2026-09-15T12:00:00Z",
+    "verified_at": "2026-09-16"
+  },
+  "Hard Rock Stadium": {
+    "city": "Miami Gardens, FL",
+    "country": "US",
+    "mos_station": "KMIA",
+    "notes": "",
+    "roof": "outdoor",
+    "status": "verified",
+    "teams": [
+      "MIA"
+    ],
+    "unavailable_reason": null,
+    "venue_key": "mia_hardrock",
+    "verification": "IEM mos.json model=GFS runtime=2026-09-15T12:00:00Z -> 21 rows @ 2026-09-15T12:00:00Z",
+    "verified_at": "2026-09-16"
+  },
+  "Highmark Stadium": {
+    "city": "Orchard Park, NY",
+    "country": "US",
+    "mos_station": "KBUF",
+    "notes": "",
+    "roof": "outdoor",
+    "status": "verified",
+    "teams": [
+      "BUF"
+    ],
+    "unavailable_reason": null,
+    "venue_key": "buf_highmark",
+    "verification": "IEM mos.json model=GFS runtime=2026-09-15T12:00:00Z -> 21 rows @ 2026-09-15T12:00:00Z",
+    "verified_at": "2026-09-16"
+  },
+  "Huntington Bank Field": {
+    "city": "Cleveland, OH",
+    "country": "US",
+    "mos_station": "KCLE",
+    "notes": "",
+    "roof": "outdoor",
+    "status": "verified",
+    "teams": [
+      "CLE"
+    ],
+    "unavailable_reason": null,
+    "venue_key": "cle_huntington",
+    "verification": "IEM mos.json model=GFS runtime=2026-09-15T12:00:00Z -> 21 rows @ 2026-09-15T12:00:00Z",
+    "verified_at": "2026-09-16"
+  },
+  "Lambeau Field": {
+    "city": "Green Bay, WI",
+    "country": "US",
+    "mos_station": "KGRB",
+    "notes": "",
+    "roof": "outdoor",
+    "status": "verified",
+    "teams": [
+      "GB"
+    ],
+    "unavailable_reason": null,
+    "venue_key": "gb_lambeau",
+    "verification": "IEM mos.json model=GFS runtime=2026-09-15T12:00:00Z -> 21 rows @ 2026-09-15T12:00:00Z",
+    "verified_at": "2026-09-16"
+  },
+  "Levi's Stadium": {
+    "city": "Santa Clara, CA",
+    "country": "US",
+    "mos_station": "KSJC",
+    "notes": "",
+    "roof": "outdoor",
+    "status": "verified",
+    "teams": [
+      "SF"
+    ],
+    "unavailable_reason": null,
+    "venue_key": "sf_levis",
+    "verification": "IEM mos.json model=GFS runtime=2026-09-15T12:00:00Z -> 21 rows @ 2026-09-15T12:00:00Z",
+    "verified_at": "2026-09-16"
+  },
+  "Lincoln Financial Field": {
+    "city": "Philadelphia, PA",
+    "country": "US",
+    "mos_station": "KPHL",
+    "notes": "",
+    "roof": "outdoor",
+    "status": "verified",
+    "teams": [
+      "PHI"
+    ],
+    "unavailable_reason": null,
+    "venue_key": "phi_linc",
+    "verification": "IEM mos.json model=GFS runtime=2026-09-15T12:00:00Z -> 21 rows @ 2026-09-15T12:00:00Z",
+    "verified_at": "2026-09-16"
+  },
+  "Lucas Oil Stadium": {
+    "city": "Indianapolis, IN",
+    "country": "US",
+    "mos_station": "KIND",
+    "notes": "",
+    "roof": "retractable",
+    "status": "verified",
+    "teams": [
+      "IND"
+    ],
+    "unavailable_reason": null,
+    "venue_key": "ind_lucasoil",
+    "verification": "IEM mos.json model=GFS runtime=2026-09-15T12:00:00Z -> 21 rows @ 2026-09-15T12:00:00Z",
+    "verified_at": "2026-09-16"
+  },
+  "Lumen Field": {
+    "city": "Seattle, WA",
+    "country": "US",
+    "mos_station": "KSEA",
+    "notes": "",
+    "roof": "outdoor",
+    "status": "verified",
+    "teams": [
+      "SEA"
+    ],
+    "unavailable_reason": null,
+    "venue_key": "sea_lumen",
+    "verification": "IEM mos.json model=GFS runtime=2026-09-15T12:00:00Z -> 21 rows @ 2026-09-15T12:00:00Z",
+    "verified_at": "2026-09-16"
+  },
+  "M&T Bank Stadium": {
+    "city": "Baltimore, MD",
+    "country": "US",
+    "mos_station": "KBWI",
+    "notes": "",
+    "roof": "outdoor",
+    "status": "verified",
+    "teams": [
+      "BAL"
+    ],
+    "unavailable_reason": null,
+    "venue_key": "bal_mtbank",
+    "verification": "IEM mos.json model=GFS runtime=2026-09-15T12:00:00Z -> 21 rows @ 2026-09-15T12:00:00Z",
+    "verified_at": "2026-09-16"
+  },
+  "Maracana Stadium": {
+    "city": "Rio de Janeiro, Brazil",
+    "country": "Brazil",
+    "mos_station": null,
+    "notes": "2026 NFL Brazil game",
+    "roof": null,
+    "status": "unmatched",
+    "teams": [],
+    "unavailable_reason": "no NWS MOS station coverage outside the United States",
+    "venue_key": "int_maracana",
+    "verification": null,
+    "verified_at": null
+  },
+  "Melbourne Cricket Ground": {
+    "city": "Melbourne, Australia",
+    "country": "Australia",
+    "mos_station": null,
+    "notes": "2026 NFL Melbourne game (wk1 SF vs LA)",
+    "roof": null,
+    "status": "unmatched",
+    "teams": [],
+    "unavailable_reason": "no NWS MOS station coverage outside the United States",
+    "venue_key": "int_mcg",
+    "verification": null,
+    "verified_at": null
+  },
+  "Mercedes-Benz Stadium": {
+    "city": "Atlanta, GA",
+    "country": "US",
+    "mos_station": "KATL",
+    "notes": "",
+    "roof": "retractable",
+    "status": "verified",
+    "teams": [
+      "ATL"
+    ],
+    "unavailable_reason": null,
+    "venue_key": "atl_mbs",
+    "verification": "IEM mos.json model=GFS runtime=2026-09-15T12:00:00Z -> 21 rows @ 2026-09-15T12:00:00Z",
+    "verified_at": "2026-09-16"
+  },
+  "MetLife Stadium": {
+    "city": "East Rutherford, NJ",
+    "country": "US",
+    "mos_station": "KEWR",
+    "notes": "shared by Giants and Jets",
+    "roof": "outdoor",
+    "status": "verified",
+    "teams": [
+      "NYG",
+      "NYJ"
+    ],
+    "unavailable_reason": null,
+    "venue_key": "ny_metlife",
+    "verification": "IEM mos.json model=GFS runtime=2026-09-15T12:00:00Z -> 21 rows @ 2026-09-15T12:00:00Z",
+    "verified_at": "2026-09-16"
+  },
+  "Nissan Stadium": {
+    "city": "Nashville, TN",
+    "country": "US",
+    "mos_station": "KBNA",
+    "notes": "",
+    "roof": "outdoor",
+    "status": "verified",
+    "teams": [
+      "TEN"
+    ],
+    "unavailable_reason": null,
+    "venue_key": "ten_nissan",
+    "verification": "IEM mos.json model=GFS runtime=2026-09-15T12:00:00Z -> 21 rows @ 2026-09-15T12:00:00Z",
+    "verified_at": "2026-09-16"
+  },
+  "Northwest Stadium": {
+    "city": "Landover, MD",
+    "country": "US",
+    "mos_station": "KDCA",
+    "notes": "",
+    "roof": "outdoor",
+    "status": "verified",
+    "teams": [
+      "WAS"
+    ],
+    "unavailable_reason": null,
+    "venue_key": "was_northwest",
+    "verification": "IEM mos.json model=GFS runtime=2026-09-15T12:00:00Z -> 21 rows @ 2026-09-15T12:00:00Z",
+    "verified_at": "2026-09-16"
+  },
+  "Paycor Stadium": {
+    "city": "Cincinnati, OH",
+    "country": "US",
+    "mos_station": "KCVG",
+    "notes": "",
+    "roof": "outdoor",
+    "status": "verified",
+    "teams": [
+      "CIN"
+    ],
+    "unavailable_reason": null,
+    "venue_key": "cin_paycor",
+    "verification": "IEM mos.json model=GFS runtime=2026-09-15T12:00:00Z -> 21 rows @ 2026-09-15T12:00:00Z",
+    "verified_at": "2026-09-16"
+  },
+  "Raymond James Stadium": {
+    "city": "Tampa, FL",
+    "country": "US",
+    "mos_station": "KTPA",
+    "notes": "",
+    "roof": "outdoor",
+    "status": "verified",
+    "teams": [
+      "TB"
+    ],
+    "unavailable_reason": null,
+    "venue_key": "tb_rayjay",
+    "verification": "IEM mos.json model=GFS runtime=2026-09-15T12:00:00Z -> 21 rows @ 2026-09-15T12:00:00Z",
+    "verified_at": "2026-09-16"
+  },
+  "Reliant Stadium": {
+    "city": "Houston, TX",
+    "country": "US",
+    "mos_station": "KIAH",
+    "notes": "nflverse name for NRG Stadium; retractable roof",
+    "roof": "retractable",
+    "status": "verified",
+    "teams": [
+      "HOU"
+    ],
+    "unavailable_reason": null,
+    "venue_key": "hou_nrg",
+    "verification": "IEM mos.json model=GFS runtime=2026-09-15T12:00:00Z -> 21 rows @ 2026-09-15T12:00:00Z",
+    "verified_at": "2026-09-16"
+  },
+  "SoFi Stadium": {
+    "city": "Inglewood, CA",
+    "country": "US",
+    "mos_station": "KLAX",
+    "notes": "shared by Rams and Chargers; fixed translucent canopy, open sides",
+    "roof": "canopy_open_air",
+    "status": "verified",
+    "teams": [
+      "LAR",
+      "LAC"
+    ],
+    "unavailable_reason": null,
+    "venue_key": "la_sofi",
+    "verification": "IEM mos.json model=GFS runtime=2026-09-15T12:00:00Z -> 21 rows @ 2026-09-15T12:00:00Z",
+    "verified_at": "2026-09-16"
+  },
+  "Soldier Field": {
+    "city": "Chicago, IL",
+    "country": "US",
+    "mos_station": "KORD",
+    "notes": "",
+    "roof": "outdoor",
+    "status": "verified",
+    "teams": [
+      "CHI"
+    ],
+    "unavailable_reason": null,
+    "venue_key": "chi_soldier",
+    "verification": "IEM mos.json model=GFS runtime=2026-09-15T12:00:00Z -> 21 rows @ 2026-09-15T12:00:00Z",
+    "verified_at": "2026-09-16"
+  },
+  "Stade de France": {
+    "city": "Saint-Denis, France",
+    "country": "France",
+    "mos_station": null,
+    "notes": "2026 NFL Paris game",
+    "roof": null,
+    "status": "unmatched",
+    "teams": [],
+    "unavailable_reason": "no NWS MOS station coverage outside the United States",
+    "venue_key": "int_paris",
+    "verification": null,
+    "verified_at": null
+  },
+  "State Farm Stadium": {
+    "city": "Glendale, AZ",
+    "country": "US",
+    "mos_station": "KPHX",
+    "notes": "",
+    "roof": "retractable",
+    "status": "verified",
+    "teams": [
+      "ARI"
+    ],
+    "unavailable_reason": null,
+    "venue_key": "ari_statefarm",
+    "verification": "IEM mos.json model=GFS runtime=2026-09-15T12:00:00Z -> 21 rows @ 2026-09-15T12:00:00Z",
+    "verified_at": "2026-09-16"
+  },
+  "Tottenham Hotspur Stadium": {
+    "city": "London, UK",
+    "country": "UK",
+    "mos_station": null,
+    "notes": "2026 NFL London game",
+    "roof": null,
+    "status": "unmatched",
+    "teams": [],
+    "unavailable_reason": "no NWS MOS station coverage outside the United States",
+    "venue_key": "int_tottenham",
+    "verification": null,
+    "verified_at": null
+  },
+  "U.S. Bank Stadium": {
+    "city": "Minneapolis, MN",
+    "country": "US",
+    "mos_station": "KMSP",
+    "notes": "",
+    "roof": "dome",
+    "status": "verified",
+    "teams": [
+      "MIN"
+    ],
+    "unavailable_reason": null,
+    "venue_key": "min_usbank",
+    "verification": "IEM mos.json model=GFS runtime=2026-09-15T12:00:00Z -> 21 rows @ 2026-09-15T12:00:00Z",
+    "verified_at": "2026-09-16"
+  },
+  "Wembley Stadium": {
+    "city": "London, UK",
+    "country": "UK",
+    "mos_station": null,
+    "notes": "2026 NFL London game",
+    "roof": null,
+    "status": "unmatched",
+    "teams": [],
+    "unavailable_reason": "no NWS MOS station coverage outside the United States",
+    "venue_key": "int_wembley",
+    "verification": null,
+    "verified_at": null
+  },
+  "_meta": {
+    "generated_at": "2026-09-16",
+    "rule": "station verified iff IEM mos.json model=GFS returned rows for runtime 2026-09-15T12:00:00Z",
+    "season": 2026,
+    "source": "nflverse 2026 schedule stadium names; IEM MOS archive verification 2026-09-16",
+    "unmatched_policy": "venues outside NWS MOS coverage get status=unmatched with an explicit reason; never a nearest-guess"
+  }
+}
