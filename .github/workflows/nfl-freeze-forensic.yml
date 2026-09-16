@@ -32,9 +32,12 @@ jobs:
             exit 10
           }
           python -u nfl-edge/ops/nfl_freeze_forensic.py /tmp/nfl_freeze_forensic.json
+          python -u nfl-edge/ops/nfl_freeze_followup.py /tmp/nfl_freeze_followup.json
       - name: Upload artifact
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: nfl-freeze-forensic
-          path: /tmp/nfl_freeze_forensic.json
+          path: |
+            /tmp/nfl_freeze_forensic.json
+            /tmp/nfl_freeze_followup.json
