@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {profitOf, summarize} from '../lib/summarize.mjs';
 
 const W = (over = {}) => ({result: 'win', stake_units: 1, decimal_odds: 2.0,
-  consensus_fair_prob: 0.55, expected_value: 0.1, clv_prob_points: 0.02,
+  consensus_fair_prob: 0.55, edge: 0.1, clv_prob_points: 0.02,
   settled_at: '2026-09-14T00:00:00Z', market: 'FULL_GAME_SPREAD', ...over});
 const L = (over = {}) => W({result: 'loss', ...over});
 const P = (over = {}) => W({result: 'push', ...over});
@@ -60,4 +60,22 @@ test('per-market breakdown', () => {
   assert.equal(by.FULL_GAME_SPREAD.units_pl, 1);
   assert.equal(by.FULL_GAME_TOTAL.units_pl, -1);
   assert.equal(by.FULL_GAME_TOTAL.roi, -1);
+});
+
+test('per-edge-bucket breakdown', () => {
+  const s = summarize([
+    W({edge: 0.04}), // 3-5%: +1
+    L({edge: 0.045}), // 3-5%: -1
+    W({edge: 0.06}), // 5-8%: +1
+    W({edge: 0.10}), // 8%+: +1
+    W({edge: 0.01}), // below bar: excluded
+  ]);
+  const by = Object.fromEntries(s.by_edge_bucket.map((b) => [b.bucket, b]));
+  assert.equal(by['3–5%'].n, 2);
+  assert.equal(by['3–5%'].units_pl, 0);
+  assert.equal(by['5–8%'].n, 1);
+  assert.equal(by['5–8%'].units_pl, 1);
+  assert.equal(by['8%+'].n, 1);
+  assert.equal(by['8%+'].units_pl, 1);
+  assert.equal(s.by_edge_bucket.reduce((a, b) => a + b.n, 0), 4);
 });

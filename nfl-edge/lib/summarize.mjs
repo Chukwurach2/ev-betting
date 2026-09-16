@@ -1,6 +1,6 @@
 // Pure, testable track-record math for the shadow engine. No I/O, no secrets.
 // Rows are settled shadow picks: {result, stake_units, decimal_odds,
-// consensus_fair_prob, expected_value, clv_prob_points, settled_at, market}.
+// consensus_fair_prob, edge, clv_prob_points, settled_at, market}.
 
 export function profitOf(p) {
   const stake = Number(p.stake_units);
@@ -48,6 +48,20 @@ export function summarize(rows) {
     m.pl += profitOf(p);
     m.staked += Number(p.stake_units);
   }
+  // Per-edge-bucket breakdown (publish bar is 3% edge; buckets on decimal edge).
+  const edgeBuckets = [
+    {label: '3–5%', lo: 0.03, hi: 0.05, n: 0, pl: 0, staked: 0},
+    {label: '5–8%', lo: 0.05, hi: 0.08, n: 0, pl: 0, staked: 0},
+    {label: '8%+', lo: 0.08, hi: 9, n: 0, pl: 0, staked: 0},
+  ];
+  for (const p of rows) {
+    const e = Number(p.edge);
+    const b = edgeBuckets.find((x) => e >= x.lo && e < x.hi);
+    if (!b) continue;
+    b.n += 1;
+    b.pl += profitOf(p);
+    b.staked += Number(p.stake_units);
+  }
   return {
     settled: n,
     wins,
@@ -57,7 +71,7 @@ export function summarize(rows) {
     units_staked: Math.round(staked * 1000) / 1000,
     units_pl: Math.round(pl * 1000) / 1000,
     roi: staked ? pl / staked : null,
-    avg_expected_value: n ? rows.reduce((a, p) => a + Number(p.expected_value), 0) / n : null,
+    avg_edge: n ? rows.reduce((a, p) => a + Number(p.edge), 0) / n : null,
     avg_clv_pp: clvs.length ? clvs.reduce((a, c) => a + c, 0) / clvs.length : null,
     positive_clv_rate: clvs.length ? clvs.filter((c) => c > 0).length / clvs.length : null,
     max_drawdown_units: Math.round(maxDd * 1000) / 1000,
@@ -73,6 +87,12 @@ export function summarize(rows) {
       n: m.n,
       units_pl: Math.round(m.pl * 1000) / 1000,
       roi: m.staked ? m.pl / m.staked : null,
+    })),
+    by_edge_bucket: edgeBuckets.map((b) => ({
+      bucket: b.label,
+      n: b.n,
+      units_pl: Math.round(b.pl * 1000) / 1000,
+      roi: b.staked ? b.pl / b.staked : null,
     })),
   };
 }
