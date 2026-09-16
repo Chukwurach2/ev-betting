@@ -33,6 +33,7 @@ jobs:
           }
           python -u nfl-edge/ops/nfl_freeze_forensic.py /tmp/nfl_freeze_forensic.json
           python -u nfl-edge/ops/nfl_freeze_followup.py /tmp/nfl_freeze_followup.json
+          python -u nfl-edge/ops/nfl_value_integrity.py /tmp/nfl_value_integrity.json
       - name: Upload artifact
         if: always()
         uses: actions/upload-artifact@v4
@@ -41,3 +42,4 @@ jobs:
           path: |
             /tmp/nfl_freeze_forensic.json
             /tmp/nfl_freeze_followup.json
+            /tmp/nfl_value_integrity.json
