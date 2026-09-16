@@ -34,7 +34,7 @@ jobs:
         shell: bash
         run: |
           set -euxo pipefail
-          test -n "${NFL_EDGE_DATABASE_URL: <redacted>" || {
+          test -n "${NFL_EDGE_DATABASE_URL:-}" || {
             echo "::error::NFL_EDGE_DATABASE_URL is missing"
             exit 10
           }
@@ -47,10 +47,10 @@ jobs:
           done
           python -c "import psycopg; print('dependency OK: psycopg')"
         env:
-          NFL_EDGE_DATABASE_URL: <redacted>
+          NFL_EDGE_DATABASE_URL: ${{ secrets.NFL_EDGE_DATABASE_URL }}
       - name: Run H-N2 eligibility gate (read-only)
         env:
-          NFL_EDGE_DATABASE_URL: <redacted>
+          NFL_EDGE_DATABASE_URL: ${{ secrets.NFL_EDGE_DATABASE_URL }}
         run: |
           set -euxo pipefail
           SKIP=""
