@@ -31,6 +31,13 @@ MARKETS = "player_pass_attempts,player_rush_attempts"
 MANIFEST = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                         "nfl_hd_pull_manifest.json")
 
+MANIFEST_ABBR_ALIAS = {
+    # nflverse team abbreviations (used in the frozen manifest's matchup
+    # strings) differ from the provider's in one case: nflverse "LA"
+    # (Rams) vs provider "LAR". Normalize manifest-side before matching.
+    "LA": "LAR",
+}
+
 NAME_TO_ABBR = {
     "Arizona Cardinals": "ARI", "Atlanta Falcons": "ATL",
     "Baltimore Ravens": "BAL", "Buffalo Bills": "BUF",
@@ -97,13 +104,48 @@ def main():
 
     t0 = time.time()
     st, hd, _ = api_get("/v4/sports", {}, api_key)
-    used0 = hd.get("x-requests-used")
+
+    def _used(h):
+        try:
+            return int(float(h.get("x-requests-used")))
+        except (TypeError, ValueError):
+            return None
+
+    used0 = _used(hd)
+    total_spent = 0          # header-delta spend incl. concurrent background
+    aborted = False
+    abort_reason = None
+
+    def note_spend(h):
+        nonlocal total_spent
+        u = _used(h)
+        if u is not None and used0 is not None:
+            total_spent = max(total_spent, u - used0)
+
+    def guard(next_max=20):
+        # True if another paid call (costing at most next_max) stays in-cap.
+        return total_spent + next_max <= args.credit_cap
+
+    def do_abort(why):
+        nonlocal aborted, abort_reason
+        aborted = True
+        abort_reason = why
+        print(f"ABORT: {why}", flush=True)
 
     # Phase A: resolve T_dec-active event IDs via the events list
     resolved = {}  # game_id -> provider event id (or None)
+    lookups = []
     for tdec in tdecs:
+        if aborted:
+            break
+        if not guard():
+            do_abort(f"hard ceiling: spent={total_spent}, next lookup could "
+                     f"exceed cap {args.credit_cap}")
+            lookups.append({"t_dec": tdec, "status": "skipped_ceiling"})
+            break
         st, hd, data = api_get(
             f"/v4/historical/sports/{SPORT}/events", {"date": tdec}, api_key)
+        note_spend(hd)
         ev_list = []
         if st == 200:
             ev_list = data.get("data", data) if isinstance(data, dict) else data
@@ -112,7 +154,9 @@ def main():
         for e in events:
             if e["t_dec_utc"] != tdec or e["nflverse_game_id"] in resolved:
                 continue
-            away, home = e["matchup"].split(" ")[0].split("@")
+            raw_away, raw_home = e["matchup"].split(" ")[0].split("@")
+            away = MANIFEST_ABBR_ALIAS.get(raw_away, raw_away)
+            home = MANIFEST_ABBR_ALIAS.get(raw_home, raw_home)
             kick = (datetime.fromisoformat(tdec.replace("Z", "+00:00"))
                     + timedelta(hours=24))
             match = None
@@ -129,6 +173,11 @@ def main():
                     match = ev["id"]
                     break
             resolved[e["nflverse_game_id"]] = match
+        lookups.append({"t_dec": tdec, "http_status": st,
+                        "n_events_in_list": len(ev_list),
+                        "n_newly_resolved": sum(
+                            1 for g, v in resolved.items() if v),
+                        "requests_used_after": _used(hd)})
         time.sleep(args.pace)
 
     # Phase B: per-event odds at T_dec with the resolved ID
@@ -139,15 +188,28 @@ def main():
         tdec = e["t_dec_utc"]
         rid = resolved.get(gid)
         rec = {"nflverse_game_id": gid, "matchup": e["matchup"],
-               "t_dec": tdec, "f_inches": e["f_inches"],
+               "t_dec": tdec, "request_date": None,
+               "f_inches": e["f_inches"],
                "resolved_id": rid, "id_used": None,
                "status": "no_resolved_id" if not rid else "pending",
                "quotes": []}
+        if aborted:
+            rec["status"] = "skipped_ceiling"
+            out_events.append(rec)
+            continue
         if rid:
+            if not guard():
+                do_abort(f"hard ceiling: spent={total_spent}, next odds call "
+                         f"could exceed cap {args.credit_cap}")
+                rec["status"] = "skipped_ceiling"
+                out_events.append(rec)
+                continue
             st, hd, data = api_get(
                 f"/v4/historical/sports/{SPORT}/events/{rid}/odds",
                 {"regions": "us", "markets": MARKETS, "date": tdec,
                  "oddsFormat": "american"}, api_key)
+            note_spend(hd)
+            rec["request_date"] = tdec  # the date param actually sent
             if st == 200:
                 payload = data.get("data", data) if isinstance(data, dict) else data
                 bms = payload.get("bookmakers", []) if isinstance(payload, dict) else []
@@ -186,7 +248,10 @@ def main():
               "distinct_tdec_lookups": len(tdecs),
               "resolved_ids": sum(1 for v in resolved.values() if v),
               "credits_consumed": spent, "credit_cap": args.credit_cap,
+              "tracked_spend": total_spent,
+              "aborted": aborted, "abort_reason": abort_reason,
               "elapsed_s": round(time.time() - t0, 1),
+              "lookups": lookups,
               "events": out_events}
     json.dump(result, open(args.out, "w"), indent=1)
     print(json.dumps({k: v for k, v in result.items() if k != "events"},

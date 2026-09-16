@@ -72,6 +72,12 @@ def main():
     ap.add_argument("--manifest", default=str(HERE / "nfl_hd_pull_manifest.json"))
     ap.add_argument("--data-dir", default="/tmp")
     ap.add_argument("--out", required=True)
+    # Re-pull context: the corrected v2 pull runs under the incremental
+    # 700-additional-credit authorization (expected ~600-700). Defaults
+    # preserve the frozen v1 pull context (1,200 ceiling, 1020-1080 band).
+    ap.add_argument("--credit-ceiling", type=int, default=1200)
+    ap.add_argument("--expected-lo", type=int, default=1020)
+    ap.add_argument("--expected-hi", type=int, default=1080)
     args = ap.parse_args()
 
     pull = json.load(open(args.pull))
@@ -100,15 +106,20 @@ def main():
 
     # 2. credit ceiling
     spent = pull.get("credits_consumed")
-    check("credits_consumed <= 1200 hard ceiling",
-          isinstance(spent, (int, float)) and spent <= 1200, f"spent={spent}")
-    check("credits within expected 1020-1080 band",
-          isinstance(spent, (int, float)) and 1020 <= spent <= 1080,
+    check(f"credits_consumed <= {args.credit_ceiling} hard ceiling",
+          isinstance(spent, (int, float)) and spent <= args.credit_ceiling,
+          f"spent={spent}")
+    check(f"credits within expected {args.expected_lo}-{args.expected_hi} band",
+          isinstance(spent, (int, float))
+          and args.expected_lo <= spent <= args.expected_hi,
           f"spent={spent} (advisory)")
 
     # 3. timestamp integrity: every request date == frozen T_dec
+    # (v2 records the actual request `date` param as request_date;
+    # v1 artifacts only carry t_dec from the manifest)
     bad_ts = [e["nflverse_game_id"] for e in pull["events"]
-              if e.get("t_dec") != man_by_game[e["nflverse_game_id"]]["t_dec_utc"]]
+              if (e.get("request_date") or e.get("t_dec"))
+              != man_by_game[e["nflverse_game_id"]]["t_dec_utc"]]
     check("all request dates == frozen T_dec", not bad_ts, str(bad_ts[:5]))
 
     snaps, out_set = load_free_data(args.data_dir)
