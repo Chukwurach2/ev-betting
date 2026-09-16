@@ -28,6 +28,11 @@ on:
         required: false
         default: 'false'
         type: boolean
+      trigger_source:
+        description: 'Attribution for this dispatch: manual | watchdog | close-watch (schedule events auto-attribute as schedule)'
+        required: false
+        default: 'manual'
+        type: string
 
 permissions:
   contents: read
@@ -43,6 +48,9 @@ jobs:
       NFL_PROP_REGIONS: us
       # v1 prop books (cost-neutral filter; priced per A1 on markets x regions)
       NFL_PROP_BOOKMAKERS: draftkings,fanduel,betmgm,betrivers,espnbet,williamhill_us,fanatics
+      # Trigger attribution: schedule events -> 'schedule'; dispatches use the
+      # trigger_source input (watchdog / close-watch stamp their own value).
+      NFL_PROP_TRIGGER_SOURCE: ${{ github.event_name == 'schedule' && 'schedule' || inputs.trigger_source }}
     defaults:
       run:
         working-directory: nfl-edge
