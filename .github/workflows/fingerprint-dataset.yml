@@ -7,6 +7,10 @@ on:
         description: "Sport key: nfl or ncaaf (tables follow ops/sports.py)"
         required: false
         default: "nfl"
+      market_scope:
+        description: "Row scope: all (every row; NCAAF back-compat) or spread_total (FULL_GAME_SPREAD + FULL_GAME_TOTAL)"
+        required: false
+        default: "all"
 
 jobs:
   fingerprint:
@@ -27,7 +31,8 @@ jobs:
           NFL_EDGE_DATABASE_URL: ${{ secrets.NFL_EDGE_DATABASE_URL }}
         run: |
           python nfl-edge/ops/fingerprint_dataset.py \
-            --sport "${{ inputs.sport }}" | tee /tmp/dataset_fingerprint.json
+            --sport "${{ inputs.sport }}" \
+            --market-scope "${{ inputs.market_scope }}" | tee /tmp/dataset_fingerprint.json
       - name: Upload fingerprint artifact
         uses: actions/upload-artifact@v4
         with:

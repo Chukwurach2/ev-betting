@@ -1,0 +1,82 @@
+name: nfl-dataset-verify
+
+# Verify a versioned research-dataset manifest against the live tables.
+# Recomputes the canonical-1 fingerprint READ-ONLY and compares row
+# count, snapshot count, and fingerprint against the manifest row,
+# FAILING LOUDLY on any mismatch. This is the one-command check to run
+# after ANY unrelated backfill touches a shared table -- no forensics.
+#
+# Zero Odds API credits. Zero writes to data tables (the only writes are
+# idempotent DDL for the manifest table itself, plus an explicit opt-in
+# --record used once per new manifest version).
+
+on:
+  workflow_dispatch:
+    inputs:
+      scope:
+        description: "Manifest scope (e.g. nfl-2022-2024-spread-total)"
+        required: false
+        default: "nfl-2022-2024-spread-total"
+      version:
+        description: "Manifest version to verify against ('latest' or e.g. v1)"
+        required: false
+        default: "latest"
+      record:
+        description: "One-time: record this computation as a NEW manifest row (true/false)"
+        required: false
+        default: "false"
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: nfl-edge
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: python -m pip install -r nfl-edge/ops/requirements.txt
+      - name: Preflight
+        shell: bash
+        run: |
+          set -euxo pipefail
+          test -n "${NFL_EDGE_DATABASE_URL:-}" || {
+            echo "::error::NFL_EDGE_DATABASE_URL is missing"
+            exit 10
+          }
+          test -f nfl-edge/ops/verify_dataset_manifest.py || {
+            echo "::error::verify_dataset_manifest.py missing"
+            exit 11
+          }
+          test -f nfl-edge/ops/migrations/019_research_dataset_manifests.sql || {
+            echo "::error::migration 019 missing"
+            exit 12
+          }
+        env:
+          NFL_EDGE_DATABASE_URL: ${{ secrets.NFL_EDGE_DATABASE_URL }}
+      - name: Verify dataset manifest (read-only on data tables)
+        env:
+          NFL_EDGE_DATABASE_URL: ${{ secrets.NFL_EDGE_DATABASE_URL }}
+          GITHUB_SHA: ${{ github.sha }}
+        run: |
+          set -euxo pipefail
+          RECORD_FLAG=""
+          if [ "${{ inputs.record }}" = "true" ]; then
+            RECORD_FLAG="--record"
+          fi
+          python -u nfl-edge/ops/verify_dataset_manifest.py \
+            --scope "${{ inputs.scope }}" \
+            --version "${{ inputs.version }}" \
+            --algorithm-commit "${{ github.sha }}" \
+            ${RECORD_FLAG} \
+            --out /tmp/nfl_dataset_verify.json
+      - name: Upload verification artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nfl-dataset-verify
+          path: /tmp/nfl_dataset_verify.json
