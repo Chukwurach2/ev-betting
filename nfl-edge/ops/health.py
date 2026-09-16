@@ -18,10 +18,16 @@ import os
 import sys
 
 # Max acceptable age of each component's last successful run.
+# Collector/picks at 150m (not the workflow's 5-min cron): GitHub schedule
+# triggers fire at an effective ~2h cadence in practice (2026-09-16), and the
+# health-watch runbook treats 30-150m as the healthy range with backup
+# dispatch only beyond 150m. Watchdog vs native-schedule origin is tracked
+# separately in the health-watch state file so fallback runs never mask
+# missed schedules.
 THRESHOLDS = {
     "schedule_sync": dt.timedelta(hours=26),
-    "collector": dt.timedelta(minutes=75),
-    "picks": dt.timedelta(minutes=75),
+    "collector": dt.timedelta(minutes=150),
+    "picks": dt.timedelta(minutes=150),
     "settlement": dt.timedelta(hours=30),
 }
 # Core components whose staleness means the pipeline is down (in season).

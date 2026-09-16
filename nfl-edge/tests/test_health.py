@@ -33,10 +33,22 @@ class EvaluateTests(unittest.TestCase):
 
     def test_stale_collector_is_down(self):
         h = fresh_all()
-        h["collector"] = hb(120)
+        h["collector"] = hb(180)
         r = health.evaluate(h, NOW, upcoming_games=16)
         self.assertEqual(r["status"], "down")
         self.assertEqual(r["components"]["collector"]["status"], "stale")
+
+    def test_collector_healthy_inside_150m_runbook_window(self):
+        # Runbook (2026-09-16): native schedule fires at ~2h effective
+        # cadence; 30-150m collector age is healthy, backup dispatch only
+        # beyond 150m. The pill must not report down inside that range.
+        h = fresh_all()
+        h["collector"] = hb(120)
+        h["picks"] = hb(120)
+        r = health.evaluate(h, NOW, upcoming_games=16)
+        self.assertEqual(r["status"], "ok")
+        self.assertEqual(r["components"]["collector"]["status"], "ok")
+        self.assertEqual(r["components"]["picks"]["status"], "ok")
 
     def test_stale_settlement_is_degraded_not_down(self):
         h = fresh_all()

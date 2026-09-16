@@ -5,10 +5,16 @@ import {Client} from 'pg';
 // secrets, no row-level data. Heartbeats are written by the scheduled
 // workers (see ops/heartbeat.py and ops/health.py for the same thresholds).
 
+// Stale thresholds in minutes. Collector/picks at 150 (not the workflow's
+// 5-min cron): GitHub schedule triggers fire at an effective ~2h cadence in
+// practice (2026-09-16), and the health-watch runbook treats 30-150m as the
+// healthy range with backup dispatch only beyond 150m. Watchdog vs
+// native-schedule origin is tracked separately in the health-watch state
+// file so fallback runs never mask missed schedules.
 const THRESHOLDS_MIN = {
   schedule_sync: 26 * 60,
-  collector: 75,
-  picks: 75,
+  collector: 150,
+  picks: 150,
   settlement: 30 * 60,
 };
 const CORE = new Set(['schedule_sync', 'collector', 'picks']);
