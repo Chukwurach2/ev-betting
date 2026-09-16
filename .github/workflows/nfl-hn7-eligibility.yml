@@ -1,0 +1,57 @@
+name: nfl-hn7-eligibility
+
+# H-N7 eligible-N gate (DRAFT prereg
+# docs/preregistrations/nfl-h-n7-special-teams-totals-draft.md).
+# Computes the exact eligible sample size MECHANICALLY. READ-ONLY on the
+# database (SELECTs only); free nflverse HTTP for 2021-2024 REG
+# play-by-play (outcome-blind column subset; scores never read).
+# Zero Odds API credits, zero DB writes, zero outcomes inspected.
+# This workflow STOPS at the eligibility funnel; it never runs the test.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: nfl-edge
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: python -m pip install -r nfl-edge/ops/requirements.txt
+      - name: Preflight eligibility gate
+        shell: bash
+        run: |
+          set -euxo pipefail
+          test -n "${NFL_EDGE_DATABASE_URL:?<NFL_EDGE_DATABASE_URL is missing>}"
+          for f in nfl_hn7_eligibility.py nfl_canonical_identity.py \
+                   nfl_hn6_coverage_gate.py mos_forecast_archive.py \
+                   nflverse_schedules_2022_2024.json; do
+            test -f "nfl-edge/ops/$f" || {
+              echo "::error::$f missing"; exit 11; }
+          done
+          python -c "import psycopg, pandas, pyarrow; print('dependencies OK')"
+        env:
+          NFL_EDGE_DATABASE_URL: ${{ secrets.NFL_EDGE_DATABASE_URL }}
+      - name: Run H-N7 eligibility gate (read-only)
+        env:
+          NFL_EDGE_DATABASE_URL: ${{ secrets.NFL_EDGE_DATABASE_URL }}
+        run: |
+          set -euxo pipefail
+          python -u nfl-edge/ops/nfl_hn7_eligibility.py \
+            --out /tmp/nfl_hn7_eligibility.json \
+            --per-game-csv /tmp/nfl_hn7_eligibility_per_game.csv
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nfl-hn7-eligibility
+          path: |
+            /tmp/nfl_hn7_eligibility.json
+            /tmp/nfl_hn7_eligibility_per_game.csv
