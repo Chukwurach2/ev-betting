@@ -1,0 +1,68 @@
+name: mos-forecast-archive
+
+# Prospective NFL MOS forecast archive (infrastructure collection, NOT a
+# claim-bearing test). Free IEM HTTP calls only -- zero Odds API credits.
+#
+# Schedule: 4x daily at 04:10 / 10:10 / 16:10 / 22:10 UTC. Each run fetches
+# the MOS cycle issued ~4h earlier (the documented GFS MOS dissemination
+# lag), for every 2026 game whose frozen prediction cutoff (kickoff - 24h)
+# has not yet passed. The collector's strict in-code gate (now <= cutoff)
+# guarantees every archived row was retrieved before the decision point.
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry run: real IEM fetches, zero DB writes"
+        required: false
+        default: "false"
+  schedule:
+    - cron: '10 4,10,16,22 * * *'
+
+concurrency:
+  group: mos-forecast-archive
+  cancel-in-progress: false
+
+jobs:
+  archive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: nfl-edge
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: python -m pip install -r nfl-edge/ops/requirements.txt
+      - name: Verify secrets
+        env:
+          NFL_EDGE_DATABASE_URL: ${{ secrets.NFL_EDGE_DATABASE_URL }}
+        run: |
+          python3 - <<'EOF'
+          import os
+          if not os.environ.get("NFL_EDGE_DATABASE_URL"):
+              raise SystemExit("missing secret: NFL_EDGE_DATABASE_URL")
+          print("secrets present")
+          EOF
+      - name: Apply additive migrations (MOS archive tables)
+        env:
+          NFL_EDGE_DATABASE_URL: ${{ secrets.NFL_EDGE_DATABASE_URL }}
+        run: python nfl-edge/ops/migrate.py
+      - name: Archive MOS forecast cycles
+        env:
+          NFL_EDGE_DATABASE_URL: ${{ secrets.NFL_EDGE_DATABASE_URL }}
+        run: |
+          ARGS="--out /tmp/mos_archive.json"
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            ARGS="$ARGS --dry-run"
+          fi
+          python nfl-edge/ops/mos_forecast_archive.py $ARGS
+      - name: Upload artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mos-forecast-archive-${{ github.run_number }}
+          path: /tmp/mos_archive.json
