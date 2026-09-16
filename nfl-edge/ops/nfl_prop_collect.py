@@ -784,7 +784,8 @@ def live_run(now, api_key, conn, games, checkpoint_config, cap, stadium_mos,
     detail = {"due": len(due), "captured": counts["captured"],
               "missed": counts["missed"], "empty": counts["empty"],
               "credits_used": credits_used, "run_id": run_id,
-              "dry_run": False, "credits_remaining": credits_remaining}
+              "dry_run": False, "credits_remaining": credits_remaining,
+              "malformed_rows_skipped": results.get("malformed_rows_skipped", 0)}
     heartbeat.record_heartbeat(conn, "prop_collector", detail)
     print(json.dumps({"run_id": run_id, "detail": detail}))
     return 0

@@ -98,6 +98,35 @@ jobs:
         env:
           NFL_EDGE_DATABASE_URL: ${{ secrets.NFL_EDGE_DATABASE_URL }}
         run: python ops/migrate.py
+      - name: Check weekly credit ceiling
+        id: weeklycap
+        env:
+          NFL_EDGE_DATABASE_URL: ${{ secrets.NFL_EDGE_DATABASE_URL }}
+        run: |
+          python3 - <<'EOF'
+          # Hard weekly ceiling: 576 credits (user-authorized 2026-09-16).
+          # Week = Monday 00:00 ET .. Sunday 23:59:59 ET. Tripwire at 480
+          # leaves headroom for one maxed per-run cap (90): 480 + 90 = 570 < 576.
+          # Fail-closed: a DB error fails the run rather than spending blind.
+          import os, datetime
+          from zoneinfo import ZoneInfo
+          import psycopg
+          ET = ZoneInfo("America/New_York")
+          now_et = datetime.datetime.now(ET)
+          week_start = (now_et - datetime.timedelta(days=now_et.weekday())).replace(
+              hour=0, minute=0, second=0, microsecond=0)
+          with psycopg.connect(os.environ["NFL_EDGE_DATABASE_URL"]) as conn:
+              spent = conn.execute(
+                  "SELECT COALESCE(SUM(credits_consumed), 0) "
+                  "FROM public.nfl_prop_collection_attempts "
+                  "WHERE attempted_at >= %s",
+                  (week_start,)).fetchone()[0]
+          over = spent >= 480
+          print(f"week_start_et={week_start.isoformat()} spent={spent} over_cap={over}")
+          with open(os.environ["GITHUB_OUTPUT"], "a") as fh:
+              fh.write(f"over_cap={'true' if over else 'false'}\n")
+              fh.write(f"week_spent={spent}\n")
+          EOF
       - name: Dry-run prop collection cycle
         if: ${{ inputs.live != true && !(github.event_name == 'schedule' && vars.NFL_PROP_LIVE_OK == '1') }}
         env:
@@ -114,7 +143,7 @@ jobs:
           name: nfl-prop-dryrun-${{ github.run_number }}
           path: /tmp/nfl_prop_dryrun.json
       - name: Live prop collection (requires NFL_PROP_LIVE_OK=1)
-        if: ${{ inputs.live == true || (github.event_name == 'schedule' && vars.NFL_PROP_LIVE_OK == '1') }}
+        if: ${{ (inputs.live == true || (github.event_name == 'schedule' && vars.NFL_PROP_LIVE_OK == '1')) && steps.weeklycap.outputs.over_cap != 'true' }}
         env:
           NFL_EDGE_DATABASE_URL: ${{ secrets.NFL_EDGE_DATABASE_URL }}
           THE_ODDS_API_KEY: ${{ secrets.THE_ODDS_API_KEY }}
