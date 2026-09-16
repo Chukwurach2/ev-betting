@@ -45,107 +45,32 @@ def main() -> None:
         ).fetchall()
     out["rows_checked"] = len(rows)
 
-    # Check 1: quote_id recomputation.
-    # The backfill hashed the RAW provider timestamp string
-    # (envelope["timestamp"], e.g. "2024-09-04T11:55:38.123456Z"), not the
-    # parsed timestamptz. The exact raw rendering is unknowable per se, so
-    # try candidate renderings per distinct snapshot and see which (if any)
-    # verifies every row of that snapshot.
-    def candidates(obs):
-        base = obs.strftime("%Y-%m-%dT%H:%M:%S")
-        frac6 = obs.strftime(".%f") if obs.microsecond else ""
-        frac3 = obs.strftime(".%f")[:4] if obs.microsecond else ""
-        cands = [
-            base + frac6 + "Z",
-            base + frac3 + "Z",
-            base + "Z",
-            base + frac6 + "+00:00",
-            base + frac3 + "+00:00",
-            base + "+00:00",
-            str(obs),
-        ]
-        # dedupe, preserve order
-        seen = []
-        for c in cands:
-            if c not in seen:
-                seen.append(c)
-        return seen
-
-    snaps: dict = {}
+    # Check 1: quote_id recomputation with the exact original rendering.
+    # Settled empirically (forensic runs 35045350102/35045460883):
+    #   raw_ts = observed_at rendered "%Y-%m-%dT%H:%M:%SZ"  (raw provider
+    #            envelope string; PG timestamptz round-trip changes it)
+    #   line   = str(float(abs(line)))  (hash-time code hashed abs(line);
+    #            commit 0ba8f600 later re-signed stored spread lines, and
+    #            str(float) renders integral lines as "45.0" not "45")
+    qid_mismatch = 0
+    qid_mismatch_sample = []
     for (qid, eid, bkey, mkt, sel, line, price, fp, obs) in rows:
-        snaps.setdefault(obs, []).append((qid, eid, bkey, mkt, sel, line, price))
-    snap_results = []
-    total_matched = 0
-    for obs, srows in sorted(snaps.items(), key=lambda kv: str(kv[0])):
-        best = None
-        for cand in candidates(obs):
-            m = 0
-            for (qid, eid, bkey, mkt, sel, line, price) in srows:
-                h = hashlib.sha256(
-                    ("%s|%s|%s|%s|%s|%s|%s"
-                     % (cand, eid, bkey, mkt, sel, line, price)).encode()
-                ).hexdigest()
-                if h == qid:
-                    m += 1
-            if best is None or m > best[1]:
-                best = (cand, m)
-        snap_results.append(
-            {"observed_at": str(obs), "n": len(srows),
-             "best_candidate": best[0], "matched": best[1]})
-        total_matched += best[1]
-    out["snapshots"] = len(snaps)
-    out["quote_id_matched"] = total_matched
-    out["quote_id_total"] = len(rows)
-    out["quote_id_full_match"] = (total_matched == len(rows))
-    out["snapshots_not_fully_matched"] = [
-        s for s in snap_results if s["matched"] != s["n"]
-    ]
-    # Check 1b: for rows NOT matching with the plain-Zulu timestamp, the
-    # difference must be per-row. Prime suspect: spread `line` — commit
-    # 0ba8f600 (2026-09-15) changed stored spread lines from |line| to
-    # signed AFTER quote_ids were hashed. Try line variants per market.
-    def line_variants(mkt, line):
-        s = str(line)
-        variants = {"stored": s}
-        try:
-            f = float(line)
-            variants["abs"] = str(abs(f)).rstrip("0").rstrip(".") \
-                if "." in str(abs(f)) else str(abs(f))
-            # normalize: match Python str(float) rendering
-            variants["abs"] = str(float(abs(f)))
-            variants["neg"] = str(float(-f))
-            variants["float"] = str(float(f))
-        except (ValueError, TypeError):
-            pass
-        return variants
-
-    snaps2: dict = {}
-    for (qid, eid, bkey, mkt, sel, line, price, fp, obs) in rows:
-        snaps2.setdefault(obs, []).append((qid, eid, bkey, mkt, sel, line, price))
-    matrix: dict = {}
-    examined = 0
-    for obs, srows in sorted(snaps2.items(), key=lambda kv: str(kv[0])):
-        zulu = obs.strftime("%Y-%m-%dT%H:%M:%S") + "Z"
-        for (qid, eid, bkey, mkt, sel, line, price) in srows:
-            key = (mkt, "neg" if str(line).startswith("-") else "pos")
-            cell = matrix.setdefault(key, {"n": 0, "stored": 0, "abs": 0,
-                                           "neg": 0, "float": 0})
-            cell["n"] += 1
-            for vname, vline in line_variants(mkt, line).items():
-                h = hashlib.sha256(
-                    ("%s|%s|%s|%s|%s|%s|%s"
-                     % (zulu, eid, bkey, mkt, sel, vline, price)).encode()
-                ).hexdigest()
-                if h == qid:
-                    cell[vname] += 1
-            examined += 1
-            if examined > 60000:
-                break
-        if examined > 60000:
-            break
-    out["line_variant_matrix_60k_sample"] = {
-        "%s/%s" % k: v for k, v in matrix.items()
-    }
+        raw_ts = obs.strftime("%Y-%m-%dT%H:%M:%S") + "Z"
+        line_s = str(float(abs(float(line))))
+        recomputed = hashlib.sha256(
+            ("%s|%s|%s|%s|%s|%s|%s"
+             % (raw_ts, eid, bkey, mkt, sel, line_s, price)).encode()
+        ).hexdigest()
+        if recomputed != qid:
+            qid_mismatch += 1
+            if len(qid_mismatch_sample) < 5:
+                qid_mismatch_sample.append(
+                    {"quote_id": qid, "recomputed": recomputed,
+                     "market": mkt, "selection": sel, "line": str(line),
+                     "american_odds": price, "observed_at": str(obs)})
+    out["quote_id_mismatches"] = qid_mismatch
+    out["quote_id_mismatch_sample"] = qid_mismatch_sample
+    out["quote_id_full_match"] = (qid_mismatch == 0)
 
     # Check 2: fair_probability re-derivation with backfill pairing logic
     groups: dict = {}
