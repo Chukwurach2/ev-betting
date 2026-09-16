@@ -19,9 +19,10 @@
 | Unmatched: outside_seasons (all 2025) | 29 |
 | nflverse games 2022–2024 | 854 (815 REG + 39 postseason) |
 | nflverse REG games matched | 799 / 815 (98.0%) |
+| Missing-from-source (2022 W17 BUF@CIN suspended) | 1 — explicit, never synthesized |
 
 Match types: `alias_date` 1,162 · `alias_date_shift` 316 · `swapped` 0 · `swapped_date_shift` 0.
-15 unit tests in `nfl-edge/tests/test_nfl_identity.py`, all green.
+18 unit tests in `nfl-edge/tests/test_nfl_identity.py`, all green.
 
 ## Method (deterministic, no fuzzy)
 
@@ -59,6 +60,27 @@ Downstream quote joins must map *any* observed `odds_event_id` to its
 Widening the date window beyond ±1 day to capture the first three would be
 data-fitting. The deterministic rule stands.
 
+## Bundle completeness reconciliation (815 vs 816)
+
+The bundled nflverse schedules contain **815**, not 816, scheduled 2022–2024
+regular-season games (2022: 271; 2023: 272; 2024: 272). The missing game is
+the **2022 Week 17 Buffalo Bills @ Cincinnati Bengals** game scheduled for
+2023-01-03 — suspended in the first quarter and never completed or resumed;
+nflverse's schedules exclude it by construction (no completed game, no
+official result or stats).
+
+It is now treated explicitly as state **`missing_from_source`** in the
+identity layer: `ops/nfl_canonical_identity.py` carries it in the
+`KNOWN_MISSING_FROM_SOURCE` registry, and `match_events` emits it verbatim in
+`results['missing_from_source']` (with reason) on every run, so it can never
+silently drop out of a join that enumerates games from the bundle. It has no
+`nflverse_game_id`, so it cannot be a row in `nfl_game_identity`; downstream
+consumers must treat the registry as known-absent — never synthesize or
+invent the game, never pad a season count to 272. Its provider-side Odds
+event is the fourth `no_match` entry above (link: season 2022, week 17,
+CIN home vs BUF, 2023-01-03). 18 unit tests cover the identity layer
+(15 original + 3 for the missing-from-source state).
+
 ## Coverage gaps (not matching failures)
 
 - **All 39 postseason games** (WC/DIV/CON/SB, 2022–2024) have no Odds events:
@@ -87,7 +109,7 @@ is now satisfied.**
 - `nfl-edge/ops/nfl_canonical_identity.py` — deterministic matcher (read-only on
   `public.nfl_edge_market_history`; frozen dataset/model/shadow untouched)
 - `nfl-edge/ops/migrations/017_nfl_game_identity.sql` — extensible mapping table
-- `nfl-edge/tests/test_nfl_identity.py` — 15 unit tests
+- `nfl-edge/tests/test_nfl_identity.py` — 18 unit tests (15 identity + 3 missing-from-source)
 - `.github/workflows/canonical-identity.yml` — `sport=nfl` mode
 - CI artifact `canonical-identity-nfl` on run `35041420559` — full mapping JSON
   with matched / ambiguous / unmatched lists

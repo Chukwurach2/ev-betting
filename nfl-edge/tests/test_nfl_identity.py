@@ -154,6 +154,38 @@ class TestMatchEvents(unittest.TestCase):
         self.assertEqual(json.dumps(r1, sort_keys=True, default=str),
                          json.dumps(r2, sort_keys=True, default=str))
 
+    def test_missing_from_source_registry_identifies_2022_week17(self):
+        # The suspended Bills @ Bengals game is absent from the bundle by
+        # construction; it must appear explicitly, never silently drop out.
+        r = nci.match_events([], [], self.ALIASES, [2022, 2023, 2024])
+        self.assertEqual(len(r["missing_from_source"]), 1)
+        m = r["missing_from_source"][0]
+        self.assertEqual(m["state"], "missing_from_source")
+        self.assertEqual(m["season"], 2022)
+        self.assertEqual(m["week"], 17)
+        self.assertEqual(m["game_type"], "REG")
+        self.assertEqual(m["home"], "CIN")
+        self.assertEqual(m["away"], "BUF")
+        self.assertEqual(m["gameday"], "2023-01-03")
+        self.assertIsNone(m["nflverse_game_id"])
+        self.assertTrue(m["reason"], "must carry an explicit reason")
+
+    def test_missing_from_source_emitted_with_matches(self):
+        # The registry is emitted regardless of match outcomes.
+        r = nci.match_events(
+            [ev("e1", "New York Jets", "Baltimore Ravens", "2022-09-11T17:00:00Z")],
+            [NV_GAME], self.ALIASES, [2022])
+        self.assertEqual(len(r["matched"]), 1)
+        self.assertEqual(len(r["missing_from_source"]), 1)
+        self.assertEqual(r["missing_from_source"][0]["state"], "missing_from_source")
+
+    def test_missing_from_source_registry_is_a_copy(self):
+        # Mutating the emitted list must not corrupt the module registry.
+        r = nci.match_events([], [], self.ALIASES, [2022])
+        r["missing_from_source"][0]["home"] = "XXX"
+        r2 = nci.match_events([], [], self.ALIASES, [2022])
+        self.assertEqual(r2["missing_from_source"][0]["home"], "CIN")
+
     def test_exact_date_preferred_over_fallback(self):
         # Both exact and shifted candidates exist: exact must win.
         g_exact = dict(NV_GAME)

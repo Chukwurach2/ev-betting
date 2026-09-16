@@ -23,6 +23,19 @@
 -- preserved in the CI artifact (nfl_canonical_identity.json), never
 -- silently resolved.
 --
+-- Bundle completeness: the bundled nflverse schedules hold 815 of the 816
+-- scheduled 2022-2024 regular-season games. The missing game is the
+-- 2022 Week 17 Bills @ Bengals game scheduled 2023-01-03, suspended in Q1
+-- and never completed or resumed; nflverse excludes it by construction.
+-- It is carried explicitly in the identity artifact under
+-- results['missing_from_source'] with state 'missing_from_source'
+-- (see ops/nfl_canonical_identity.py KNOWN_MISSING_FROM_SOURCE).
+-- It has no nflverse_game_id and therefore cannot be a row in this table;
+-- downstream joins must consume the artifact registry as known-absent
+-- (never synthesize or invent the game, never pad a season count to 272).
+-- Its provider-side Odds event appears in the artifact's unmatched_odds
+-- (reason 'no_match', 2023-01-03 Bengals home vs Bills).
+--
 -- Multiplicity (measured 2026-09-16, run 35041420559): the Odds provider
 -- re-issued event ids across historical snapshots, so one nflverse game
 -- maps to a median of 2 (max 5) distinct Odds event ids. The table is

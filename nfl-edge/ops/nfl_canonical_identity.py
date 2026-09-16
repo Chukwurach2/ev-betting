@@ -6,6 +6,11 @@ Builds a deterministic cross-source identity layer with explicit states:
 - AMBIGUOUS: multiple candidates (requires manual review, never auto-resolved)
 - UNMATCHED_ODDS: Odds API event with no nflverse counterpart (with reason)
 - UNMATCHED_NFLVERSE: nflverse game with no Odds API counterpart
+- MISSING_FROM_SOURCE: game known absent from the bundled nflverse schedules
+  (explicit KNOWN_MISSING_FROM_SOURCE registry below). Preserved so it can
+  never silently drop out of a downstream join: consumers that enumerate
+  games from the bundle must treat this list as known-absent, never
+  synthesizing or inventing the game.
 
 No silent fuzzy matching. All name resolutions are explicit in
 nfl_team_aliases.json.
@@ -25,6 +30,43 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 NFLVERSE_PATH = HERE / "nflverse_schedules_2022_2024.json"
 ALIASES_PATH = HERE / "nfl_team_aliases.json"
+
+# Games known to be absent from the bundled nflverse schedules.
+#
+# The bundle holds 815 of the 816 scheduled 2022-2024 regular-season games.
+# The missing game is the 2022 Week 17 Buffalo Bills @ Cincinnati Bengals
+# game scheduled for 2023-01-03: suspended in the first quarter after Damar
+# Hamlin's cardiac arrest and never completed or resumed. nflverse's schedule
+# data excludes it (no completed game, no official result or stats), and it
+# is also absent from nflverse schedules generally, so the bundle can never
+# contain it by construction.
+#
+# It is recorded here explicitly (state "missing_from_source") so it cannot
+# silently drop out of any join that enumerates games from the bundle:
+# consumers must treat these entries as known-absent, never synthesize or
+# invent the game, and never pad a season count to 272.
+#
+# Linked provider-side evidence: the Odds API carries an event for this
+# game, which appears under unmatched_odds with reason "no_match"
+# (Bengals home vs Bills, commence 2023-01-03).
+KNOWN_MISSING_FROM_SOURCE = [
+    {
+        "season": 2022,
+        "week": 17,
+        "game_type": "REG",
+        "home": "CIN",
+        "away": "BUF",
+        "gameday": "2023-01-03",
+        "nflverse_game_id": None,
+        "state": "missing_from_source",
+        "reason": (
+            "Scheduled 2023-01-03 Bills @ Bengals (2022 Week 17), suspended in "
+            "Q1 and never completed or resumed; excluded from nflverse "
+            "schedules. No official result or stats. Provider-side Odds event "
+            "exists (see unmatched_odds, no_match, 2023-01-03 CIN home vs BUF)."
+        ),
+    },
+]
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import sports  # noqa: E402
@@ -67,7 +109,8 @@ def match_events(odds_events, nv_games, aliases, seasons):
     """Deterministic match of Odds events to nflverse games.
 
     Pure function (no I/O): returns the results dict with
-    matched / ambiguous / unmatched_odds / unmatched_nflverse lists.
+    matched / ambiguous / unmatched_odds / unmatched_nflverse /
+    missing_from_source lists.
     """
     # Build nflverse index: (gameday, home_abbr, away_abbr) -> [games]
     nv_index = defaultdict(list)
@@ -82,6 +125,12 @@ def match_events(odds_events, nv_games, aliases, seasons):
         "ambiguous": [],
         "unmatched_odds": [],
         "unmatched_nflverse": [],
+        # Explicit missing-from-source registry entries: games known absent
+        # from the bundled nflverse schedules. Emitted verbatim so joins can
+        # never silently drop them.
+        "missing_from_source": [
+            dict(entry) for entry in KNOWN_MISSING_FROM_SOURCE
+        ],
     }
     matched_nv_ids = set()
 
@@ -296,6 +345,7 @@ def main(argv=None):
         "n_ambiguous": len(results["ambiguous"]),
         "n_unmatched_odds": len(results["unmatched_odds"]),
         "n_unmatched_nflverse": len(results["unmatched_nflverse"]),
+        "n_missing_from_source": len(results["missing_from_source"]),
         "match_rate": (n_matched / n_scope) if n_scope else 0,
         "match_rate_by_type": {
             mt: sum(1 for m in results["matched"] if m["match_type"] == mt)
@@ -327,6 +377,10 @@ def main(argv=None):
             "Date: kickoff::date (UTC) first; fallback ko-1d, ko+1d",
             "NOTE: nflverse uses 'LA' for the Rams (verified in bundled data)",
             "NOTE: abbreviations compared verbatim; no substring/stripping heuristics",
+            "NOTE: bundle holds 815 of 816 scheduled 2022-2024 REG games; the "
+            "missing 2022 Week 17 BUF@CIN suspended game is carried explicitly "
+            "in results['missing_from_source'] with state 'missing_from_source' "
+            "— never synthesized, never padded",
         ],
         "stats": stats,
         "results": results,
