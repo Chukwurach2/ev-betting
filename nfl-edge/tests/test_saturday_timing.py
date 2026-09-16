@@ -296,9 +296,16 @@ class ContractIntactTests(unittest.TestCase):
             c, [], [{"book_key": "dk", "state": "request_failed"}]))
 
 
+WORKFLOW_PATH = (pathlib.Path(__file__).parents[2] / ".github" / "workflows"
+                 / "saturday-timing.yml")
+
+
+@unittest.skipUnless(
+    WORKFLOW_PATH.exists(),
+    "saturday-timing.yml not extracted in CI (bootstrap keeps nfl-edge/ only)",
+)
 class WorkflowScheduleTests(unittest.TestCase):
-    WORKFLOW = (pathlib.Path(__file__).parents[2] / ".github" / "workflows"
-                / "saturday-timing.yml")
+    WORKFLOW = WORKFLOW_PATH
 
     def _cron_runs(self):
         import yaml
