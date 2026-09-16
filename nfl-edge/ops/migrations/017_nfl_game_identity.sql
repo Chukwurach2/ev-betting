@@ -22,9 +22,16 @@
 -- There is no fuzzy match type. Unmatched and ambiguous states are
 -- preserved in the CI artifact (nfl_canonical_identity.json), never
 -- silently resolved.
+--
+-- Multiplicity (measured 2026-09-16, run 35041420559): the Odds provider
+-- re-issued event ids across historical snapshots, so one nflverse game
+-- maps to a median of 2 (max 5) distinct Odds event ids. The table is
+-- therefore keyed by (nflverse_game_id, odds_event_id) pairs, not 1:1.
+-- Downstream quote joins should map ANY observed odds_event_id to its
+-- nflverse_game_id.
 
 CREATE TABLE IF NOT EXISTS public.nfl_game_identity (
-    nflverse_game_id TEXT PRIMARY KEY,
+    nflverse_game_id TEXT NOT NULL,
     odds_event_id TEXT NOT NULL,
     match_type TEXT NOT NULL
         CHECK (match_type IN ('alias_date', 'alias_date_shift',
@@ -40,7 +47,8 @@ CREATE TABLE IF NOT EXISTS public.nfl_game_identity (
     injury_report_key TEXT,
     weather_station_key TEXT,
     notes TEXT,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (nflverse_game_id, odds_event_id)
 );
 
 CREATE INDEX IF NOT EXISTS idx_nfl_game_identity_event
