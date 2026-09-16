@@ -36,17 +36,33 @@ jobs:
             echo "::error::NFL_EDGE_DATABASE_URL is missing"
             exit 10
           }
-          test -f nfl-edge/ops/canonical_identity.py || {
-            echo "::error::canonical_identity.py missing"
-            find . -maxdepth 4 -type f | sort | head -200
-            exit 11
-          }
-          test -f nfl-edge/ops/cfbd_2022_2024.json || {
-            echo "::error::CFBD reference file missing"
-            find nfl-edge -type f | sort
-            exit 12
-          }
-          ls -lh nfl-edge/ops/cfbd_2022_2024.json
+          if [ "${{ inputs.sport }}" = "nfl" ]; then
+            test -f nfl-edge/ops/nfl_canonical_identity.py || {
+              echo "::error::nfl_canonical_identity.py missing"
+              exit 11
+            }
+            test -f nfl-edge/ops/nflverse_schedules_2022_2024.json || {
+              echo "::error::nflverse schedules file missing"
+              exit 12
+            }
+            test -f nfl-edge/ops/nfl_team_aliases.json || {
+              echo "::error::NFL team aliases missing"
+              exit 13
+            }
+            ls -lh nfl-edge/ops/nflverse_schedules_2022_2024.json
+          else
+            test -f nfl-edge/ops/canonical_identity.py || {
+              echo "::error::canonical_identity.py missing"
+              find . -maxdepth 4 -type f | sort | head -200
+              exit 11
+            }
+            test -f nfl-edge/ops/cfbd_2022_2024.json || {
+              echo "::error::CFBD reference file missing"
+              find nfl-edge -type f | sort
+              exit 12
+            }
+            ls -lh nfl-edge/ops/cfbd_2022_2024.json
+          fi
           python - <<'PY'
           import importlib
           for package in ("psycopg",):
@@ -60,12 +76,19 @@ jobs:
           NFL_EDGE_DATABASE_URL: ${{ secrets.NFL_EDGE_DATABASE_URL }}
         run: |
           set -euxo pipefail
-          python -u nfl-edge/ops/canonical_identity.py \
-            --sport "${{ inputs.sport }}" \
-            --seasons "${{ inputs.seasons }}" \
-            --out /tmp/canonical_identity.json
+          if [ "${{ inputs.sport }}" = "nfl" ]; then
+            python -u nfl-edge/ops/nfl_canonical_identity.py \
+              --sport "${{ inputs.sport }}" \
+              --seasons "${{ inputs.seasons }}" \
+              --out /tmp/nfl_canonical_identity.json
+          else
+            python -u nfl-edge/ops/canonical_identity.py \
+              --sport "${{ inputs.sport }}" \
+              --seasons "${{ inputs.seasons }}" \
+              --out /tmp/canonical_identity.json
+          fi
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: canonical-identity
-          path: /tmp/canonical_identity.json
+          name: canonical-identity-${{ inputs.sport }}
+          path: /tmp/*canonical_identity.json
