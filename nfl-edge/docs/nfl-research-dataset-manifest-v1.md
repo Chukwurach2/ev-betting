@@ -10,10 +10,10 @@
 - **seasons:** NFL regular seasons 2022–2024 (postseason excluded)
 - **row_count:** 291,586
 - **snapshot_count:** 162
-- **dataset_fingerprint (canonical-1):** `TBD — pending computation run`
+- **dataset_fingerprint (canonical-1):** `0c79d2cdbb7e89f294778f70ded092f151c059ccf6276dca19fd489cebd69920`
 - **algorithm:** `nfl-edge/ops/fingerprint_dataset.py`, method `canonical-1`
-- **algorithm_commit:** `TBD`
-- **created_at:** `TBD`
+- **algorithm_commit:** `16c80be7e3be653d2631fc9107e961181c77155b`
+- **created_at:** `2026-09-16T02:05:15Z` (run 35046566235, zero API credits)
 - **manifest table row:** `research_dataset_manifests(version='v1',
   scope='nfl-2022-2024-spread-total')`
 
