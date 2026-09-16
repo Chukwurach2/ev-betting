@@ -59,6 +59,7 @@ jobs:
           python -u nfl-edge/ops/nfl_hn6_coverage_gate.py \
             --out /tmp/nfl_hn6_coverage_gate.json
       - name: Upload artifact
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: nfl-hn6-coverage-gate
