@@ -74,6 +74,11 @@ path is covered by a unit test.
   match — all correct.
 - Migration + all 8 SQL statements parse (pglast); both workflow YAMLs
   parse; cron arithmetic = 48 runs.
+- CI note: the repo's CI bootstrap extracts `nfl-edge/` only, so
+  `.github/workflows/` is absent there. The two cron-schedule tests
+  skip in CI and run locally (same posture as `test_workflows.py`,
+  whose YAML assertions only execute in dev). GitHub CI is green on
+  the final commit.
 
 ## Measured cost and Saturday budget
 
