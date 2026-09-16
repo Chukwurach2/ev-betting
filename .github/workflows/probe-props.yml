@@ -1,0 +1,35 @@
+name: probe-props
+
+# ONE-TIME verification probe for hypotheses C/D (160-credit ceiling).
+# Step 0 (bulk historical with prop markets) already answered locally:
+# bulk historical returns 422 INVALID_MARKET for prop markets.
+# This run: 3 historical events lookups (1 credit each) + 3 per-event
+# historical odds calls at kickoff-24h with 4 prop markets (up to 40 each;
+# absent markets cost nothing). Ceiling ~123 credits. Read-only, zero DB writes.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: nfl-edge
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run probe
+        env:
+          THE_ODDS_API_KEY: ${{ secrets.THE_ODDS_API_KEY }}
+        run: python nfl-edge/ops/probe_props.py --out /tmp/probe_props.json
+      - name: Upload artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: probe-props-${{ github.run_number }}
+          path: /tmp/probe_props.json
