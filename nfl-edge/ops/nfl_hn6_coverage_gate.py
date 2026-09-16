@@ -169,6 +169,36 @@ def classify_game(wed_ok, sat_ok, sun_ok):
     return "none"
 
 
+def freeze_forensic(conn, hq_table, mh_table):
+    """Read-only characterization of a freeze mismatch. No outcomes."""
+    out = {}
+    out["quotes_by_source_market"] = [
+        {"source": s, "market": m, "n": n}
+        for (s, m, n) in conn.execute(
+            "SELECT source, market, COUNT(*) FROM public.%s "
+            "GROUP BY 1, 2 ORDER BY 3 DESC" % hq_table).fetchall()]
+    out["quotes_by_book"] = [
+        {"book_key": b, "n": n}
+        for (b, n) in conn.execute(
+            "SELECT book_key, COUNT(*) FROM public.%s "
+            "GROUP BY 1 ORDER BY 2 DESC" % hq_table).fetchall()]
+    out["quotes_collected_range"] = [
+        str(v) for v in conn.execute(
+            "SELECT MIN(collected_at), MAX(collected_at) FROM public.%s"
+            % hq_table).fetchone()]
+    out["quotes_per_snapshot"] = [
+        {"observed_at": str(oa), "n": n}
+        for (oa, n) in conn.execute(
+            "SELECT observed_at, COUNT(*) FROM public.%s "
+            "GROUP BY 1 ORDER BY 1" % hq_table).fetchall()]
+    out["market_history_by_region_market"] = [
+        {"regions": r, "markets": m, "n": n}
+        for (r, m, n) in conn.execute(
+            "SELECT regions, markets, COUNT(*) FROM public.%s "
+            "GROUP BY 1, 2 ORDER BY 1, 2" % mh_table).fetchall()]
+    return out
+
+
 # ---- I/O ------------------------------------------------------------------
 
 def http_get(url, timeout=120):
@@ -263,6 +293,7 @@ def run_gate(conn, bundle_path=None, officials_url=OFFICIALS_URL,
     }
     if not freeze_ok:
         report["gate"] = "ABORTED_FREEZE_MISMATCH"
+        report["forensic"] = freeze_forensic(conn, hq_table, mh_table)
         return report
 
     # ---- 2. slot identification (provider observed_at -> cadence slot) -----
@@ -431,6 +462,18 @@ def print_summary(rep):
              "OK" if fc["ok"] else "MISMATCH - STOP"))
     if rep.get("gate") == "ABORTED_FREEZE_MISMATCH":
         print("  ABORTED: frozen dataset fingerprint mismatch")
+        fz = rep.get("forensic", {})
+        for row in fz.get("quotes_by_source_market", []):
+            print("    source=%s market=%s n=%d"
+                  % (row["source"], row["market"], row["n"]))
+        print("    collected_at range: %s"
+              % " .. ".join(fz.get("quotes_collected_range", [])))
+        print("    market_history (regions/markets): %s"
+              % fz.get("market_history_by_region_market"))
+        top_books = fz.get("quotes_by_book", [])[:8]
+        print("    top books: %s"
+              % ", ".join("%s=%d" % (b["book_key"], b["n"])
+                          for b in top_books))
         return
     ident = rep["identity"]
     print("  bundle REG games: %d | identity-matched: %d | unmatched: %d | "
