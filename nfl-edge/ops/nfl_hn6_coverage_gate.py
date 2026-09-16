@@ -134,7 +134,7 @@ def build_consensus(over_quotes, line_tol=LINE_TOL, min_books=MIN_BOOKS,
     Construction (frozen de-vig work): per-book median Over line, then
     median across books = consensus line; books "at the consensus line"
     are those within `line_tol`.
-    Returns dict with consensus_line, n_books, books_at_line,
+    Returns dict with consensus_line, n_books, n_books_at_line, books_at_line,
     pinnacle_present, eligible.
     """
     per_book = defaultdict(list)
@@ -142,8 +142,8 @@ def build_consensus(over_quotes, line_tol=LINE_TOL, min_books=MIN_BOOKS,
         per_book[book].append(float(line))
     book_lines = {b: statistics.median(ls) for b, ls in per_book.items()}
     if not book_lines:
-        return {"consensus_line": None, "n_books": 0, "books_at_line": [],
-                "pinnacle_present": False, "eligible": False}
+        return {"consensus_line": None, "n_books": 0, "n_books_at_line": 0,
+                "books_at_line": [], "pinnacle_present": False, "eligible": False}
     consensus = statistics.median(book_lines.values())
     at_line = sorted(b for b, ln in book_lines.items()
                      if abs(ln - consensus) <= line_tol)
