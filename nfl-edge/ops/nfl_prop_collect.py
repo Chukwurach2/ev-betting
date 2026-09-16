@@ -576,6 +576,7 @@ def dry_run(now, games, checkpoint_config, events_payload, simulate_odds,
             "missed": counts["missed"], "empty": counts["empty"],
             "credits_used": 0, "run_id": "dry_run",
             "dry_run": True, "credits_remaining": None,
+            "trigger_source": trigger_source,
         },
         "completeness_note": ("dry-run makes zero DB writes; attempts rows "
                               "are NOT inserted (they would pollute "
@@ -619,7 +620,7 @@ def insert_attempt(conn, run_id, attempt, credits=0, quota_before=None,
 
 
 def live_run(now, api_key, conn, games, checkpoint_config, cap, stadium_mos,
-             bundle_lookup, run_id):
+             bundle_lookup, run_id, trigger_source="unknown"):
     """Live collection. Refused unless NFL_PROP_LIVE_OK=1 (checked in main)."""
     import heartbeat  # noqa: E402
 
@@ -785,7 +786,8 @@ def live_run(now, api_key, conn, games, checkpoint_config, cap, stadium_mos,
               "missed": counts["missed"], "empty": counts["empty"],
               "credits_used": credits_used, "run_id": run_id,
               "dry_run": False, "credits_remaining": credits_remaining,
-              "malformed_rows_skipped": results.get("malformed_rows_skipped", 0)}
+              "malformed_rows_skipped": results.get("malformed_rows_skipped", 0),
+              "trigger_source": trigger_source}
     heartbeat.record_heartbeat(conn, "prop_collector", detail)
     print(json.dumps({"run_id": run_id, "detail": detail}))
     return 0
@@ -818,6 +820,11 @@ def parse_args(argv=None):
                          "/odds response body, used to build sample raw "
                          "quote rows with the exact schema. No HTTP calls.")
     ap.add_argument("--run-id", default=None)
+    ap.add_argument("--trigger-source", default=None,
+                    help="How this run was triggered: schedule | watchdog | "
+                         "close-watch | manual. Defaults to "
+                         "NFL_PROP_TRIGGER_SOURCE env, else 'unknown'. "
+                         "Recorded in the heartbeat for audit.")
     return ap.parse_args(argv)
 
 
@@ -828,6 +835,9 @@ def main(argv=None):
     stadium_mos = load_stadium_mos()
     run_id = args.run_id or (
         "prop-" + dt.datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ"))
+    trigger_source = (
+        args.trigger_source or os.environ.get("NFL_PROP_TRIGGER_SOURCE")
+        or "unknown")
 
     if args.live:
         # Hard gate: live mode refuses without NFL_PROP_LIVE_OK=1.
@@ -856,7 +866,8 @@ def main(argv=None):
                 rows = payload["games"] if isinstance(payload, dict) else payload
                 bundle_lookup = {g["game_id"]: g for g in rows}
             return live_run(now, api_key, conn, games, checkpoint_config,
-                            cap, stadium_mos, bundle_lookup, run_id)
+                            cap, stadium_mos, bundle_lookup, run_id,
+                            trigger_source)
 
     # ---------------- dry-run ----------------
     if not args.fixture_events:
