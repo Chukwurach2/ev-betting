@@ -509,5 +509,29 @@ Standing rule: future research economics are **measured, not assumed**.
 - [ ] CI green; design doc unchanged by the implementation (any deviation
       returns here for a design amendment, not a silent fix).
 
+---
+
+## Amendments
+
+### 2026-09-16 — `prop_collector` health component: missing heartbeat reports `missing`, no escalation
+
+Implementation decision for the never-commissioned `prop_collector` health
+component. "Never commissioned": pre-calibration, no standing schedule
+exists yet — Gate B (§3.3) and any standing collection require separate
+explicit user authorization.
+
+- A **missing** `prop_collector` heartbeat reports component status
+  `missing` with **no escalation** — not `degraded`, and no health-watch
+  alert. Rationale: before calibration there is no standing schedule and
+  therefore no staleness to measure; escalating would hold the health pill
+  at DEGRADED and spam alerts from day one.
+- Once a heartbeat **exists**, the original §6.2/§6.3 semantics apply
+  unchanged: in-season staleness beyond the 6h threshold → `degraded`
+  (never `down`; non-core), and health-watch alerts (not pages) on
+  sustained staleness or nonzero `missed` counts for two consecutive runs.
+- This changes no threshold, no gate, and no other component's behavior.
+  The component transitions from `missing` to live exactly once — when the
+  first heartbeat is written.
+
 *Design only. Zero API credits spent. Zero outcomes inspected. No pull,
 no collection, and no research lane authorized by this document.*
