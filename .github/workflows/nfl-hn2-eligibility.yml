@@ -1,0 +1,69 @@
+name: nfl-hn2-eligibility
+
+# H-N2 eligible-N gate (DRAFT prereg
+# docs/preregistrations/nfl-h-n2-forecast-wind-totals-DRAFT.md).
+# Computes the exact eligible sample size MECHANICALLY. READ-ONLY on the
+# database (SELECTs only); free IEM HTTP for archived MOS availability;
+# free nflverse HTTP for schedule kickoff times (scores never read).
+# Zero Odds API credits, zero DB writes, zero outcomes inspected.
+# This workflow STOPS at the eligibility funnel; it never runs the test.
+
+on:
+  workflow_dispatch:
+    inputs:
+      skip_mos:
+        description: "Skip the IEM MOS availability step (dry run, faster)"
+        required: false
+        default: "false"
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: nfl-edge
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: python -m pip install -r nfl-edge/ops/requirements.txt
+      - name: Preflight eligibility gate
+        shell: bash
+        run: |
+          set -euxo pipefail
+          test -n "${NFL_EDGE_DATABASE_URL: <redacted>" || {
+            echo "::error::NFL_EDGE_DATABASE_URL is missing"
+            exit 10
+          }
+          for f in nfl_hn2_eligibility.py nfl_canonical_identity.py \
+                   nfl_hn6_coverage_gate.py mos_forecast_archive.py \
+                   nfl_stadium_mos.json nfl_stadium_aliases_2022_2024.json \
+                   nflverse_schedules_2022_2024.json; do
+            test -f "nfl-edge/ops/$f" || {
+              echo "::error::$f missing"; exit 11; }
+          done
+          python -c "import psycopg; print('dependency OK: psycopg')"
+        env:
+          NFL_EDGE_DATABASE_URL: <redacted>
+      - name: Run H-N2 eligibility gate (read-only)
+        env:
+          NFL_EDGE_DATABASE_URL: <redacted>
+        run: |
+          set -euxo pipefail
+          SKIP=""
+          if [ "${{ inputs.skip_mos }}" = "true" ]; then SKIP="--skip-mos"; fi
+          python -u nfl-edge/ops/nfl_hn2_eligibility.py \
+            --out /tmp/nfl_hn2_eligibility.json \
+            --per-game-csv /tmp/nfl_hn2_eligibility_per_game.csv \
+            ${SKIP}
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nfl-hn2-eligibility
+          path: |
+            /tmp/nfl_hn2_eligibility.json
+            /tmp/nfl_hn2_eligibility_per_game.csv
