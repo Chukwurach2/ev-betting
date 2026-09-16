@@ -28,11 +28,15 @@ API = "https://api.the-odds-api.com"
 SPORT = "americanfootball_nfl"
 MARKETS = "player_pass_yds,player_pass_attempts,player_rush_attempts,player_sacks"
 
-# (label, events_lookup_date_utc, home_fragment, away_fragment)
+# (label, event_id or None, events_lookup_date_utc or None, commence_time or None,
+#  home_fragment, away_fragment)
+# event_id + commence_time may be given directly (free) when already known.
 GAMES = [
-    ("2023-W1-Thu", "2023-09-08T06:00:00Z", "Kansas City Chiefs", "Detroit Lions"),
-    ("2023-W1-Sun1pm", "2023-09-11T06:00:00Z", "Chicago Bears", "Green Bay Packers"),
-    ("2024-W1-Sun1pm", "2024-09-09T06:00:00Z", "Indianapolis Colts", "Houston Texans"),
+    ("2023-W1-Thu", None, "2023-09-07T12:00:00Z", None, "Kansas City Chiefs", "Detroit Lions"),
+    ("2023-W1-Sun1pm", "54b900ff32cfc8ad40f4d856fc5a4985", None, "2023-09-10T17:00:00Z",
+     "Chicago Bears", "Green Bay Packers"),
+    ("2024-W1-Sun1pm", "7533f0f2d5cfe270fa0ccdc32a98c7fd", None, "2024-09-09T00:20:00Z",
+     "Houston Texans", "Chicago Bears"),
 ]
 
 
@@ -68,30 +72,37 @@ def main():
                "games": [], "quota_after": None}
     total_spent = 0
 
-    for label, lookup_date, home_frag, away_frag in GAMES:
+    for label, event_id, lookup_date, commence_iso, home_frag, away_frag in GAMES:
         g = {"label": label, "lookup_date": lookup_date}
-        st, hd, data = api_get(f"/v4/historical/sports/{SPORT}/events",
-                              {"date": lookup_date}, api_key)
-        g["events_status"] = st
-        if st != 200:
-            g["events_error"] = data
-            results["games"].append(g)
-            continue
-        events = data.get("data", data) if isinstance(data, dict) else data
-        match = None
-        for e in events:
-            if (home_frag.lower() in (e.get("home_team") or "").lower()
-                    and away_frag.lower() in (e.get("away_team") or "").lower()):
-                match = e
-                break
-        if match is None:
-            g["match"] = None
-            g["candidates"] = [(e.get("id"), e.get("home_team"), e.get("away_team"))
-                               for e in (events[:40] if isinstance(events, list) else [])]
-            results["games"].append(g)
-            continue
+        if event_id is not None:
+            kickoff = datetime.fromisoformat(commence_iso.replace("Z", "+00:00"))
+            match = {"id": event_id, "home_team": home_frag, "away_team": away_frag,
+                     "commence_time": commence_iso}
+            g["match_source"] = "explicit"
+        else:
+            st, hd, data = api_get(f"/v4/historical/sports/{SPORT}/events",
+                                  {"date": lookup_date}, api_key)
+            g["events_status"] = st
+            if st != 200:
+                g["events_error"] = data
+                results["games"].append(g)
+                continue
+            events = data.get("data", data) if isinstance(data, dict) else data
+            match = None
+            for e in events:
+                if (home_frag.lower() in (e.get("home_team") or "").lower()
+                        and away_frag.lower() in (e.get("away_team") or "").lower()):
+                    match = e
+                    break
+            if match is None:
+                g["match"] = None
+                g["candidates"] = [(e.get("id"), e.get("home_team"), e.get("away_team"))
+                                   for e in (events[:40] if isinstance(events, list) else [])]
+                results["games"].append(g)
+                continue
+            g["match_source"] = "lookup"
+            kickoff = datetime.fromisoformat(match["commence_time"].replace("Z", "+00:00"))
         event_id = match["id"]
-        kickoff = datetime.fromisoformat(match["commence_time"].replace("Z", "+00:00"))
         t_dec = floor_5min(kickoff - timedelta(hours=24))
         g["match"] = {"event_id": event_id,
                       "home": match.get("home_team"), "away": match.get("away_team"),
