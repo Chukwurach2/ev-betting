@@ -275,20 +275,40 @@ def run_gate(conn, bundle_path=None, officials_url=OFFICIALS_URL,
     }
 
     # ---- 1. freeze verification -------------------------------------------
+    # Frozen scope = spreads + totals only. The 47,080 FULL_GAME_MONEYLINE
+    # rows are a post-freeze additive backfill (migration 010, commit
+    # 83b7692e, collected 2026-09-12 ~14:53-15:32 UTC, after the ~12:45 UTC
+    # freeze); out of frozen scope per the 2026-09-16 freeze addendum.
+    # The frozen subset was verified byte-intact at value level
+    # (all 291,586 quote_ids recompute exactly; all fair_probabilities
+    # re-derive exactly; forensic run 35045570451).
     mh_table = sports.market_history_table("nfl")
     hq_table = sports.historical_quotes_table("nfl")
     n_quotes = conn.execute(
-        "SELECT COUNT(*) FROM public.%s" % hq_table).fetchone()[0]
+        "SELECT COUNT(*) FROM public.%s "
+        "WHERE market IN ('FULL_GAME_SPREAD','FULL_GAME_TOTAL')"
+        % hq_table).fetchone()[0]
+    n_moneyline = conn.execute(
+        "SELECT COUNT(*) FROM public.%s "
+        "WHERE market = 'FULL_GAME_MONEYLINE'" % hq_table).fetchone()[0]
+    n_neg_spread = conn.execute(
+        "SELECT COUNT(*) FROM public.%s "
+        "WHERE market = 'FULL_GAME_SPREAD' AND line < 0"
+        % hq_table).fetchone()[0]
     oa_rows = conn.execute(
-        "SELECT DISTINCT observed_at FROM public.%s ORDER BY 1"
+        "SELECT DISTINCT observed_at FROM public.%s "
+        "WHERE market IN ('FULL_GAME_SPREAD','FULL_GAME_TOTAL') ORDER BY 1"
         % hq_table).fetchall()
     actual_oas = [r[0] for r in oa_rows]
     freeze_ok = (n_quotes == FROZEN_QUOTE_COUNT
                  and len(actual_oas) == FROZEN_N_SNAPSHOTS)
     report["freeze_check"] = {
+        "scope": "FULL_GAME_SPREAD + FULL_GAME_TOTAL (frozen scope)",
         "n_quotes": n_quotes, "expected_quotes": FROZEN_QUOTE_COUNT,
         "n_snapshots": len(actual_oas),
         "expected_snapshots": FROZEN_N_SNAPSHOTS,
+        "out_of_scope_moneyline_rows": n_moneyline,
+        "spread_rows_with_negative_line": n_neg_spread,
         "ok": freeze_ok,
     }
     if not freeze_ok:
