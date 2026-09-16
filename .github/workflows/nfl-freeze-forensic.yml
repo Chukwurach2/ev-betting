@@ -1,0 +1,37 @@
+name: nfl-freeze-forensic
+
+# One-off READ-ONLY forensic: characterize nfl_edge_historical_quotes against
+# the frozen NFL dataset (291,586 rows, fingerprint 43f853a44bf93937d85149ca5fd7241b).
+# SELECTs only, zero API credits, no DB writes, no outcomes inspected.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  forensic:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+          sparse-checkout: nfl-edge
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: python -m pip install -r nfl-edge/ops/requirements.txt
+      - name: Run freeze forensic (read-only)
+        env:
+          NFL_EDGE_DATABASE_URL: ${{ secrets.NFL_EDGE_DATABASE_URL }}
+        run: |
+          set -euxo pipefail
+          test -n "${NFL_EDGE_DATABASE_URL: <redacted>
+          python -u nfl-edge/ops/nfl_freeze_forensic.py /tmp/nfl_freeze_forensic.json
+      - name: Upload artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nfl-freeze-forensic
+          path: /tmp/nfl_freeze_forensic.json
