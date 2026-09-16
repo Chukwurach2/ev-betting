@@ -88,6 +88,16 @@ SNAP_COLS = [
 # Frozen market-scope literals (constants, not user input -- safe to inline).
 SPREAD_TOTAL_MARKETS = ("FULL_GAME_SPREAD", "FULL_GAME_TOTAL")
 
+#: market_scope -> API-level market names (the values stored in the
+#: market_history.markets text column, e.g. "spreads,totals") whose
+#: history rows belong to the scope. A shared market_history table may
+#: hold rows from unrelated backfills (e.g. the post-freeze moneyline
+#: pull stored markets="h2h"); those rows are out of scope and must not
+#: affect the scoped snapshot count or snapshots_fingerprint.
+SNAPSHOT_SCOPE_API_MARKETS = {
+    "spread_total": {"spreads", "totals"},
+}
+
 #: Fingerprint method identifier, recorded in research_dataset_manifests.
 METHOD = "canonical-1"
 
@@ -154,6 +164,19 @@ def _scope_clause(market_scope: str) -> str:
     raise ValueError(f"unknown market_scope: {market_scope!r}")
 
 
+def _snap_in_scope(markets_value, market_scope: str) -> bool:
+    """True if a market_history row belongs to the scope.
+
+    markets_value is the stored API-param string (e.g. "spreads,totals").
+    A row is in scope iff every listed API market maps to the scope.
+    """
+    if market_scope == "all":
+        return True
+    allowed = SNAPSHOT_SCOPE_API_MARKETS[market_scope]
+    parts = [p.strip() for p in str(markets_value).split(",") if p.strip()]
+    return bool(parts) and all(p in allowed for p in parts)
+
+
 def fingerprint(conn, sport: str, market_scope: str = "all") -> dict:
     """Compute the canonical-1 fingerprint (read-only SELECTs)."""
     hq_table = sports.historical_quotes_table(sport)
@@ -169,13 +192,16 @@ def fingerprint(conn, sport: str, market_scope: str = "all") -> dict:
     snap_rows = conn.execute(
         f"SELECT {', '.join(SNAP_COLS)} FROM public.{mh_table}"
     ).fetchall()
+    # Scope the snapshot rows in Python: market_history.markets is the
+    # stored API-param string, so filter on the parsed API market names.
+    # (markets is SNAP_COLS index 2.)
+    snap_rows = [r for r in snap_rows if _snap_in_scope(r[2], market_scope)]
     snaps_fp = hash_rows([render_row(r) for r in snap_rows])
 
     n_quotes = conn.execute(
         f"SELECT COUNT(*) FROM public.{hq_table} {scope_clause}".rstrip()
     ).fetchone()[0]
-    n_snaps = conn.execute(
-        f"SELECT COUNT(*) FROM public.{mh_table}").fetchone()[0]
+    n_snaps = len(snap_rows)
 
     return {
         "sport": sport,

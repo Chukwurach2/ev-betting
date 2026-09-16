@@ -186,6 +186,28 @@ class FingerprintTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             fd.fingerprint(_conn([]), "nfl", market_scope="bogus")
 
+    def test_snapshot_scope_excludes_out_of_scope_history_rows(self):
+        # A shared market_history table may hold rows from unrelated
+        # backfills (e.g. the moneyline pull with markets="h2h"): the
+        # scoped snapshot count and snapshots_fingerprint must ignore them.
+        rows = [_quote(0)]
+        snaps = [
+            (datetime(2024, 9, 4, 12, 0, tzinfo=timezone.utc), "us,eu",
+             "spreads,totals", "ps1", ["draftkings", "pinnacle"], 40),
+            (datetime(2024, 9, 4, 12, 0, tzinfo=timezone.utc), "us,eu",
+             "h2h", "ps2", ["draftkings"], 20),
+        ]
+        conn = FakeConn(rows, snaps)
+        r = fd.fingerprint(conn, "nfl", market_scope="spread_total")
+        self.assertEqual(r["n_snapshots"], 1)
+        r2 = fd.fingerprint(FakeConn(rows, snaps[:1]), "nfl",
+                            market_scope="spread_total")
+        self.assertEqual(r["snapshots_fingerprint"],
+                         r2["snapshots_fingerprint"])
+        # unscoped ("all") still sees both rows
+        r3 = fd.fingerprint(conn, "nfl")
+        self.assertEqual(r3["n_snapshots"], 2)
+
 
 if __name__ == "__main__":
     unittest.main()
