@@ -11,6 +11,7 @@ Usage:
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import sys
@@ -22,6 +23,17 @@ TABLE = "nfl_edge_historical_quotes"
 FROZEN_N = 291586
 FROZEN_SNAPS = 162
 FREEZE_TS = "2026-09-12T12:45:00+00:00"
+FROZEN_FINGERPRINT = "43f853a44bf93937d85149ca5fd7241b"
+# Frozen scope: spreads + totals only (freeze record 2026-09-12).
+FROZEN_MARKETS = ("FULL_GAME_SPREAD", "FULL_GAME_TOTAL")
+
+# Columns that constitute the data (collected_at excluded: insert metadata).
+# Must match nfl-edge/ops/fingerprint_dataset.py QUOTE_COLS exactly.
+QUOTE_COLS = [
+    "quote_id", "provider", "provider_event_id", "home_team", "away_team",
+    "kickoff", "sportsbook", "book_key", "market", "selection", "line",
+    "american_odds", "fair_probability", "observed_at", "source", "ny_licensed",
+]
 
 
 def main() -> None:
@@ -117,6 +129,31 @@ def main() -> None:
                 (FREEZE_TS,),
             )
         ]
+        # Decisive integrity test: recompute the frozen fingerprint over the
+        # frozen-scope subset (spreads + totals), using the exact method of
+        # ops/fingerprint_dataset.py. If it matches FROZEN_FINGERPRINT, no
+        # frozen row was inserted/updated/deleted after the freeze.
+        cols = ", ".join(QUOTE_COLS)
+        order = ", ".join(QUOTE_COLS)
+        h = hashlib.sha256()
+        n_sub = 0
+        with conn.cursor() as cur:
+            cur.execute(
+                f"""SELECT {cols} FROM {TABLE}
+                    WHERE market IN ('FULL_GAME_SPREAD', 'FULL_GAME_TOTAL')
+                    ORDER BY {order}"""
+            )
+            for row in cur:
+                h.update(
+                    ("|".join("" if v is None else str(v) for v in row) + "\n").encode()
+                )
+                n_sub += 1
+        subset_fp = h.hexdigest()[:32]
+        out["frozen_subset_n"] = n_sub
+        out["frozen_subset_fingerprint"] = subset_fp
+        out["frozen_subset_intact"] = (
+            subset_fp == FROZEN_FINGERPRINT and n_sub == FROZEN_N
+        )
     dest = sys.argv[1] if len(sys.argv) > 1 else "/tmp/nfl_freeze_forensic.json"
     with open(dest, "w") as f:
         json.dump(out, f, indent=2, default=str)
@@ -133,6 +170,9 @@ def main() -> None:
                     "min_quote_id",
                     "max_quote_id",
                     "distinct_quote_ids",
+                    "frozen_subset_n",
+                    "frozen_subset_fingerprint",
+                    "frozen_subset_intact",
                 )
             },
             indent=2,
