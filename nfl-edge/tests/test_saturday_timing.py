@@ -74,64 +74,141 @@ class GateTests(unittest.TestCase):
         self.assertEqual(calls, [])
 
 
+def _events(n, eid_prefix="e"):
+    return [{"id": f"{eid_prefix}{i:03d}",
+             "commence_time": "2026-09-19T16:00:00Z",
+             "home_team": "X", "away_team": "Y"} for i in range(n)]
+
+
+def _headers(used, last="0"):
+    return {"x-requests-remaining": str(20000 - used),
+            "x-requests-used": str(used), "x-requests-last": last}
+
+
+def _bulk_event(eid, books_quotes, commence="2026-09-19T16:00:00Z"):
+    """Fabricate one bulk /odds event. books_quotes maps book_key ->
+    (over_odds, under_odds, line)."""
+    bookmakers = []
+    for b, (oo, uo, line) in books_quotes.items():
+        bookmakers.append({
+            "key": b, "title": b,
+            "markets": [{
+                "key": "totals",
+                "last_update": "2026-09-19T13:55:00Z",
+                "outcomes": [
+                    {"name": "Over", "price": oo, "point": line},
+                    {"name": "Under", "price": uo, "point": line},
+                ],
+            }],
+        })
+    return {"id": eid, "commence_time": commence,
+            "home_team": "Team A", "away_team": "Team B",
+            "bookmakers": bookmakers}
+
+
+def _bulk_run(evs, bulk, paid, used0=100, fail_times=0):
+    """Run one tick against fabricated bulk data.
+
+    Returns (result, paid_call_count). fail_times: the bulk fetch raises
+    this many times before succeeding (0 = success first try).
+    """
+    state = {"fails_left": fail_times}
+
+    def fake_events(sport="ncaaf"):
+        return evs, _headers(used0)
+
+    def fake_odds(markets, regions="us", sport="ncaaf"):
+        paid.append((markets, regions, sport))
+        if state["fails_left"] > 0:
+            state["fails_left"] -= 1
+            raise RuntimeError("Odds provider request failed")
+        return bulk, _headers(used0 + 1, last="1")
+
+    res = st.run_collection(fetch_events_fn=fake_events,
+                            fetch_odds_fn=fake_odds,
+                            now_utc=utc("2026-09-19T14:00:00Z"),
+                            day_spend_fn=lambda: 0)
+    return res, paid
+
+
 class CapTests(unittest.TestCase):
-    def _events(self, n):
-        return [{"id": f"e{i:03d}", "commence_time": "2026-09-19T16:00:00Z",
-                 "home_team": "X", "away_team": "Y"} for i in range(n)]
+    def test_exactly_one_paid_call_per_tick(self):
+        evs = _events(70)
+        bulk = [_bulk_event(e["id"], {"draftkings": (-110, -110, 52.5)})
+                for e in evs]
+        paid = []
+        res, _ = _bulk_run(evs, bulk, paid)
+        self.assertEqual(res["status"], "ok")
+        self.assertEqual(len(paid), 1)
+        # Bulk call targets the bulk endpoint: markets as list, us region.
+        self.assertEqual(paid[0], (["totals"], "us", "ncaaf"))
+        self.assertEqual(res["cost_model"], "bulk_per_tick")
+        self.assertEqual(res["cost_per_tick_credits"], 1)
+        self.assertGreater(res["n_quotes"], 0)
 
-    def test_cap_truncation_is_deterministic(self):
-        evs = self._events(100)
-        kept, capped = st.cap_event_list(evs, 78)
-        self.assertEqual(len(kept), 78)
-        self.assertEqual(capped, 22)
-        self.assertEqual(kept[0]["id"], "e000")
-
-    def test_per_run_cap_enforced_before_paid_calls(self):
-        evs = self._events(200)
+    def test_per_run_cap_skip_when_cap_below_two_credits(self):
+        evs = _events(70)
         paid = []
 
-        def fake_events(sport="ncaaf"):
-            return evs, {"x-requests-remaining": "19000",
-                         "x-requests-used": "100", "x-requests-last": "0"}
+        def fake_odds(*a, **k):
+            paid.append(1)
+            raise AssertionError("paid call despite run cap")
 
-        def fake_odds(event_id, markets, regions="us", sport="ncaaf"):
-            paid.append(event_id)
-            return {"id": event_id, "bookmakers": []}, \
-                {"x-requests-remaining": "19000",
-                 "x-requests-used": "101", "x-requests-last": "1"}
-
-        with patch.dict("os.environ", {"TIMING_MAX_CREDITS_PER_RUN": "10"}):
+        with patch.dict("os.environ", {"TIMING_MAX_CREDITS_PER_RUN": "1"}):
             res = st.run_collection(
-                fetch_events_fn=fake_events, fetch_odds_fn=fake_odds,
+                fetch_events_fn=lambda sport="ncaaf": (evs, _headers(100)),
+                fetch_odds_fn=fake_odds,
                 now_utc=utc("2026-09-19T14:00:00Z"),
                 day_spend_fn=lambda: 0)
-        # 10-credit cap minus margin 2 -> at most 8 paid calls.
-        self.assertLessEqual(len(paid), 8)
-        self.assertEqual(res["n_events_capped"], 200 - 8)
-        self.assertEqual(res["status"], "ok")
+        self.assertEqual(res["status"], "run_cap_skip")
+        self.assertEqual(paid, [])
 
-    def test_day_cap_enforced_before_paid_calls(self):
-        evs = self._events(70)
-        paid = []
+    def test_day_cap_boundary_55(self):
+        evs = _events(70)
+        bulk = [_bulk_event(e["id"], {"draftkings": (-110, -110, 52.5)})
+                for e in evs]
 
         def fake_events(sport="ncaaf"):
-            return evs, {"x-requests-remaining": "19000",
-                         "x-requests-used": "100", "x-requests-last": "0"}
+            return evs, _headers(100)
 
-        def fake_odds(event_id, markets, regions="us", sport="ncaaf"):
-            paid.append(event_id)
-            raise AssertionError("paid call despite day cap")
+        # 53 + worst-case 2 = 55 <= 55: proceeds.
+        with patch.dict("os.environ", {"TIMING_MAX_CREDITS_DAY": "55"}):
+            paid = []
 
-        with patch.dict("os.environ", {"TIMING_MAX_CREDITS_DAY": "50"}):
+            def fake_odds(markets, regions="us", sport="ncaaf"):
+                paid.append(1)
+                return bulk, _headers(101, last="1")
+
             res = st.run_collection(
                 fetch_events_fn=fake_events, fetch_odds_fn=fake_odds,
                 now_utc=utc("2026-09-19T14:00:00Z"),
-                day_spend_fn=lambda: 4999)
-        self.assertEqual(res["status"], "day_cap_skip")
-        self.assertEqual(paid, [])
+                day_spend_fn=lambda: 53)
+            self.assertEqual(res["status"], "ok", res["status"])
+            self.assertEqual(len(paid), 1)
+
+        # 54 + worst-case 2 = 56 > 55: refused before any paid call.
+        with patch.dict("os.environ", {"TIMING_MAX_CREDITS_DAY": "55"}):
+            paid = []
+
+            def fake_odds2(*a, **k):
+                paid.append(1)
+                raise AssertionError("paid call despite day cap")
+
+            res = st.run_collection(
+                fetch_events_fn=fake_events, fetch_odds_fn=fake_odds2,
+                now_utc=utc("2026-09-19T14:00:00Z"),
+                day_spend_fn=lambda: 54)
+            self.assertEqual(res["status"], "day_cap_skip")
+            self.assertEqual(paid, [])
+
+    def test_credit_constants(self):
+        self.assertEqual(st.EXPECTED_DAY_CREDITS, 48)
+        self.assertEqual(st.DEFAULT_MAX_CREDITS_DAY, 55)
+        self.assertEqual(st.COST_PER_TICK, 1)
+        self.assertEqual(st.MAX_ATTEMPTS_PER_TICK, 2)
 
     def test_quota_standdown_before_paid_calls(self):
-        evs = self._events(70)
+        evs = _events(70)
         paid = []
 
         def fake_events(sport="ncaaf"):
@@ -149,28 +226,18 @@ class CapTests(unittest.TestCase):
         self.assertEqual(paid, [])
 
     def test_complete_run_quota_accounting(self):
-        evs = self._events(3)
-        used = {"n": 100}
-
-        def fake_events(sport="ncaaf"):
-            return evs, {"x-requests-remaining": "19000",
-                         "x-requests-used": "100", "x-requests-last": "0"}
-
-        def fake_odds(event_id, markets, regions="us", sport="ncaaf"):
-            used["n"] += 1  # 1 credit per event (measured)
-            return {"id": event_id, "bookmakers": []}, \
-                {"x-requests-remaining": str(19000 - used["n"]),
-                 "x-requests-used": str(used["n"]), "x-requests-last": "1"}
-
-        res = st.run_collection(fetch_events_fn=fake_events,
-                                fetch_odds_fn=fake_odds,
-                                now_utc=utc("2026-09-19T14:00:00Z"),
-                                day_spend_fn=lambda: 0)
-        # Complete-run delta: used after last paid call minus used before
+        evs = _events(3)
+        bulk = [_bulk_event(e["id"], {"draftkings": (-110, -110, 52.5)})
+                for e in evs]
+        paid = []
+        res, _ = _bulk_run(evs, bulk, paid, used0=100)
+        # Complete-run delta: used after the bulk call minus used before
         # the first paid call (the free events call is excluded).
         self.assertEqual(res["credits_used_before"], 100)
-        self.assertEqual(res["credits_used_after"], 103)
-        self.assertEqual(res["credits_consumed"], 3)
+        self.assertEqual(res["credits_used_after"], 101)
+        self.assertEqual(res["credits_consumed"], 1)
+        self.assertEqual(res["credits_spent_tracked"], 1)
+        self.assertEqual(res["n_bulk_attempts"], 1)
 
 
 class SnapshotStateTests(unittest.TestCase):
@@ -274,6 +341,149 @@ class LifetimeBoundsTests(unittest.TestCase):
         self.assertEqual(s["n_right_censored"], 1)
         self.assertEqual(s["lower_bounds_min"]["median"], 7.5)
         self.assertEqual(s["upper_bounds_min"]["median"], 22.5)
+
+
+class BulkStateTests(unittest.TestCase):
+    def _by(self, states):
+        return {(s["provider_event_id"], s["book_key"]): s["state"]
+                for s in states}
+
+    def _ev(self, eid):
+        return {"id": eid, "commence_time": "2026-09-19T16:00:00Z",
+                "home_team": "X", "away_team": "Y"}
+
+    def test_available_absent_from_bulk(self):
+        uni = ["dk", "fd"]
+        evs = [self._ev("e1"), self._ev("e2")]
+        bulk = [_bulk_event("e1", {"dk": (-110, -110, 52.5)})]
+        quotes, states, stats = st.process_bulk_tick(
+            bulk, evs, uni, "2026-09-19T14:00:00+00:00",
+            "2026-09-19T14:00:01+00:00")
+        by = self._by(states)
+        self.assertEqual(by[("e1", "dk")], "available")
+        self.assertEqual(by[("e1", "fd")], "absent")
+        # e2 expected but missing from the bulk payload: absent, not
+        # request_failed (the fetch succeeded).
+        self.assertEqual(by[("e2", "dk")], "absent")
+        self.assertEqual(by[("e2", "fd")], "absent")
+        self.assertEqual(stats["n_expected_missing_from_bulk"], 1)
+        self.assertEqual({q["provider_event_id"] for q in quotes}, {"e1"})
+
+    def test_unexpected_event_unmapped(self):
+        uni = ["dk"]
+        evs = [self._ev("e1")]
+        bulk = [_bulk_event("e1", {"dk": (-110, -110, 52.5)}),
+                _bulk_event("eX", {"dk": (-110, -110, 52.5)})]
+        quotes, states, stats = st.process_bulk_tick(
+            bulk, evs, uni, "slot", "now")
+        by = self._by(states)
+        self.assertEqual(by[("e1", "dk")], "available")
+        self.assertEqual(by[("eX", "dk")], "unmapped")
+        self.assertEqual(stats["n_unexpected_events"], 1)
+        # Quotes for the unexpected event are still stored (flagged).
+        self.assertIn("eX", {q["provider_event_id"] for q in quotes})
+
+    def test_non_universe_books_recorded_not_silent(self):
+        uni = ["dk"]
+        evs = [self._ev("e1")]
+        bulk = [_bulk_event("e1", {"dk": (-110, -110, 52.5),
+                                  "xx": (-110, -110, 52.5)})]
+        _, states, _ = st.process_bulk_tick(bulk, evs, uni, "slot", "now")
+        xx = [s for s in states if s["book_key"] == "xx"]
+        self.assertEqual(len(xx), 1)
+        self.assertEqual(xx[0]["state"], "available")
+        self.assertFalse(xx[0]["universe_member"])
+
+    def test_observed_at_carried_for_available_books(self):
+        uni = ["dk", "fd"]
+        evs = [self._ev("e1")]
+        bulk = [_bulk_event("e1", {"dk": (-110, -110, 52.5)})]
+        _, states, _ = st.process_bulk_tick(bulk, evs, uni, "slot", "now")
+        by = {(s["provider_event_id"], s["book_key"]): s for s in states}
+        self.assertIsNotNone(by[("e1", "dk")]["observed_at"])
+        self.assertIsNone(by[("e1", "fd")]["observed_at"])
+
+
+class RetryTests(unittest.TestCase):
+    def test_single_retry_then_success(self):
+        evs = _events(2)
+        bulk = [_bulk_event(e["id"], {"draftkings": (-110, -110, 52.5)})
+                for e in evs]
+        paid = []
+        res, _ = _bulk_run(evs, bulk, paid, fail_times=1)
+        self.assertEqual(res["status"], "ok")
+        self.assertEqual(len(paid), 2)  # exactly one retry, never more
+        self.assertEqual(res["n_bulk_attempts"], 2)
+        self.assertEqual(len(res["retries"]), 1)
+        r = res["retries"][0]
+        self.assertEqual(r["attempt"], 2)
+        self.assertEqual(r["slot"], res["slot"])  # same tick timestamp
+        self.assertTrue(r["reason"])
+        self.assertEqual(r["outcome"], "succeeded")
+        self.assertGreater(res["n_quotes"], 0)
+
+    def test_two_failures_record_request_failed_tick(self):
+        evs = _events(2)
+        paid = []
+        res, _ = _bulk_run(evs, [], paid, fail_times=99)
+        self.assertEqual(res["status"], "request_failed")
+        self.assertEqual(len(paid), 2)  # initial + exactly one retry
+        self.assertEqual(res["n_bulk_attempts"], 2)
+        self.assertEqual(res["n_quotes"], 0)
+        # Whole tick marked request_failed: every expected event x
+        # universe book; no individual-book absence inferred.
+        uni = st.book_universe()
+        self.assertEqual(len(res["_book_states"]), len(evs) * len(uni))
+        self.assertTrue(all(s["state"] == "request_failed"
+                            for s in res["_book_states"]))
+        self.assertEqual(len(res["retries"]), 1)
+        self.assertEqual(res["retries"][0]["outcome"], "failed")
+        self.assertEqual(res["retries"][0]["slot"], res["slot"])
+        self.assertTrue(res["error"])
+        # Fail-closed credit accounting: the tick costs the retry.
+        self.assertEqual(res["credits_spent_tracked"], 2)
+        self.assertEqual(res["credits_consumed"], 2)
+
+    def test_failed_tick_is_persistable(self):
+        self.assertIn("request_failed", st.PERSISTABLE_STATUSES)
+        for s in st.NON_TICK_STATUSES:
+            self.assertNotIn(s, st.PERSISTABLE_STATUSES)
+
+
+class SchemaContractTests(unittest.TestCase):
+    # The exact columns persist() binds into ncaaf_timing_quotes, which
+    # is the schema the analyzer reads.
+    QUOTE_KEYS = {"provider_event_id", "book_key", "market", "selection",
+                  "line", "american_odds", "fair_probability",
+                  "observed_at", "collected_at"}
+
+    def test_bulk_quotes_carry_analyzer_schema(self):
+        evs = _events(2)
+        bulk = [_bulk_event(e["id"],
+                           {"draftkings": (-110, -110, 52.5),
+                            "fanduel": (-105, -115, 52.5)})
+                for e in evs]
+        quotes, _, _ = st.process_bulk_tick(
+            bulk, evs, st.book_universe(), "slot", "now")
+        self.assertTrue(quotes)
+        for q in quotes:
+            self.assertTrue(self.QUOTE_KEYS <= set(q),
+                            self.QUOTE_KEYS ^ set(q))
+            self.assertEqual(q["market"], frozen.MARKET)  # FULL_GAME_TOTAL
+            self.assertIn(q["selection"], ("Over", "Under"))
+            self.assertIsNotNone(q["fair_probability"])
+
+    def test_failed_tick_contributes_no_quotes(self):
+        # The analyzer builds per-event slot series from
+        # ncaaf_timing_quotes; a failed tick contributes no rows, so the
+        # slot is skipped and lifetime_bounds widens the interval via
+        # actual timestamps: a censored gap, never a fabricated
+        # disappearance.
+        evs = _events(2)
+        paid = []
+        res, _ = _bulk_run(evs, [], paid, fail_times=99)
+        self.assertEqual(res["_quotes"], [])
+        self.assertTrue(res["_book_states"])
 
 
 class ContractIntactTests(unittest.TestCase):

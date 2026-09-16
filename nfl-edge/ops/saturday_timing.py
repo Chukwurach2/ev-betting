@@ -8,31 +8,52 @@ to act on after a Candidate #1 pressure signal fires.
 Measurement only. No betting, no execution, no changes to the frozen
 v1.0 rule (nfl-edge/docs/ncaaf-totals-pressure-v1-frozen.md).
 
-Design (repairs the 2026-09-15 audit defects):
+Design (2026-09-16 revision: one bulk odds request per tick):
   1. Hard date gate: the script exits before ANY API call unless the
      current America/New_York date is 2026-09-19 and the time is inside
      the 10:00-22:00 ET window. The GitHub cron may fire on other
      Saturdays; those runs are zero-cost no-ops.
   2. Exactly 48 observation slots: 10:00-21:45 ET every 15 minutes
      (cron '*/15 14-23 * * 6' + '*/15 0-1 * * 0' = 40 + 8 runs).
-  3. Cost is per event, not per snapshot: the provider's event-odds
-     endpoint costs 1 credit per event for totals-only/us (measured
-     2026-09-16 via x-requests-last=1 on the live feed).
+  3. Cost is per tick, not per event: ONE bulk call per run to
+     /v4/sports/americanfootball_ncaaf/odds with regions=us,
+     markets=totals costs exactly 1 provider credit (measured
+     2026-09-16: 1 region x 1 market = 1). Expected Saturday total:
+     48 ticks x 1 = 48 credits. Hard experiment ceiling: 55/day.
   4. Quota accounting measures the complete run: provider credit balance
      before the first paid call and after the last one.
-  5. Hard credit caps enforced BEFORE any paid call and inside the loop:
-     per-run cap, per-day cap, and the standing NCAAF quota-reserve
-     floor that protects the NFL collector.
-  6. Explicit per-book snapshot states (available / absent /
-     request_failed / unmapped) against a mechanical contract universe:
-     Saturday's provider events x the configured book universe.
-  7. Writes to the dedicated ncaaf_timing_* tables, never the live
+  5. Hard credit caps enforced BEFORE any paid call: per-run cap,
+     per-day cap (55), and the standing NCAAF quota-reserve floor that
+     protects the NFL collector.
+  6. Retry discipline: at most ONE retry per tick, only on request
+     failure, explicitly logged with tick timestamp + reason. The retry
+     writes under the SAME tick timestamp: no extra observation, no
+     cadence shift. A tick that fails twice is recorded as
+     request_failed, never silently dropped.
+  7. Explicit per-book snapshot states (available / absent /
+     request_failed / unmapped) derived client-side from the bulk
+     payload and the mechanical 9-book universe:
+       available      book returned a totals quote for the event.
+       absent         book is in the universe but the bulk payload
+                      carried no totals quote for the event (includes
+                      expected events missing from the payload).
+       unmapped       event was in the bulk payload but NOT in the
+                      expected Saturday slate; quotes are still stored,
+                      but flagged, never silently treated as clean.
+       request_failed the bulk request failed (after the one retry);
+                      the whole tick is marked, never individual-book
+                      absence inferred from a failed tick.
+  8. Writes to the dedicated ncaaf_timing_* tables, never the live
      odds-quotes table.
-  8. Every observation carries the mechanical 15-minute slot plus
+  9. Every observation carries the mechanical 15-minute slot plus
      provider observed_at and collector collected_at timestamps, so the
      analyzer can reconstruct signal time, quote availability,
      disappearance/deterioration, and consensus repricing with
-     interval-censored bounds (never inferred minute precision).
+     interval-censored bounds (never inferred minute precision). A
+     failed tick contributes no quotes, so the analyzer's per-event
+     slot series skips it and lifetime_bounds widens the interval via
+     actual timestamps: a censored gap, never a fabricated
+     disappearance.
 """
 import argparse
 import json
@@ -51,7 +72,7 @@ from zoneinfo import ZoneInfo
 sys.path.insert(0, str(pathlib.Path(__file__).parents[1] / "model"))
 sys.path.insert(0, str(pathlib.Path(__file__).parents[1]))
 
-from provider_oddsapi import fetch_events, fetch_event_odds, normalize, quota  # noqa: E402
+from provider_oddsapi import fetch_events, fetch_odds, normalize, quota  # noqa: E402
 from research.devig import devig_multiplicative  # noqa: E402
 from ops.sports import odds_api_sport  # noqa: E402
 from quota_log import log_quota  # noqa: E402
@@ -79,11 +100,29 @@ DEFAULT_BOOK_UNIVERSE = (
     "betonlineag,betus,lowvig,mybookieag,bovada"
 )
 
-# Measured 2026-09-16: one event-odds call with markets=totals, regions=us
-# costs exactly 1 provider credit (x-requests-last=1, used delta +1).
-COST_PER_EVENT = 1
+# Measured 2026-09-16: one bulk /odds call with markets=totals,
+# regions=us costs exactly 1 provider credit (1 region x 1 market).
+COST_PER_TICK = 1
+# Initial attempt + at most one retry per tick (retry discipline).
+MAX_ATTEMPTS_PER_TICK = 2
+# Expected Saturday consumption: 48 ticks x 1 credit.
+EXPECTED_DAY_CREDITS = N_SLOTS * COST_PER_TICK  # 48
+# Hard experiment ceiling: 55/day. The 7-credit headroom above 48 is
+# reserved EXCLUSIVELY for explicitly logged retries; retries never
+# increase the experimental cadence (same tick timestamp, no extra
+# observation slots).
+DEFAULT_MAX_CREDITS_PER_RUN = 4
+DEFAULT_MAX_CREDITS_DAY = 55
 
 STATES = ("available", "absent", "request_failed", "unmapped")
+
+# Run statuses that are persisted to ncaaf_timing_runs. A failed tick
+# (request_failed) IS persisted: the tick-level failure must be recorded
+# so the analyzer treats it as a censored gap, not as "no signal".
+# Gate skips and standdowns record nothing (no tick occurred).
+PERSISTABLE_STATUSES = ("ok", "capped", "request_failed")
+NON_TICK_STATUSES = ("date_gate_skip", "window_skip", "quota_standdown",
+                     "day_cap_skip", "run_cap_skip")
 
 
 def _env_int(name, default):
@@ -138,32 +177,6 @@ def saturday_events(events_payload, et_date):
     return out
 
 
-def team_mapped(name, aliases):
-    """A provider team name is mapped when the canonical identity layer can
-    resolve it: either the raw provider name (with mascot) is a known alias
-    key, or it already equals a canonical name."""
-    if not name:
-        return False
-    if name in aliases:
-        return True
-    return name in set(aliases.values())
-
-
-def load_aliases():
-    path = pathlib.Path(__file__).parent / "team_aliases.json"
-    try:
-        return json.loads(path.read_text())
-    except (OSError, ValueError):
-        return {}
-
-
-def cap_event_list(events, max_events):
-    """Deterministic truncation to the credit cap. Returns (kept, n_capped)."""
-    if len(events) <= max_events:
-        return events, 0
-    return events[:max_events], len(events) - max_events
-
-
 def implied(odds):
     odds = int(odds)
     return 100 / (100 + odds) if odds > 0 else abs(odds) / (100 + abs(odds))
@@ -206,11 +219,13 @@ def classify_event_books(event_id, universe, seen_books,
     """Explicit per-book snapshot states for one event.
 
     available:      book returned a totals quote for this event.
-    absent:         book is in the universe but returned no totals quote.
-    request_failed: the event-odds fetch raised.
-    unmapped:       the event's teams could not be canonically resolved;
-                    quotes are still stored, but flagged, never silently
-                    treated as clean.
+    absent:         book is in the universe but returned no totals quote
+                    (includes expected events missing from the bulk
+                    payload: fetch succeeded, provider sent no odds).
+    request_failed: the bulk odds fetch raised (whole tick failed).
+    unmapped:       the event was in the bulk payload but not in the
+                    expected Saturday slate; quotes are still stored,
+                    but flagged, never silently treated as clean.
     """
     rows = []
     for book in sorted(set(universe) | set(seen_books)):
@@ -231,16 +246,132 @@ def classify_event_books(event_id, universe, seen_books,
     return rows
 
 
+def process_bulk_tick(bulk_events, expected_events, universe,
+                      slot_iso, now_iso):
+    """Pure function: bulk payload + expected slate -> (quotes, states).
+
+    bulk_events:     list of event dicts from the bulk /odds endpoint.
+    expected_events: Saturday slate from the free events endpoint
+                     (the mechanical expected event set).
+    Returns (quotes, book_states, stats). No I/O, no API calls.
+    """
+    by_id = {}
+    for e in bulk_events or []:
+        eid = e.get("id")
+        if isinstance(eid, str) and eid:
+            by_id[eid] = e
+    expected_ids = {e.get("id") for e in expected_events
+                    if isinstance(e.get("id"), str)}
+
+    all_quotes = []
+    book_states = []
+    n_unpaired = 0
+    n_expected_missing = 0
+    n_unexpected = 0
+
+    def stamp_quote(q):
+        q["experiment"] = EXPERIMENT
+        q["slot"] = slot_iso
+        q["collected_at"] = now_iso
+        return q
+
+    def book_observed(quotes, book):
+        obs = [q["observed_at"] for q in quotes
+               if q["book_key"] == book and q.get("observed_at")]
+        return max(obs) if obs else None
+
+    # 1. Expected events: normalize quotes where the payload has them;
+    #    mark books absent where it does not.
+    for e in expected_events:
+        event_id = e.get("id")
+        be = by_id.get(event_id)
+        if be is None:
+            n_expected_missing += 1
+            for row in classify_event_books(
+                    event_id, universe, [], set(),
+                    fetch_ok=True, mapped=True):
+                row["observed_at"] = None
+                row["collected_at"] = now_iso
+                book_states.append(row)
+            continue
+        seen_books = [b.get("key") for b in (be.get("bookmakers") or [])
+                      if b.get("key")]
+        normed = normalize(be,
+                           allowed_books=set(universe) | set(seen_books),
+                           sport=SPORT)
+        devigged, unp = devig_event_quotes(normed)
+        n_unpaired += unp
+        for q in devigged:
+            stamp_quote(q)
+        all_quotes.extend(devigged)
+        books_with_quotes = {q["book_key"] for q in devigged}
+        for row in classify_event_books(
+                event_id, universe, seen_books, books_with_quotes,
+                fetch_ok=True, mapped=True):
+            row["observed_at"] = book_observed(devigged, row["book_key"])
+            row["collected_at"] = now_iso
+            book_states.append(row)
+
+    # 2. Unexpected events (in bulk payload, not in the slate): unmapped.
+    for event_id, be in sorted(by_id.items()):
+        if event_id in expected_ids:
+            continue
+        n_unexpected += 1
+        seen_books = [b.get("key") for b in (be.get("bookmakers") or [])
+                      if b.get("key")]
+        normed = normalize(be,
+                           allowed_books=set(universe) | set(seen_books),
+                           sport=SPORT)
+        devigged, unp = devig_event_quotes(normed)
+        n_unpaired += unp
+        for q in devigged:
+            stamp_quote(q)
+        all_quotes.extend(devigged)
+        books_with_quotes = {q["book_key"] for q in devigged}
+        for row in classify_event_books(
+                event_id, universe, seen_books, books_with_quotes,
+                fetch_ok=True, mapped=False):
+            row["observed_at"] = book_observed(devigged, row["book_key"])
+            row["collected_at"] = now_iso
+            book_states.append(row)
+
+    stats = {
+        "n_bulk_events": len(by_id),
+        "n_expected_missing_from_bulk": n_expected_missing,
+        "n_unexpected_events": n_unexpected,
+        "n_unpaired_sides_skipped": n_unpaired,
+    }
+    return all_quotes, book_states, stats
+
+
+def failed_tick_states(expected_events, universe, now_iso):
+    """Book states for a tick whose bulk request failed (after the one
+    retry): every expected event x universe book is request_failed.
+    Never infer individual-book absence from a failed tick."""
+    rows = []
+    for e in expected_events:
+        for row in classify_event_books(
+                e.get("id"), universe, [], set(),
+                fetch_ok=False, mapped=True):
+            row["observed_at"] = None
+            row["collected_at"] = now_iso
+            rows.append(row)
+    return rows
+
+
 def run_collection(fetch_events_fn=fetch_events,
-                   fetch_odds_fn=fetch_event_odds,
+                   fetch_odds_fn=fetch_odds,
                    now_utc=None,
                    dry_run=False,
-                   day_spend_fn=None):
+                   day_spend_fn=None,
+                   bulk_fixture=None):
     """Execute one observation run. Pure orchestration: no DB writes here.
 
-    Returns a result dict with full accounting (slots, states, quotes,
-    credit balances). In dry_run mode the free events endpoint is still
-    consulted (0 credits) but no paid odds calls are made.
+    One bulk odds call per tick (1 credit), at most one retry on request
+    failure. Returns a result dict with full accounting (slots, states,
+    quotes, credit balances, retry log). In dry_run mode no paid calls
+    are made; when bulk_fixture is provided the bulk path is exercised
+    in-memory with zero API cost.
 
     day_spend_fn: optional zero-arg callable returning today's measured
     timing-experiment credit consumption (from ncaaf_timing_runs). When
@@ -249,17 +380,22 @@ def run_collection(fetch_events_fn=fetch_events,
     now_utc = now_utc or datetime.now(UTC)
     ok, status, slot, et_now = gate(now_utc, EXPERIMENT_DATE_ET)
     universe = book_universe()
-    max_credits = _env_int("TIMING_MAX_CREDITS_PER_RUN", 80)
-    day_cap = _env_int("TIMING_MAX_CREDITS_DAY", 4000)
+    max_credits = _env_int("TIMING_MAX_CREDITS_PER_RUN",
+                           DEFAULT_MAX_CREDITS_PER_RUN)
+    day_cap = _env_int("TIMING_MAX_CREDITS_DAY", DEFAULT_MAX_CREDITS_DAY)
     reserve = _env_int("NCAAF_EDGE_MIN_QUOTA_REMAINING", 2000)
-    aliases = load_aliases()
+    slot_iso = slot.isoformat()
+    now_iso = now_utc.isoformat()
 
     result = {
         "experiment": EXPERIMENT,
-        "slot": slot.isoformat(),
+        "slot": slot_iso,
         "et_now": et_now.isoformat(),
         "status": status,
         "n_slots_planned": N_SLOTS,
+        "cost_model": "bulk_per_tick",
+        "cost_per_tick_credits": COST_PER_TICK,
+        "max_attempts_per_tick": MAX_ATTEMPTS_PER_TICK,
     }
     if not ok:
         # Gate fired before any provider call: zero API cost by construction.
@@ -282,18 +418,21 @@ def run_collection(fetch_events_fn=fetch_events,
     events = saturday_events(events_payload, EXPERIMENT_DATE_ET)
     result["n_events_universe"] = len(events)
     result["n_books_universe"] = len(universe)
-
-    # Hard per-run cap enforced BEFORE any paid call: 1 credit per event
-    # (measured), so at most max_credits - margin events are attempted.
-    margin = 2
-    max_events = max(0, max_credits - margin)
-    kept, n_capped = cap_event_list(events, max_events)
-    result["n_events_capped"] = n_capped
+    result["n_events_capped"] = 0  # bulk covers the whole slate: no truncation
     result["max_credits_per_run"] = max_credits
 
+    # Hard per-run cap enforced BEFORE any paid call: one tick needs at
+    # most MAX_ATTEMPTS_PER_TICK credits (initial attempt + one retry).
+    if max_credits < MAX_ATTEMPTS_PER_TICK:
+        result["status"] = "run_cap_skip"
+        result["run_cap_credits"] = max_credits
+        result["run_cap_needed"] = MAX_ATTEMPTS_PER_TICK
+        return result
+
     # Hard per-day cap, also BEFORE any paid call: refuse the run when
-    # today's already-measured consumption plus this run's estimate would
-    # exceed the day budget.
+    # today's already-measured consumption plus this tick's worst case
+    # (attempt + one retry) would exceed the 55-credit experiment ceiling.
+    worst_case = MAX_ATTEMPTS_PER_TICK * COST_PER_TICK
     if day_spend_fn is not None and not dry_run:
         try:
             day_spent = day_spend_fn() or 0
@@ -303,110 +442,134 @@ def run_collection(fetch_events_fn=fetch_events,
             result["status"] = "day_cap_skip"
             result["day_cap_error"] = "could not measure day spend; failing closed"
             return result
-        est = len(kept) * COST_PER_EVENT
-        if day_spent + est > day_cap:
+        if day_spent + worst_case > day_cap:
             result["status"] = "day_cap_skip"
             result["day_cap"] = day_cap
             result["day_spent_before"] = day_spent
-            result["day_estimate"] = est
+            result["day_worst_case"] = worst_case
             return result
         result["day_spent_before"] = day_spent
         result["day_cap"] = day_cap
+    result["day_cap_configured"] = day_cap
 
-    spent = 0
-    all_quotes = []
-    book_states = []
-    n_unpaired = 0
-    n_failed = 0
+    def finalize(payload_quotes, payload_states, stats, spent, headers,
+                 n_attempts, retries):
+        qa = quota(headers)
+        result["credits_remaining_after"] = qa.get("remaining")
+        result["credits_used_after"] = qa.get("used")
+        ub, ua = qb.get("used"), qa.get("used")
+        result["credits_consumed"] = (ua - ub) if (ub is not None
+                                                   and ua is not None) else spent
+        result["credits_spent_tracked"] = spent
+        result["n_bulk_attempts"] = n_attempts
+        result["n_events_attempted"] = 1 if n_attempts else 0
+        result["retries"] = retries
+        result["n_quotes"] = len(payload_quotes)
+        result["n_book_states"] = len(payload_states)
+        for k, v in stats.items():
+            result[k] = v
+        result["dry_run"] = dry_run
+        # Keep the heavy payloads out of the small --out JSON; they are
+        # persisted to the timing tables (or returned for tests).
+        result["_quotes"] = payload_quotes
+        result["_book_states"] = payload_states
+        result["_quota_before"] = qb
+        result["_quota_after"] = qa
+        return result
+
+    # Dry run: zero paid calls. With a bulk fixture, exercise the full
+    # in-memory normalization path at zero API cost.
+    if dry_run:
+        if bulk_fixture is not None:
+            quotes, states, stats = process_bulk_tick(
+                bulk_fixture, events, universe, slot_iso, now_iso)
+            result["status"] = "ok"
+            return finalize(quotes, states, stats, 0, ev_headers,
+                            0, [])
+        result["status"] = "ok"
+        return finalize([], [], {"n_bulk_events": 0,
+                                 "n_expected_missing_from_bulk": 0,
+                                 "n_unexpected_events": 0,
+                                 "n_unpaired_sides_skipped": 0},
+                        0, ev_headers, 0, [])
+
+    # Live tick: one bulk call, at most one retry on request failure.
+    # The retry is logged with tick timestamp + reason and writes under
+    # the SAME tick timestamp: no extra observation, no cadence shift.
+    retries = []
+    payload = None
     last_headers = ev_headers
-    attempted = 0
-
-    for e in kept:
-        if dry_run:
-            break  # dry-run: enumerate only, zero paid calls
-        if spent >= max_credits:
-            result["capped_mid_run"] = True
-            break
-        event_id = e.get("id")
-        attempted += 1
+    last_exc = None
+    n_attempts = 0
+    for attempt in range(1, MAX_ATTEMPTS_PER_TICK + 1):
+        n_attempts = attempt
         try:
-            payload, h = fetch_odds_fn(
-                event_id, MARKETS, regions=REGIONS, sport=SPORT)
+            raw, h = fetch_odds_fn(MARKETS, regions=REGIONS, sport=SPORT)
             last_headers = h
-            qh = quota(h)
-            # Prefer the header delta; fall back to the measured unit cost.
-            if qh.get("last") is not None:
-                spent += qh["last"]
-            else:
-                spent += COST_PER_EVENT
-            fetch_ok = True
-        except Exception as exc:  # noqa: BLE001 - per-event isolation
-            print(f"request_failed {event_id}: {exc}", file=sys.stderr)
-            payload, fetch_ok = {}, False
-            n_failed += 1
-
-        seen_books = [b.get("key") for b in (payload.get("bookmakers") or [])
-                      if b.get("key")]
-        mapped = (team_mapped(e.get("home_team"), aliases)
-                  and team_mapped(e.get("away_team"), aliases))
-        if fetch_ok:
-            normed = normalize(payload,
-                               allowed_books=set(universe) | set(seen_books),
-                               sport=SPORT)
-            devigged, unp = devig_event_quotes(normed)
-            n_unpaired += unp
-        else:
-            devigged = []
-        for q in devigged:
-            q["experiment"] = EXPERIMENT
-            q["slot"] = slot.isoformat()
-            q["collected_at"] = now_utc.isoformat()
-        all_quotes.extend(devigged)
-        books_with_quotes = {q["book_key"] for q in devigged}
-        for row in classify_event_books(
-                event_id, universe, seen_books, books_with_quotes,
-                fetch_ok, mapped):
-            row["observed_at"] = None
-            row["collected_at"] = now_utc.isoformat()
-            book_states.append(row)
-
-        # Mid-run reserve check: stop paid calls if the shared key is now
-        # below the NFL-protection floor.
-        rem = quota(last_headers).get("remaining")
-        if rem is not None and rem < reserve:
-            result["capped_mid_run"] = True
-            result["mid_run_reserve_stop"] = True
+            payload = raw if isinstance(raw, list) else (raw or {}).get(
+                "data", [])
+            last_exc = None
+            if retries:
+                retries[-1]["outcome"] = "succeeded"
             break
+        except Exception as exc:  # noqa: BLE001 - one retry, then fail loud
+            last_exc = exc
+            reason = f"{type(exc).__name__}: {exc}"[:200]
+            if attempt < MAX_ATTEMPTS_PER_TICK:
+                # At most one retry entry ever exists: the append runs
+                # only for attempt < MAX_ATTEMPTS_PER_TICK.
+                retries.append({"slot": slot_iso, "attempt": attempt + 1,
+                                "reason": reason, "outcome": "pending"})
+                print(f"tick {slot_iso}: bulk attempt {attempt} failed "
+                      f"({reason}); retrying once under the same tick",
+                      file=sys.stderr)
 
-    qa = quota(last_headers)
-    result["credits_remaining_after"] = qa.get("remaining")
-    result["credits_used_after"] = qa.get("used")
-    ub, ua = qb.get("used"), qa.get("used")
-    result["credits_consumed"] = (ua - ub) if (ub is not None
-                                               and ua is not None) else spent
-    result["credits_spent_tracked"] = spent
-    result["n_events_attempted"] = attempted
-    result["n_events_failed"] = n_failed
-    result["n_quotes"] = len(all_quotes)
-    result["n_book_states"] = len(book_states)
-    result["n_unpaired_sides_skipped"] = n_unpaired
-    result["status"] = "capped" if result.get("capped_mid_run") else "ok"
-    result["dry_run"] = dry_run
+    if payload is None:
+        # Tick failed after the single retry: record it explicitly.
+        # Zero quotes; every expected event x universe book is
+        # request_failed. The analyzer's per-event slot series skips
+        # this tick and lifetime_bounds widens the interval via actual
+        # timestamps: a censored gap, never a fabricated disappearance.
+        reason = f"{type(last_exc).__name__}: {last_exc}"[:200] \
+            if last_exc else "unknown"
+        print(f"tick {slot_iso}: bulk request failed after "
+              f"{MAX_ATTEMPTS_PER_TICK} attempts ({reason}); "
+              f"recording request_failed tick", file=sys.stderr)
+        if retries:
+            retries[-1]["outcome"] = "failed"
+            retries[-1]["final_reason"] = reason
+        states = failed_tick_states(events, universe, now_iso)
+        result["status"] = "request_failed"
+        result["error"] = reason
+        spent = n_attempts * COST_PER_TICK
+        res = finalize([], states,
+                       {"n_bulk_events": 0,
+                        "n_expected_missing_from_bulk": 0,
+                        "n_unexpected_events": 0,
+                        "n_unpaired_sides_skipped": 0},
+                       spent, last_headers, n_attempts, retries)
+        # Fail closed on failed ticks: the provider may still have
+        # counted the attempts against quota, so the ceiling accounts
+        # for them even when the header delta reads 0.
+        res["credits_consumed"] = max(res["credits_consumed"] or 0, spent)
+        return res
 
-    # Keep the heavy payloads out of the small --out JSON; they are
-    # persisted to the timing tables (or returned for tests).
-    result["_quotes"] = all_quotes
-    result["_book_states"] = book_states
-    result["_quota_before"] = qb
-    result["_quota_after"] = qa
-    return result
+    qh = quota(last_headers)
+    spent = qh["last"] if qh.get("last") is not None else COST_PER_TICK
+    quotes, states, stats = process_bulk_tick(
+        payload, events, universe, slot_iso, now_iso)
+    result["status"] = "ok"
+    return finalize(quotes, states, stats, spent, last_headers,
+                    n_attempts, retries)
 
 
 def persist(result, dsn):
     """Write one run's rows to the ncaaf_timing_* tables. Returns run_id.
 
     Idempotent per (experiment, slot): a retry never double-writes.
-    The per-day credit cap is enforced in run_collection BEFORE any paid
+    Failed ticks (request_failed) ARE persisted: the tick-level failure
+    is recorded so the analyzer treats it as a censored gap. The
+    per-day credit cap is enforced in run_collection BEFORE any paid
     call; persist is storage only.
     """
     import psycopg
@@ -468,7 +631,10 @@ def persist(result, dsn):
 
 
 def _day_spend(dsn):
-    """Today's measured timing-experiment credit consumption (ET day)."""
+    """Today's measured timing-experiment credit consumption (ET day).
+
+    Includes request_failed ticks: a failed tick still costs its
+    attempt(s), and the 55-credit ceiling must account for them."""
     import psycopg
     with psycopg.connect(dsn) as conn:
         row = conn.execute("""
@@ -477,7 +643,7 @@ def _day_spend(dsn):
             WHERE experiment = %s
               AND run_started_at >= (NOW() AT TIME ZONE 'America/New_York')::date
                   AT TIME ZONE 'America/New_York'
-              AND status IN ('ok', 'capped')
+              AND status IN ('ok', 'capped', 'request_failed')
         """, (EXPERIMENT,)).fetchone()
     return row[0] if row else 0
 
@@ -497,9 +663,11 @@ def main(argv=None):
                          "never production).")
     ap.add_argument("--events-fixture", default=None,
                     help="Dry-run only: JSON file with the events endpoint "
-                         "payload ({\"quota\": {...}, \"data\": [...]}), so "
-                         "the dry run costs zero API calls even for the "
-                         "free events endpoint.")
+                         "payload ({\"quota\": {...}, \"data\": [...], "
+                         "\"bulk\": [...] (optional)}), so the dry run "
+                         "costs zero API calls even for the free events "
+                         "endpoint. The optional \"bulk\" key exercises the "
+                         "full in-memory bulk normalization path.")
     args = ap.parse_args(argv)
 
     if args.date_override and not args.dry_run:
@@ -533,9 +701,11 @@ def main(argv=None):
         return 2
 
     fetch_events_fn = fetch_events
+    bulk_fixture = None
     if args.events_fixture:
         fixture = json.loads(pathlib.Path(args.events_fixture).read_text())
         _payload, _headers = fixture["data"], fixture.get("quota", {})
+        bulk_fixture = fixture.get("bulk")
 
         def fetch_events_fn(sport="ncaaf", _p=_payload, _h=_headers):
             return _p, {"x-requests-remaining": _h.get("requests_remaining"),
@@ -545,13 +715,13 @@ def main(argv=None):
     result = run_collection(fetch_events_fn=fetch_events_fn,
                             dry_run=args.dry_run,
                             now_utc=now_utc,
+                            bulk_fixture=bulk_fixture,
                             day_spend_fn=(None if args.dry_run or not dsn
                                           else lambda: _day_spend(dsn)))
 
     run_id = None
-    if not args.dry_run and dsn and result["status"] not in (
-            "date_gate_skip", "window_skip", "quota_standdown",
-            "day_cap_skip"):
+    if (not args.dry_run and dsn
+            and result["status"] in PERSISTABLE_STATUSES):
         try:
             run_id = persist(result, dsn)
         except Exception as exc:  # noqa: BLE001 - report, don't mask
