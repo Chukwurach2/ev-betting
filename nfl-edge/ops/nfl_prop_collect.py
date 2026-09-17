@@ -665,6 +665,15 @@ def live_run(now, api_key, conn, games, checkpoint_config, cap, stadium_mos,
     # responses (the events-list response seeds the baseline).
     prev_used = _int_header(hd, "x-requests-used")
 
+    # Settle the read-only planning transaction before any network I/O.
+    # psycopg opens an implicit transaction on the planning SELECTs above
+    # (already_captured, empirical_per_call); each fetch_event_odds call
+    # below takes minutes, and Neon terminates connections that sit
+    # idle-in-transaction (observed 2026-09-16: two runs died in
+    # build_context with IdleInTransactionSessionTimeout). Committing here
+    # is a semantic no-op for the reads and keeps the connection alive.
+    conn.commit()
+
     for cp in due:
         r = resolutions[cp.key]
         if r["status"] != ST_OK:
