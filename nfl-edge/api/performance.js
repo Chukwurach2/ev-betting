@@ -1,18 +1,27 @@
 import {Client} from 'pg';
 
+const ENGINE_VERSION = 'v1.3-consensus-lobo-3pp-4pct-15m';
+
 // Read-only track record for the SHADOW consensus engine: settled-pick
 // aggregates, CLV, calibration buckets, and drawdown. Research output only;
-// every row is mode='shadow' by construction. Empty states when nothing is
+// every row is mode='shadow' by construction. Performance is fixed-unit;
+// stored research sizing is neither exposed nor used. Empty states when nothing is
 // settled yet — the engine never invents history.
+// Raw `edge` is exposed only to power the per-edge-bucket breakdown in
+// summarize(); P/L math always uses the fixed 1.0 stake below.
 
 import {summarize} from '../lib/summarize.mjs';
 
 const SQL = `
 SELECT pick_id, home_team, away_team, market, selection, line, book_key, american_odds, decimal_odds,
-       consensus_fair_prob, edge, stake_units, observed_at, created_at,
+       consensus_fair_prob,
+       (consensus_fair_prob - taken_fair_prob) AS probability_edge,
+       edge AS expected_value, edge, 1.0::numeric AS stake_units,
+       observed_at, created_at,
        settled_at, result, clv_prob_points, engine_version
 FROM public.nfl_edge_picks
-WHERE mode = 'shadow' AND result IN ('win', 'loss', 'push')
+WHERE mode = 'shadow' AND engine_version = $1
+  AND result IN ('win', 'loss', 'push')
 ORDER BY settled_at ASC
 `;
 
@@ -29,10 +38,10 @@ export default async function handler(req, res) {
   });
   try {
     await client.connect();
-    const {rows} = await client.query(SQL);
+    const {rows} = await client.query(SQL, [ENGINE_VERSION]);
     return res.status(200).json({
       mode: 'shadow',
-      engine: rows[0]?.engine_version || null,
+      engine: ENGINE_VERSION,
       disclaimer: 'Shadow research output. Not a wager recommendation.',
       // Raw settled rows power the weekly forward-shadow report (7-day
       // windows, CLV confidence intervals, gate progress). Shadow research
