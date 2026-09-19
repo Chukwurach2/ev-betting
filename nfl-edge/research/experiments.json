@@ -39,7 +39,7 @@
       "status": "completed_no_edge_found",
       "hypothesis": "Pinnacle leads followers (Track A); stale cross-book quotes beat the close via a lagging mechanism (Track B). Preregistered with Amendment A1 (pre-results) replacing Track B's miscalibrated t-test with a directional lag test.",
       "source": "frozen 2022-2024 historical dataset, fingerprint 43f853a44bf93937d85149ca5fd7241b, 162 snapshots, 291586 quotes, 825 canonical games",
-      "outcome": "Track A: no book significant after Holm (best FanDuel p=0.102); pooled agree rate 0.526 (+2.6pp, p=0.0125) too small to trade; reverse falsification clean. Track B: lagging fraction 0.348, p=0.995 \u2014 no stale-price mechanism; superseded naive t-test would have falsely reported p~2.6e-176. Both tracks: no edge found.",
+      "outcome": "Track A: no book significant after Holm (best FanDuel p=0.102); pooled agree rate 0.526 (+2.6pp, p=0.0125) too small to trade; reverse falsification clean. Track B: lagging fraction 0.348, p=0.995 — no stale-price mechanism; superseded naive t-test would have falsely reported p~2.6e-176. Both tracks: no edge found.",
       "role": "SHADOW"
     },
     {
@@ -64,10 +64,70 @@
       "id": "collector-telemetry-unavailable-count-v1",
       "market_family": "infrastructure_measurement_fidelity",
       "hypothesis": "The per-run collector summary under-counts 'unavailable' outcomes: collect() writes store status 'unavailable' when a paid fetch returns only stale quotes, but increments the summary 'failed' counter instead, so run logs and heartbeats inflate failures relative to database truth.",
-      "source": "code review of ops/checkpoints.py collect() (line 132) against ops/postgres_checkpoints.py finish() status enum; latent \u2014 no production run observed with a mismatch",
+      "source": "code review of ops/checkpoints.py collect() (line 132) against ops/postgres_checkpoints.py finish() status enum; latent — no production run observed with a mismatch",
       "outcome": "Fixed: collect() now counts 'captured' vs 'unavailable' to match the store write; 'unavailable' added to the summary dict and heartbeat telemetry keys. Regression test test_unavailable_count_matches_store_status added. Full suite: 381 Python tests pass (2 pre-existing sklearn collection errors excluded), 30 JS tests pass. Commit 7aa033428063. Measurement-only: no change to DB writes, quota, windows, or pick logic.",
       "status": "completed_measurement_fix",
       "role": "measurement-only"
+    },
+    {
+      "id": "nfl-h-n2-forecast-wind-totals",
+      "market_family": "full_game_totals_weather",
+      "status": "retired_infeasible_outcome_blind",
+      "hypothesis": "Point-in-time-safe forecast wind adds incremental information to NFL totals beyond the decision-window market consensus.",
+      "source": "frozen 2022-2024 historical bundle plus free IEM MOS archive",
+      "outcome": "Terminal feasibility retirement: 202 eligible games versus the preregistered 250-game floor. Zero outcomes inspected, zero API credits, zero statistical capital spent. No rescue variants permitted.",
+      "report": "docs/nfl-h-n2-retirement.md",
+      "role": "SHADOW"
+    },
+    {
+      "id": "nfl-h-n6-officiating-crew-totals",
+      "market_family": "full_game_totals_officiating",
+      "status": "retired_infeasible_outcome_blind",
+      "hypothesis": "Lagged officiating-crew tendency adds incremental information to NFL totals beyond market and team controls.",
+      "source": "frozen 2022-2024 historical bundle plus free nflverse officials",
+      "outcome": "Terminal feasibility retirement: 365 eligible games versus the frozen 700-game floor. The decision snapshot was the binding constraint. Zero outcomes inspected and zero new API credits.",
+      "report": "docs/nfl-h-n6-retirement.md",
+      "role": "SHADOW"
+    },
+    {
+      "id": "nfl-h-n7-special-teams-totals",
+      "market_family": "full_game_totals_special_teams",
+      "status": "retired_infeasible_outcome_blind",
+      "hypothesis": "Lagged special-teams efficiency adds incremental information to closing-total residuals.",
+      "source": "frozen 2022-2024 historical bundle plus free nflverse play-by-play",
+      "outcome": "Terminal feasibility retirement: 136 eligible games versus the draft's 200-game floor. Zero outcomes inspected, zero API credits, zero statistical capital spent; draft never frozen or tested.",
+      "report": "docs/nfl-h-n7-retirement.md",
+      "role": "SHADOW"
+    },
+    {
+      "id": "nfl-h-n8-redzone-conversion-totals",
+      "market_family": "full_game_totals_situational_conversion",
+      "status": "retired_on_power_outcome_blind",
+      "hypothesis": "Lagged red-zone conversion efficiency adds incremental information to closing-total residuals, distinct from retired pace/tempo work.",
+      "source": "frozen 2022-2024 historical bundle plus free nflverse play-by-play",
+      "outcome": "Terminal power retirement: 359 eligible games cleared the sample floor, but MDE 12.31 exceeded the preregistered 10.0 cap. Zero outcomes inspected, zero API credits, zero statistical capital spent.",
+      "report": "docs/nfl-h-n8-retirement.md",
+      "role": "SHADOW"
+    },
+    {
+      "id": "nfl-h-c-pressure-passing-yards",
+      "market_family": "player_passing_yards_pressure_matchup",
+      "status": "no_go_feasibility_outcome_blind",
+      "hypothesis": "Point-in-time OL/DL pressure mismatch adds incremental information to quarterback passing-yards prop residuals.",
+      "source": "free nflverse FTN charting, snap counts and NextGen inputs; historical prop probe only",
+      "outcome": "No-go before paid pull: required NextGen time-to-throw coverage is absent for the 2024 test season. Only 32 test units were constructible; MDE 17.58-18.53 yards versus a 6-7 yard plausibility bar. Zero outcomes inspected and zero credits spent on the feasibility gate.",
+      "report": "docs/nfl-h-c-feasibility.md",
+      "role": "SHADOW"
+    },
+    {
+      "id": "nfl-h-d-precipitation-attempt-props",
+      "market_family": "player_pass_rush_attempts_weather",
+      "status": "retired_on_power_no_test",
+      "hypothesis": "Heavy point-in-time forecast precipitation adds incremental information to quarterback pass-attempt and lead-back rush-attempt prop residuals.",
+      "source": "frozen 2023-2024 treated-game manifest, IEM MOS GFS forecasts and bounded historical prop pulls",
+      "outcome": "Terminal retirement under the frozen stop rule after the corrected bounded pull: usable N was 25 for pass attempts and 23 for rush attempts, below the required 25 for both endpoints. No outcomes inspected and no confirmatory test run. Approximately 1,497 pull-attributable credits were consumed across the retained identity incident and corrected pull; the preregistered family-wise slot was consumed without endpoint-level testing.",
+      "report": "docs/nfl-h-d-retirement.md",
+      "role": "SHADOW"
     }
   ]
 }
