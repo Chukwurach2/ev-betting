@@ -25,7 +25,10 @@ def main() -> int:
         return 1
     applied = []
     with psycopg.connect(database, connect_timeout=10) as connection:
-        connection.execute("SET statement_timeout='30s'")
+        # 180s: idempotent DDL must out-wait concurrent bulk-write
+        # transactions (e.g. the Saturday NCAAF experiment's single-tx
+        # persist) rather than abort on lock contention.
+        connection.execute("SET statement_timeout='180s'")
         for path in files:
             sql = path.read_text()
             upper = sql.upper()
