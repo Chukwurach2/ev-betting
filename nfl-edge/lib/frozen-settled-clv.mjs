@@ -2,8 +2,21 @@ import { createHash } from 'node:crypto';
 import { verifySettlementRecord } from './settlement-verifier.mjs';
 
 const text = x => typeof x === 'string' && x.trim().length > 0;
-const time = x => typeof x === 'string' && /(?:Z|[+-]\d{2}:\d{2})$/.test(x)
-  ? Date.parse(x) : NaN;
+function time(x) {
+  if (typeof x !== 'string') return NaN;
+  const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d{1,3})?(Z|[+-]\d{2}:\d{2})$/.exec(x);
+  if (!m) return NaN;
+  const [, year, month, day, hour, minute, second, zone] = m;
+  const [y, mo, d, h, mi, s] = [year, month, day, hour, minute, second].map(Number);
+  const maxDay = new Date(Date.UTC(y, mo, 0)).getUTCDate();
+  if (mo < 1 || mo > 12 || d < 1 || d > maxDay || h > 23 || mi > 59 || s > 59) return NaN;
+  if (zone !== 'Z') {
+    const [zh, zm] = zone.slice(1).split(':').map(Number);
+    if (zh > 23 || zm > 59) return NaN;
+  }
+  const parsed = Date.parse(x);
+  return Number.isFinite(parsed) ? parsed : NaN;
+}
 const implied = x => typeof x === 'number' && Number.isFinite(x) && Math.abs(x) >= 100
   ? (x > 0 ? 100 / (x + 100) : -x / (-x + 100)) : null;
 const fail = reason => ({ status: 'excluded', reason });
@@ -47,7 +60,7 @@ function measure(row, duplicates) {
       row.closeEvidence?.kind !== 'frozen_designated_close') return fail('missing_close_designation');
   const e = time(row.entryPair[0].observedAt), c = time(row.closePair[0].observedAt);
   const d = time(row.decisionAt), k = time(row.kickoffAt), s = time(row.settledAt);
-  if (![e, c, d, k, s].every(Number.isFinite) || !(e <= d && d < c && c < k && k <= s)) return fail('invalid_chronology');
+  if (![e, c, d, k, s].every(Number.isFinite) || !(e <= d && d < c && c < k && k < s)) return fail('invalid_chronology');
   return { status: 'measured', entryFairProbability: entry, closeFairProbability: close,
     clvProbabilityDelta: close - entry, clvPercentagePoints: 100 * (close - entry) };
 }
