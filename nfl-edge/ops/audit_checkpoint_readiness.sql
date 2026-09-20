@@ -20,7 +20,9 @@ WITH expected AS (
 ), observations AS (
  SELECT e.*, count(c.checkpoint_key) AS records,
         min(c.status) AS stored_status,
-        min(c.error) AS stored_error
+        min(c.error) AS stored_error,
+        min(c.started_at) AS first_started_at,
+        max(c.ended_at) AS last_ended_at
  FROM expected e LEFT JOIN public.nfl_edge_checkpoints c
  ON c.game_id=e.game_id AND c.kickoff=e.kickoff AND c.decision_window=e.window_name
  GROUP BY e.game_id,e.kickoff,e.window_name,e.target_at,e.deadline_at
@@ -44,6 +46,8 @@ WITH expected AS (
  FROM observations
 )
 SELECT now() AS checked_at, window_name, capture_state, count(*) AS games,
- min(target_at) AS earliest_target, min(deadline_at) AS earliest_deadline
+ min(target_at) AS earliest_target, min(deadline_at) AS earliest_deadline,
+ min(first_started_at) AS earliest_started_at,
+ max(last_ended_at) AS latest_ended_at
 FROM classified GROUP BY window_name,capture_state
 ORDER BY window_name,capture_state;
