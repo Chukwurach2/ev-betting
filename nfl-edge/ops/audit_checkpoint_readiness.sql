@@ -19,12 +19,24 @@ WITH expected AS (
         (now() AT TIME ZONE 'America/New_York')::date
 ), observations AS (
  SELECT e.*, count(c.checkpoint_key) AS records,
-        min(c.status) AS stored_status
+        min(c.status) AS stored_status,
+        min(c.error) AS stored_error
  FROM expected e LEFT JOIN public.nfl_edge_checkpoints c
  ON c.game_id=e.game_id AND c.kickoff=e.kickoff AND c.decision_window=e.window_name
  GROUP BY e.game_id,e.kickoff,e.window_name,e.target_at,e.deadline_at
 ), classified AS (
  SELECT *, CASE WHEN records>1 THEN 'duplicate_records'
+ WHEN records=1 AND stored_status='failed' THEN
+  CASE WHEN stored_error='Provider event did not match exact matchup and kickoff'
+         THEN 'failed_identity_mismatch'
+       WHEN stored_error='Provider response event changed'
+         THEN 'failed_provider_event_changed'
+       WHEN stored_error='Odds provider request failed'
+         OR stored_error LIKE 'Odds provider request failed with HTTP %'
+         THEN 'failed_provider_request'
+       WHEN stored_error='Collection failed; inspect private runtime health'
+         THEN 'failed_private_runtime'
+       ELSE 'failed_other_redacted' END
  WHEN records=1 THEN coalesce(stored_status,'invalid_status')
  WHEN now()<target_at THEN 'not_due'
  WHEN now()<deadline_at THEN 'due_missing_record'
