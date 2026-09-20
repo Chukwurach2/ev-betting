@@ -3,7 +3,7 @@ name: mos-forecast-archive
 # Prospective NFL MOS forecast archive (infrastructure collection, NOT a
 # claim-bearing test). Free IEM HTTP calls only -- zero Odds API credits.
 #
-# Schedule: 4x daily at 04:10 / 10:10 / 16:10 / 22:10 UTC. Each run fetches
+# Schedule (cost-trim 2026-09-20): once daily at 10:10 UTC. The run fetches
 # the MOS cycle issued ~4h earlier (the documented GFS MOS dissemination
 # lag), for every 2026 game whose frozen prediction cutoff (kickoff - 24h)
 # has not yet passed. The collector's strict in-code gate (now <= cutoff)
@@ -16,7 +16,7 @@ on:
         required: false
         default: "false"
   schedule:
-    - cron: '10 4,10,16,22 * * *'
+    - cron: '10 10 * * *'
 
 concurrency:
   group: mos-forecast-archive
