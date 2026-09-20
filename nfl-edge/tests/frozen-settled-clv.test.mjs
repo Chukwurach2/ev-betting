@@ -44,6 +44,8 @@ for (const [name, mutate, reason] of [
   ['unverified close', r => delete r.closeEvidence, 'missing_close_designation'],
   ['postkickoff', r => r.closePair.forEach(q=>q.observedAt=r.kickoffAt), 'invalid_chronology'],
   ['entry after decision', r => r.entryPair.forEach(q=>q.observedAt='2026-01-01T13:00:00Z'), 'invalid_chronology'],
+  ['impossible calendar date', r => r.closePair.forEach(q=>q.observedAt='2026-02-30T17:59:00Z'), 'invalid_chronology'],
+  ['settlement at kickoff', r => r.settledAt=r.kickoffAt, 'invalid_chronology'],
   ['unsettled', r => r.gameStatus='live', 'settlement_game_not_final'],
   ['wrong result', r => r.result='loss', 'settlement_result_mismatch'],
   ['integer line', r => r.line=40, 'push_mass_not_supported'],
@@ -59,7 +61,8 @@ test('duplicates exclude every occurrence; nulls and empty input stay explicit',
   assert.equal(run([null]).excluded,1); assert.equal(run([]).total,0);
 });
 test('fingerprint, schema, count and freeze are required', () => {
-  for (const change of [{sha256:'0'.repeat(64)},{schema:'other'},{rowCount:2},{frozenAt:'yesterday'}]) {
+  for (const change of [{sha256:'0'.repeat(64)},{schema:'other'},{rowCount:2},{frozenAt:'yesterday'},
+    {frozenAt:'2026-02-30T00:00:00Z'}]) {
     assert.throws(()=>run([fixture()],change));
   }
 });
