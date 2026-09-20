@@ -1,4 +1,4 @@
-const RESULTS = new Set(["win", "loss", "push"]);
+const RESULTS = new Set(["win", "loss", "push", "void"]);
 const MARKETS = new Set([
   "FULL_GAME_SPREAD",
   "FULL_GAME_TOTAL",
@@ -10,7 +10,7 @@ function invalid(reason) {
 }
 
 function validScore(value) {
-  return Number.isInteger(value) && value >= 0;
+  return Number.isSafeInteger(value) && value >= 0;
 }
 
 /**
@@ -35,6 +35,26 @@ export function expectedSettlement(record) {
       !homeName || !awayName || homeName === awayName) {
     return invalid("invalid_teams");
   }
+  if (market === "FULL_GAME_TOTAL" ? !["Over", "Under"].includes(selection)
+    : selection !== homeName && selection !== awayName) return invalid("invalid_selection");
+  if (market === "FULL_GAME_MONEYLINE") {
+    if (line !== null) return invalid("moneyline_requires_null_line");
+    if (record.tieRule !== "push") return invalid("unsupported_or_missing_tie_rule");
+  } else if (!Number.isFinite(line) || !Number.isSafeInteger(line * 2) ||
+    (market === "FULL_GAME_TOTAL" && line < 0)) {
+    return invalid("missing_or_invalid_line");
+  }
+  // Evidence is supplied by a trusted read-only adapter, never inferred from
+  // the stored result or a cancellation label. This is not source authentication.
+  if (record.voidEvidence != null) {
+    const e = record.voidEvidence;
+    if (e.decision !== "void" || !["sourceRef", "ruleRef", "contractId"].every(
+      key => typeof e[key] === "string" && e[key].trim()) ||
+      e.contractId !== record.contractId) return invalid("invalid_void_evidence");
+    return {status:"resolved", expectedResult:"void", reason:null};
+  }
+  if (record.result === "void") return invalid("missing_void_evidence");
+  if (record.gameStatus !== "final") return invalid("game_not_final");
   if (!validScore(finalHomeScore) || !validScore(finalAwayScore)) {
     return invalid("invalid_final_score");
   }
@@ -101,7 +121,7 @@ export function verifySettlementRecord(record) {
 /** Produce an audit summary without mutating or suppressing any discrepancy. */
 export function verifySettlementRecords(records) {
   if (!Array.isArray(records)) throw new TypeError("records must be an array");
-  const details = records.map((record, index) => ({
+  const details = Array.from(records, (record, index) => ({
     index,
     ...verifySettlementRecord(record),
   }));
