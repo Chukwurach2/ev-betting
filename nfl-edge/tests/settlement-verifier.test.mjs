@@ -8,6 +8,8 @@ import {
 } from "../lib/settlement-verifier.mjs";
 
 const base = {
+  gameStatus: "final",
+  tieRule: "push",
   homeName: "Kansas City Chiefs",
   awayName: "Buffalo Bills",
   finalHomeScore: 24,
@@ -80,7 +82,7 @@ test("fails closed on unsupported markets", () => {
 test("fails closed on an ambiguous selection", () => {
   assert.equal(expectedSettlement({
     ...base, market: "FULL_GAME_SPREAD", selection: "Mystery Team", line: 3.5,
-  }).reason, "selection_not_in_game");
+  }).reason, "invalid_selection");
 });
 
 test("fails closed on missing lines and non-integer scores", () => {
@@ -99,7 +101,7 @@ test("fails closed on unknown stored result values", () => {
     result: "void",
   });
   assert.equal(out.status, "unverifiable");
-  assert.equal(out.reason, "invalid_stored_result");
+  assert.equal(out.reason, "missing_void_evidence");
 });
 
 test("audit summary retains every mismatch and unverifiable row", () => {
@@ -121,4 +123,45 @@ test("audit summary retains every mismatch and unverifiable row", () => {
 
 test("batch verifier rejects non-array input", () => {
   assert.throws(() => verifySettlementRecords(null), /records must be an array/);
+});
+
+test('void requires contract-linked rule and source evidence, not scores', () => {
+  const row = {...base, market:'FULL_GAME_TOTAL',selection:'Over',line:44,
+    contractId:'fixture-1',result:'void',gameStatus:'cancelled',finalHomeScore:null,
+    voidEvidence:{decision:'void',contractId:'fixture-1',sourceRef:'fixture-source',ruleRef:'fixture-rule'}};
+  assert.equal(verifySettlementRecord(row).status, 'verified');
+  assert.equal(verifySettlementRecord({...row, result:'push'}).status, 'mismatch');
+  for (const field of ['sourceRef','ruleRef','contractId']) {
+    assert.equal(verifySettlementRecord({...row,voidEvidence:{...row.voidEvidence,[field]:''}}).status,'unverifiable');
+  }
+  assert.equal(verifySettlementRecord({...row,contractId:'other'}).status,'unverifiable');
+});
+
+test('non-final status never implies push or void', () => {
+  for (const gameStatus of [undefined,'scheduled','live','postponed','cancelled']) {
+    const r = expectedSettlement({...base,gameStatus,market:'FULL_GAME_TOTAL',selection:'Over',line:44});
+    assert.equal(r.reason,'game_not_final');
+  }
+});
+
+test('moneyline requires explicit two-way tie rule and null line', () => {
+  const row = {...base,market:'FULL_GAME_MONEYLINE',selection:base.homeName,line:null};
+  for (const tieRule of [undefined,'loss','three_way']) {
+    assert.equal(expectedSettlement({...row,tieRule}).status,'unverifiable');
+  }
+  assert.equal(expectedSettlement({...row,line:0}).reason,'moneyline_requires_null_line');
+});
+
+test('zero lines push exactly; quarter lines and invalid numbers fail closed', () => {
+  for (const selection of [base.homeName,base.awayName]) {
+    assert.equal(expectedSettlement({...base,finalAwayScore:24,market:'FULL_GAME_SPREAD',selection,line:0}).expectedResult,'push');
+  }
+  for (const line of [NaN,Infinity,44.25,'44',null]) {
+    assert.equal(expectedSettlement({...base,market:'FULL_GAME_TOTAL',selection:'Over',line}).status,'unverifiable');
+  }
+});
+
+test('sparse and malformed batch rows remain explicit', () => {
+  assert.equal(verifySettlementRecords(new Array(2)).unverifiable,2);
+  for (const row of [null,undefined,[],{},false]) assert.equal(verifySettlementRecord(row).status,'unverifiable');
 });
