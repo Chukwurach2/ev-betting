@@ -1,7 +1,7 @@
 # Frozen settled CLV: offline measurement adapter (draft)
 
-Issue #16. Branch `codex/frozen-settled-clv`, stacked on PR #19 at
-`c99a32c2e7d2835f992572a606d46bb4684af5c7`. No production integration.
+Issue #16. Branch `codex/frozen-settled-clv`, based on main after the
+settlement verifier merged in PR #19. No production integration.
 
 ## Scope and blocker
 
@@ -67,6 +67,6 @@ invalid odds, invalid chronology, hash/schema/count, settlement mismatch,
 push/void/integer line, late settlement, spread direction, null and empty input.
 
 Owner review must approve the frozen export mapping and actual-close evidence
-before any real-data run. Retarget to main only after PR #19 merges, preserving
-its preview paid-check guard. No collectors, watchdogs, frozen specs, production
+before any real-data run. The preview paid-check guard remains preserved.
+No collectors, watchdogs, frozen specs, production
 state, promotion gates or research registries were edited. Odds API credits: 0.
