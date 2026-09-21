@@ -50,13 +50,16 @@ def diagnose_provider_identity(expected_home, expected_away, expected_kickoff,
         home = event.get("home_team")
         away = event.get("away_team")
         event_kickoff = _instant(event.get("commence_time"))
-        if (not isinstance(event_id, str) or not event_id or
-                not isinstance(home, str) or not isinstance(away, str) or
-                event_kickoff is None):
+        valid_id = isinstance(event_id, str) and bool(event_id.strip())
+        if not valid_id:
             malformed += 1
+        if (not isinstance(home, str) or not isinstance(away, str) or
+                event_kickoff is None):
+            if valid_id:
+                malformed += 1
             continue
         row = {
-            "event_id": event_id,
+            "event_id": event_id if valid_id else None,
             "kickoff_delta_seconds": int((event_kickoff - kickoff).total_seconds()),
         }
         if home == expected_home and away == expected_away:
@@ -76,11 +79,12 @@ def diagnose_provider_identity(expected_home, expected_away, expected_kickoff,
         "closest_kickoff_delta_seconds": (
             min((row["kickoff_delta_seconds"] for row in matchup),
                 key=lambda value: (abs(value), value)) if matchup else None),
-        "candidate_event_ids": sorted(row["event_id"] for row in matchup),
-        "reverse_event_ids": sorted(row["event_id"] for row in reverse),
+        "candidate_event_ids": sorted(row["event_id"] for row in matchup if row["event_id"] is not None),
+        "reverse_event_ids": sorted(row["event_id"] for row in reverse if row["event_id"] is not None),
     }
     if len(exact) == 1:
-        result["status"] = "exact_match"
+        result["status"] = ("exact_match" if exact[0]["event_id"] is not None
+                            else "malformed_exact_match")
     elif len(exact) > 1:
         result["status"] = "ambiguous_exact_duplicates"
     elif matchup:

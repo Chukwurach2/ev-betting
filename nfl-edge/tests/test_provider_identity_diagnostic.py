@@ -61,6 +61,25 @@ class ProviderIdentityDiagnosticTests(unittest.TestCase):
             self.event("earlier", kickoff="2026-09-20T20:24:30Z")])
         self.assertEqual(result["closest_kickoff_delta_seconds"], -30)
 
+    def test_malformed_ids_preserve_exact_match_cardinality(self):
+        for bad_id in [None, "", 42, "   "]:
+            with self.subTest(bad_id=bad_id):
+                result = diagnose_provider_identity(
+                    self.home, self.away, self.kickoff,
+                    [self.event(), self.event(event_id=bad_id)])
+                self.assertEqual(result["status"], "ambiguous_exact_duplicates")
+                self.assertEqual(result["exact_match_count"], 2)
+                self.assertEqual(result["malformed_event_count"], 1)
+                self.assertIsNone(result["exact_event_id"])
+                self.assertEqual(result["candidate_event_ids"], ["event-1"])
+
+    def test_single_malformed_exact_id_fails_closed(self):
+        result = diagnose_provider_identity(
+            self.home, self.away, self.kickoff, [self.event(event_id=None)])
+        self.assertEqual(result["status"], "malformed_exact_match")
+        self.assertEqual(result["exact_match_count"], 1)
+        self.assertIsNone(result["exact_event_id"])
+
     def test_invalid_expected_identity_fails_closed(self):
         invalid = [
             ("", self.away, self.kickoff, []),
