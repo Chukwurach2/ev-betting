@@ -1,11 +1,9 @@
 name: saturday-timing
 
-# ONE-TIME experiment: Saturday 2026-09-19, 10:00-21:45 ET, every 15 min
-# (48 observation slots). The cron below fires on every Saturday, but
-# nfl-edge/ops/saturday_timing.py hard-gates on the experiment date:
-# runs outside 2026-09-19 (ET) exit before ANY provider API call as
-# zero-cost no-ops (status date_gate_skip). The date gate is a code
-# constant -- authorizing another Saturday requires a commit.
+# Cost-trim 2026-09-20: the 2026-09-19 experiment is over, so the native
+# Saturday/Sunday schedule is disabled (dispatch-only until the next
+# experiment is planned). Runs outside 2026-09-19 (ET) exit before ANY
+# provider API call as zero-cost no-ops (status date_gate_skip) anyway.
 on:
   workflow_dispatch:
     inputs:
@@ -13,13 +11,6 @@ on:
         description: "Dry run: zero paid API calls, zero DB writes"
         required: false
         default: "false"
-  schedule:
-    # 48 runs total. 2026-09-19 is EDT (UTC-4).
-    # 10:00-19:45 ET = 14:00-23:45 UTC Saturday: 10h x 4 = 40 runs.
-    - cron: '*/15 14-23 * * 6'
-    # 20:00-21:45 ET = 00:00-01:45 UTC Sunday: 2h x 4 = 8 runs.
-    # (02:00 UTC = 22:00 ET is the exclusive window end: NOT included.)
-    - cron: '*/15 0-1 * * 0'
 
 concurrency:
   group: saturday-timing
