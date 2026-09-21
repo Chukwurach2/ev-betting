@@ -1,6 +1,6 @@
 -- SHADOW operational metadata only; no quotes, prices, outcomes or private bets.
 -- Read-only audit, not a scheduler, collector, retry mechanism or promotion gate.
--- Mirrors main 0d5f3de ops/checkpoints.py: 90-minute windows capped at kickoff-1m.
+-- Mirrors the current checkpoint timing contract: 90-minute windows capped at kickoff-1m.
 -- Scope: today's scheduled NFL games in America/New_York; excludes opener/props.
 -- Captured is the stored status, NOT certification of quote freshness or completeness.
 -- Missing rows are classified independently; preserve elapsed gaps, never backfill.

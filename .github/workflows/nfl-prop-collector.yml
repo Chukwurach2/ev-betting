@@ -3,24 +3,24 @@ name: nfl-prop-collector
 # NFL prospective prop/alternative-market collector (design:
 # nfl-edge/docs/nfl-prospective-prop-layer.md).
 #
-# LIVE (user-authorized 2026-09-16): scheduled runs collect live when the
-# repo variable NFL_PROP_LIVE_OK=1. Manual dispatch with live=false remains
-# the dry-run path (full cycle against a RECORDED events-list fixture, ZERO
-# /odds calls, ZERO production-table writes). Live paid collection requires
-# the dispatch `live` input OR a scheduled run, AND NFL_PROP_LIVE_OK=1.
+# LIVE (user-authorized 2026-09-16): dispatch-driven runs collect live when
+# the repo variable NFL_PROP_LIVE_OK=1 (native schedule removed 2026-09-20
+# as redundant with close-watch dispatches). Dispatch with live=false
+# remains the dry-run path (full cycle against a RECORDED events-list
+# fixture, ZERO /odds calls, ZERO production-table writes). Live paid
+# collection requires the dispatch `live` input AND NFL_PROP_LIVE_OK=1.
 #
 # Per-run credit discipline: NFL_PROP_RUN_CREDIT_CAP (default 90) is checked
 # BEFORE any paid call; exceeding it aborts with zero paid calls
 # (status aborted_cap).
 
 on:
-  schedule:
-    # Hourly tick in-season; 90-minute collection windows (deadline =
-    # target + 90m, capped before kickoff) mean the tick only needs to land
-    # inside the window. Runs with no due checkpoints spend zero provider
-    # credits: only the free events endpoint is consulted, and only when a
-    # checkpoint is actually due.
-    - cron: '7 * * * *'
+  # Cost-trim 2026-09-20: native hourly schedule removed. The Hatch prop
+  # close-watch crons dispatch this workflow at each game's 6 checkpoints
+  # (T-24/T-12/T-6/T-3/T-90m/close), which is where the real coverage lives;
+  # the native schedule was redundant with those dispatches. Dispatch with
+  # live=true to run live paid collection (ALSO requires
+  # NFL_PROP_LIVE_OK=1).
   workflow_dispatch:
     inputs:
       live:
