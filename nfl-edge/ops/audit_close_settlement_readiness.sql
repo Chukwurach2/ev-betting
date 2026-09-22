@@ -26,14 +26,18 @@ WITH scoped AS (
              AND q.market = p.market
              AND q.selection = p.selection
              AND q.line = p.line
+             AND q.observed_at > p.observed_at
              AND q.observed_at <= p.kickoff
+             AND q.checkpoint_key IS DISTINCT FROM p.checkpoint_key
          ) AS exact_line_candidate_quotes,
          count(DISTINCT q.book_key) FILTER (
            WHERE cc.status = 'captured'
              AND q.market = p.market
              AND q.selection = p.selection
              AND q.line = p.line
+             AND q.observed_at > p.observed_at
              AND q.observed_at <= p.kickoff
+             AND q.checkpoint_key IS DISTINCT FROM p.checkpoint_key
          ) AS exact_line_candidate_books
   FROM scoped p
   LEFT JOIN public.nfl_edge_checkpoints cc
