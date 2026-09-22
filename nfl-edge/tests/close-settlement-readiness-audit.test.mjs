@@ -24,6 +24,14 @@ test('audit keys close coverage by canonical game receipt, not provider event id
   assert.doesNotMatch(executable, /provider_event_id/i);
 });
 
+test('close candidates follow the decision and exclude the entry checkpoint', () => {
+  assert.match(executable, /q\.observed_at > p\.observed_at/i);
+  assert.match(
+    executable,
+    /q\.checkpoint_key IS DISTINCT FROM p\.checkpoint_key/i,
+  );
+});
+
 test('exact-line candidate and governance blockers remain explicit', () => {
   assert.match(executable, /q\.line = p\.line/i);
   assert.match(executable, /count\(DISTINCT q\.book_key\)/i);
