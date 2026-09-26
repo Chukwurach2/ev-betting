@@ -1,0 +1,16 @@
+# Diagnostic only. This branch must not be merged as a runtime replacement.
+# No checkout, action downloads, secrets, database or provider calls.
+name: NFL Edge runner startup probe
+"on":
+  push:
+    branches: ["codex/actions-execution-probe-20260926"]
+    paths: [".github/workflows/actions-execution-probe.yml"]
+permissions: {}
+jobs:
+  startup-probe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 1
+    steps:
+      - name: Confirm runner started
+        shell: bash
+        run: printf 'runner-started source=%s\n' "$GITHUB_SHA"
