@@ -134,3 +134,60 @@ test('late checkpoint captures are diagnostic-only in weekly health', () => {
   assert.ok(source.includes("target_at + interval '15 minutes'"));
   assert.match(source, /later captures are diagnostic only/);
 });
+
+test('never-attempted featured checkpoints merge into plan-true coverage', async () => {
+  const {mergePlanCoverage} = await import('../api/report-health.js');
+  // Fixture mirrors the 2026-09-21..23 GitHub Actions spending-block era:
+  // rows exist for windows the collector touched, but elapsed block-era
+  // targets (no run fired at all) never materialized rows and must appear
+  // as never_attempted instead of vanishing from "planned".
+  const rows = [
+    {decision_window: 'Close', planned: 15, captured: 0, late_captured: 0, missed: 1, unavailable: 0, failed: 14, running: 0},
+    {decision_window: 'T-24', planned: 16, captured: 1, late_captured: 12, missed: 3, unavailable: 0, failed: 0, running: 0},
+  ];
+  const never = [
+    {decision_window: 'Close', never_attempted: 4},
+    {decision_window: 'T-90', never_attempted: 2},
+  ];
+  const {byWindow, totals} = mergePlanCoverage(rows, never);
+  const close = byWindow.find((r) => r.decision_window === 'Close');
+  assert.equal(close.never_attempted, 4);
+  assert.equal(close.planned_true, 19);
+  assert.equal(close.capture_rate_planned, 0 / 19);
+  assert.equal(close.capture_rate, 0 / 15); // legacy row-based rate unchanged
+  const t24 = byWindow.find((r) => r.decision_window === 'T-24');
+  assert.equal(t24.never_attempted, 0);
+  assert.equal(t24.planned_true, 16);
+  assert.equal(totals.neverAttempted, 4); // T-90 rows absent -> not counted; only merges with existing rows
+  assert.equal(totals.plannedTrue, 16 + 19);
+});
+
+test('mergePlanCoverage keeps verdict inputs row-based', async () => {
+  const {mergePlanCoverage} = await import('../api/report-health.js');
+  const rows = [{decision_window: 'T-3', planned: 10, captured: 5}];
+  const {byWindow, totals} = mergePlanCoverage(rows, [{decision_window: 'T-3', never_attempted: 10}]);
+  // The locked HEALTHY/DEGRADED verdict must keep seeing the legacy
+  // row-based planned/captured, never the plan-true total.
+  assert.equal(totals.planned, 10);
+  assert.equal(totals.captured, 5);
+  assert.equal(byWindow[0].capture_rate_planned, 5 / 20);
+});
+
+test('mergePlanCoverage tolerates null inputs', async () => {
+  const {mergePlanCoverage} = await import('../api/report-health.js');
+  const {byWindow, totals} = mergePlanCoverage(null, null);
+  assert.deepEqual(byWindow, []);
+  assert.deepEqual(totals, {planned: 0, captured: 0, neverAttempted: 0, plannedTrue: 0});
+});
+
+test('never-attempted query mirrors the frozen featured checkpoint windows', () => {
+  const here = dirname(fileURLToPath(import.meta.url));
+  const source = readFileSync(join(here, '../api/report-health.js'), 'utf8');
+  assert.match(source, /Q_NEVER_ATTEMPTED/);
+  assert.match(source, /\('T-24', 1440\), \('T-3', 180\), \('T-90', 90\), \('Close', 5\)/);
+  assert.match(source, /FROM public\.games/);
+  assert.match(source, /nfl_edge_checkpoints/);
+  // Verdict inputs stay row-based (locked spec); only honest fields are added.
+  assert.match(source, /planned_checkpoints: planned/);
+  assert.match(source, /capture_rate_planned/);
+});

@@ -87,6 +87,82 @@ SELECT count(*)::int AS n FROM (
   HAVING count(*) > 1
 ) d`;
 
+// Planned-but-never-attempted featured checkpoints. The checkpoints query
+// above only sees rows a collector run actually materialized: when no run
+// fires at all (e.g. the GitHub Actions spending block — every workflow run
+// phantom-fails in ~2s and writes nothing), due windows never get rows and
+// silently vanish from "planned". This query reconstructs the plan
+// deterministically from game kickoffs x the frozen fixed-offset windows
+// (ops/checkpoints.py WINDOWS). Opener is deliberately excluded: its target
+// is the run time, not a fixed offset, so it cannot be reconstructed
+// deterministically. The 2h grace keeps in-flight windows from counting as
+// never-attempted. Games are deduped by matchup preferring 'nfl-' ids,
+// mirroring collect_checkpoints.py. Current game status is intentionally
+// ignored: a game played inside the block was 'scheduled' when its windows
+// were due; cancelled games are a documented edge case (slight overcount).
+const Q_NEVER_ATTEMPTED = `
+WITH games AS (
+  SELECT DISTINCT ON (home_team, away_team, kickoff) game_id, kickoff
+  FROM public.games
+  WHERE sport = 'nfl'
+    AND kickoff >= now() - interval '7 days'
+    AND kickoff < now() + interval '24 hours'
+  ORDER BY home_team, away_team, kickoff, (game_id LIKE 'nfl-%') DESC, game_id
+),
+offsets(decision_window, mins) AS (
+  VALUES ('T-24', 1440), ('T-3', 180), ('T-90', 90), ('Close', 5)
+),
+expected AS (
+  SELECT g.game_id, o.decision_window,
+         (g.kickoff - (o.mins || ' minutes')::interval) AS target_at
+  FROM games g CROSS JOIN offsets o
+)
+SELECT e.decision_window, COUNT(*)::int AS never_attempted
+FROM expected e
+WHERE e.target_at >= now() - interval '7 days'
+  AND e.target_at < now() - interval '2 hours'
+  AND NOT EXISTS (
+    SELECT 1 FROM public.nfl_edge_checkpoints c
+    WHERE c.game_id = e.game_id AND c.decision_window = e.decision_window
+  )
+GROUP BY e.decision_window
+ORDER BY e.decision_window`;
+
+// Pure merge: row-based checkpoint aggregates + never-attempted rows ->
+// rows carrying both the legacy row-based capture_rate and the honest
+// plan-based capture_rate_planned. Exported for unit tests. The locked
+// HEALTHY/DEGRADED verdict (lib/report-health.mjs) keeps consuming the
+// legacy row-based planned/captured; this only ADDS the honest fields.
+export function mergePlanCoverage(checkpointRows, neverAttemptedRows) {
+  const neverMap = new Map(
+    (neverAttemptedRows || []).map((r) => [
+      r.decision_window,
+      Number(r.never_attempted) || 0,
+    ]),
+  );
+  const byWindow = (checkpointRows || []).map((r) => {
+    const neverAttempted = neverMap.get(r.decision_window) || 0;
+    const plannedTrue = Number(r.planned) + neverAttempted;
+    return {
+      ...r,
+      never_attempted: neverAttempted,
+      planned_true: plannedTrue,
+      capture_rate_planned: plannedTrue > 0 ? Number(r.captured) / plannedTrue : null,
+      capture_rate: Number(r.planned) > 0 ? Number(r.captured) / Number(r.planned) : null,
+    };
+  });
+  const totals = byWindow.reduce(
+    (a, r) => ({
+      planned: a.planned + Number(r.planned),
+      captured: a.captured + Number(r.captured),
+      neverAttempted: a.neverAttempted + r.never_attempted,
+      plannedTrue: a.plannedTrue + r.planned_true,
+    }),
+    {planned: 0, captured: 0, neverAttempted: 0, plannedTrue: 0},
+  );
+  return {byWindow, totals};
+}
+
 const Q_SETTLE_ANOMALIES = `
 SELECT count(*)::int AS n FROM public.nfl_edge_picks
 WHERE mode = 'shadow' AND engine_version = $1
@@ -114,9 +190,12 @@ export default async function handler(req, res) {
     const dupQuotes = Number((await client.query(Q_DUP_QUOTES)).rows[0]?.n || 0);
     const dupPicks = Number((await client.query(Q_DUP_PICKS, [ENGINE_VERSION])).rows[0]?.n || 0);
     const anomalies = Number((await client.query(Q_SETTLE_ANOMALIES, [ENGINE_VERSION])).rows[0]?.n || 0);
+    const neverAttempted = (await client.query(Q_NEVER_ATTEMPTED)).rows;
 
-    const planned = cp.reduce((a, r) => a + r.planned, 0);
-    const captured = cp.reduce((a, r) => a + r.captured, 0);
+    const {byWindow, totals} = mergePlanCoverage(cp, neverAttempted);
+
+    const planned = totals.planned;
+    const captured = totals.captured;
     const {verdict, reasons, promotion_eligible, performance_status} = evaluateVerdict({
       planned_checkpoints: planned,
       captured_checkpoints: captured,
@@ -138,12 +217,15 @@ export default async function handler(req, res) {
       promotion_eligible,
       performance_status,
       checkpoints: {
-        by_window: cp.map((r) => ({...r, capture_rate: r.planned > 0 ? r.captured / r.planned : null})),
-        definition: 'Captured counts only quotes collected from target_at through target_at + 15 minutes; later captures are diagnostic only.',
+        by_window: byWindow,
+        definition: 'Captured counts only quotes collected from target_at through target_at + 15 minutes; later captures are diagnostic only. never_attempted/planned_true/capture_rate_planned add windows that elapsed with no collector run at all (rows never materialized); the locked verdict still uses the legacy row-based planned/captured.',
         overall: {
           planned,
           captured,
           capture_rate: planned > 0 ? captured / planned : null,
+          never_attempted: totals.neverAttempted,
+          planned_true: totals.plannedTrue,
+          capture_rate_planned: totals.plannedTrue > 0 ? captured / totals.plannedTrue : null,
         },
       },
       materialization_lag_seconds: {

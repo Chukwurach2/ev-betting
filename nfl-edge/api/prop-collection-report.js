@@ -102,6 +102,75 @@ SELECT last_ok_at, detail
 FROM public.nfl_edge_heartbeats
 WHERE component = 'prop_collector'`;
 
+// Planned-but-never-attempted checkpoints. The completeness query above only
+// sees checkpoints a collector run actually touched: when a dispatch is
+// skipped before any run exists (e.g. the watchdog's no-dispatch rule under
+// the GitHub Actions spending block), no attempt row is written and the
+// checkpoint silently vanishes from "due". This query reconstructs the plan
+// deterministically from captured games (kickoff) x the frozen checkpoint
+// offsets (ops/nfl_prop_collect.py DEFAULT_CHECKPOINTS), so such gaps stay
+// visible. The 2h grace keeps in-flight windows from counting as missed.
+const Q_NEVER_ATTEMPTED = `
+WITH games AS (
+  SELECT canonical_game_id, MAX(kickoff) AS kickoff
+  FROM public.nfl_prop_snapshots
+  WHERE captured_at >= now() - ($1 || ' days')::interval
+  GROUP BY canonical_game_id
+),
+offsets(cp, mins) AS (
+  VALUES ('T-24h', 1440), ('T-12h', 720), ('T-6h', 360),
+         ('T-3h', 180), ('T-90m', 90), ('Close', 5)
+),
+expected AS (
+  SELECT g.canonical_game_id, o.cp AS checkpoint_name,
+         (g.kickoff - (o.mins || ' minutes')::interval) AS target_at
+  FROM games g CROSS JOIN offsets o
+)
+SELECT e.checkpoint_name, COUNT(*)::int AS never_attempted
+FROM expected e
+WHERE e.target_at >= now() - ($1 || ' days')::interval
+  AND e.target_at < now() - interval '2 hours'
+  AND NOT EXISTS (
+    SELECT 1 FROM public.nfl_prop_collection_attempts a
+    WHERE a.canonical_game_id = e.canonical_game_id
+      AND a.checkpoint_name = e.checkpoint_name
+  )
+GROUP BY e.checkpoint_name
+ORDER BY e.checkpoint_name`;
+
+// Pure merge: attempt-based completeness rows + never-attempted rows ->
+// rows carrying both the legacy attempt-based capture_rate and the honest
+// plan-based capture_rate_planned. Exported for unit tests.
+export function mergeCompleteness(completenessRows, neverAttemptedRows) {
+  const neverMap = new Map(
+    (neverAttemptedRows || []).map((r) => [
+      r.checkpoint_name,
+      Number(r.never_attempted) || 0,
+    ]),
+  );
+  const byCheckpoint = (completenessRows || []).map((r) => {
+    const neverAttempted = neverMap.get(r.checkpoint_name) || 0;
+    const planned = Number(r.due) + neverAttempted;
+    return {
+      ...r,
+      never_attempted: neverAttempted,
+      planned,
+      capture_rate_planned: planned > 0 ? Number(r.captured) / planned : null,
+      capture_rate: Number(r.due) > 0 ? Number(r.captured) / Number(r.due) : null,
+    };
+  });
+  const totals = byCheckpoint.reduce(
+    (a, r) => ({
+      due: a.due + Number(r.due),
+      captured: a.captured + Number(r.captured),
+      planned: a.planned + r.planned,
+      neverAttempted: a.neverAttempted + r.never_attempted,
+    }),
+    {due: 0, captured: 0, planned: 0, neverAttempted: 0},
+  );
+  return {byCheckpoint, totals};
+}
+
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'private, no-store');
   if (req.method !== 'GET') return res.status(405).json({error: 'Method not allowed'});
@@ -127,16 +196,12 @@ export default async function handler(req, res) {
     const settlements = (await client.query(Q_SETTLEMENTS)).rows[0] || {};
     const tsViolations = Number((await client.query(Q_TS_VIOLATIONS, [days])).rows[0]?.n || 0);
     const hb = (await client.query(Q_HEARTBEAT)).rows[0] || null;
+    const neverAttempted = (await client.query(Q_NEVER_ATTEMPTED, [days])).rows;
 
     const totalQuotes = quotes.reduce((a, r) => a + Number(r.quotes), 0);
     const billedTotal = creditsBilled.reduce((a, r) => a + Number(r.billed_credits), 0);
-    const closeRow = completeness.find((r) => r.checkpoint_name === 'Close');
-    const byCheckpoint = completeness.map((r) => ({
-      ...r,
-      capture_rate: r.due > 0 ? r.captured / r.due : null,
-    }));
-    const totDue = completeness.reduce((a, r) => a + r.due, 0);
-    const totCaptured = completeness.reduce((a, r) => a + r.captured, 0);
+    const {byCheckpoint, totals} = mergeCompleteness(completeness, neverAttempted);
+    const closeRow = byCheckpoint.find((r) => r.checkpoint_name === 'Close');
 
     return res.status(200).json({
       mode: 'research-data',
@@ -146,13 +211,25 @@ export default async function handler(req, res) {
       snapshots: {
         by_checkpoint: byCheckpoint,
         overall: {
-          due: totDue,
-          captured: totCaptured,
-          capture_rate: totDue > 0 ? totCaptured / totDue : null,
+          due: totals.due,
+          captured: totals.captured,
+          capture_rate: totals.due > 0 ? totals.captured / totals.due : null,
+          planned: totals.planned,
+          never_attempted: totals.neverAttempted,
+          capture_rate_planned:
+            totals.planned > 0 ? totals.captured / totals.planned : null,
         },
+        plan_note:
+          'planned = attempt rows + never_attempted; never_attempted = expected ' +
+          'checkpoints (snapshot kickoffs x frozen DEFAULT_CHECKPOINTS offsets) ' +
+          'with target in window, >2h old, and no attempt row (e.g. skipped dispatches)',
       },
       closing_price_capture_rate:
         closeRow && closeRow.due > 0 ? closeRow.captured / closeRow.due : null,
+      closing_price_capture_rate_planned:
+        closeRow && closeRow.planned > 0
+          ? closeRow.captured / closeRow.planned
+          : null,
       games: games,
       quotes_by_market: quotes,
       total_quotes: totalQuotes,

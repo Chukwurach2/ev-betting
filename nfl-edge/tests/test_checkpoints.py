@@ -295,3 +295,52 @@ class MaterializeTests(unittest.TestCase):
         self.assertEqual(out["checkpoints_materialized"], 1)
         self.assertEqual(conn.inserts, [])
 
+
+class _FakeResolveConnection:
+    """Stand-in for the psycopg connection used by resolve_provider_event_id."""
+    def __init__(self, rows):
+        self._rows = rows
+        self.seen = []  # (sql, params)
+    def execute(self, sql, params=None):
+        self.seen.append((sql, params))
+        rows = self._rows
+        class _R:
+            def fetchone(self): return rows[0] if rows else None
+            def fetchall(self): return rows
+        return _R()
+
+class ResolveProviderEventIdTests(unittest.TestCase):
+    def test_returns_most_recent_captured_event_id(self):
+        from collect_checkpoints import resolve_provider_event_id
+        conn = _FakeResolveConnection([
+            {"quotes": [{"provider_event_id": "ev-new"}]},
+            {"quotes": [{"provider_event_id": "ev-old"}]},
+        ])
+        self.assertEqual(
+            resolve_provider_event_id(conn, "nfl_edge_checkpoints", "g1"), "ev-new")
+        sql, params = conn.seen[0]
+        self.assertIn("ORDER BY ended_at DESC", sql)
+        self.assertIn("status='captured'", sql)
+        self.assertEqual(params, ("g1",))
+
+    def test_none_when_no_captured_checkpoint(self):
+        from collect_checkpoints import resolve_provider_event_id
+        conn = _FakeResolveConnection([])
+        self.assertIsNone(
+            resolve_provider_event_id(conn, "nfl_edge_checkpoints", "g1"))
+
+    def test_none_when_quotes_lack_event_id(self):
+        # Falls back to the live events-feed match instead of crashing.
+        from collect_checkpoints import resolve_provider_event_id
+        conn = _FakeResolveConnection([{"quotes": [{"market": "FULL_GAME_SPREAD"}]}])
+        self.assertIsNone(
+            resolve_provider_event_id(conn, "nfl_edge_checkpoints", "g1"))
+
+    def test_table_name_is_interpolated_not_bound(self):
+        # Table identifier must be the checkpoint table, params only the game.
+        from collect_checkpoints import resolve_provider_event_id
+        conn = _FakeResolveConnection([{"quotes": [{"provider_event_id": "ev1"}]}])
+        resolve_provider_event_id(conn, "ncaaf_edge_checkpoints", "g9")
+        sql, params = conn.seen[0]
+        self.assertIn("public.ncaaf_edge_checkpoints", sql)
+        self.assertEqual(params, ("g9",))

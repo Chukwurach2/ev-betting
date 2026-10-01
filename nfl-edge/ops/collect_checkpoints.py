@@ -126,6 +126,33 @@ def opener_eligible(checkpoint,game,event_keys,captured_game_ids,sport='nfl'):
     else:
         home,away=game['home_team'],game['away_team']
     return (home,away,instant(checkpoint.kickoff)) in event_keys
+def resolve_provider_event_id(connection, table, game_id):
+    """Most recent provider event id captured for a game, if any.
+
+    Lets post-commencement checkpoints (notably Close) fetch event odds
+    directly by id instead of re-matching the live events feed, which no
+    longer lists commenced games. Regression: the 2026-09-20 close-watch
+    live test dispatched all 4 close clusters in-window and every run
+    concluded success, yet all 14 Close checkpoints recorded 'failed'
+    with 'Provider event did not match exact matchup and kickoff' --
+    the events feed had already dropped the commenced games while the
+    prop collector (which persists provider_event_id per snapshot)
+    captured 15/15 closes. Identity reuse only: quotes still pass the
+    checkpoint freshness filter, so point-in-time safety is unchanged.
+    """
+    row = connection.execute(
+        """SELECT quotes FROM public.%s
+           WHERE game_id=%%s AND status='captured'
+             AND quotes IS NOT NULL AND jsonb_array_length(quotes) > 0
+           ORDER BY ended_at DESC NULLS LAST, started_at DESC LIMIT 1""" % table,
+        (game_id,)).fetchone()
+    if not row:
+        return None
+    quotes = row['quotes'] if isinstance(row, dict) else row[0]
+    if not quotes:
+        return None
+    return (quotes[0] or {}).get('provider_event_id')
+
 def implied(odds): return 100/(100+odds) if odds>0 else abs(odds)/(100+abs(odds))
 
 EARLY_TARGET_WAIT_SECONDS = 120
@@ -326,10 +353,16 @@ def main(argv=None):
                      if opener_eligible(c,by_id[c.game_id],event_keys,captured,sport=sport)]
         def fetch(checkpoint):
             game=by_id[checkpoint.game_id]
-            matches=find_provider_event(game,events,checkpoint.kickoff,sport)
-            if len(matches)!=1: raise ValueError('Provider event did not match exact matchup and kickoff')
-            payload,_=fetch_event_odds(matches[0]['id'],['spreads','totals'],bookmakers=books,regions=regions,sport=sport)
-            if payload.get('id')!=matches[0]['id'] or instant(payload['commence_time'])!=checkpoint.kickoff:
+            # Prefer the provider event id from an earlier captured checkpoint:
+            # the live events feed drops commenced games, so re-matching it at
+            # Close systematically fails (2026-09-20: 14/14 Close 'failed').
+            event_id=resolve_provider_event_id(connection, store.table, checkpoint.game_id)
+            if event_id is None:
+                matches=find_provider_event(game,events,checkpoint.kickoff,sport)
+                if len(matches)!=1: raise ValueError('Provider event did not match exact matchup and kickoff')
+                event_id=matches[0]['id']
+            payload,_=fetch_event_odds(event_id,['spreads','totals'],bookmakers=books,regions=regions,sport=sport)
+            if payload.get('id')!=event_id or instant(payload['commence_time'])!=checkpoint.kickoff:
                 raise ValueError('Provider response event changed')
             return pair_quotes(payload,allowed_books=books,sport=sport)
         _summary = collect(checkpoints,store,fetch,clock,

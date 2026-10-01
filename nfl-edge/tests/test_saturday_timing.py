@@ -517,12 +517,22 @@ WORKFLOW_PATH = (pathlib.Path(__file__).parents[2] / ".github" / "workflows"
 class WorkflowScheduleTests(unittest.TestCase):
     WORKFLOW = WORKFLOW_PATH
 
-    def _cron_runs(self):
+    def _triggers(self):
         import yaml
         doc = yaml.safe_load(self.WORKFLOW.read_text())
         # YAML parses the `on:` key as boolean True.
-        crons = doc[True]["schedule"]
-        return [c["cron"] for c in crons]
+        triggers = doc.get(True, {})
+        self.assertIsInstance(triggers, dict, "workflow 'on:' must be a mapping")
+        return triggers
+
+    def _cron_runs(self):
+        triggers = self._triggers()
+        if "schedule" not in triggers:
+            self.skipTest(
+                "saturday-timing.yml is dispatch-only (9/20 cost trim); "
+                "no native cron schedule to validate"
+            )
+        return [c["cron"] for c in triggers["schedule"]]
 
     def _expand(self, cron):
         # Expand the two cron lines into UTC run times for 2026-09-19.
@@ -554,6 +564,22 @@ class WorkflowScheduleTests(unittest.TestCase):
         ets = sorted(((h - 4) % 24, m) for h, m in runs)
         self.assertEqual(ets[0], (10, 0))
         self.assertEqual(ets[-1], (21, 45))
+
+    def test_dispatch_only_state(self):
+        # The 9/20 cost trim disabled the native schedule (dispatch-only).
+        # While dispatch-only, assert that state explicitly so a stray
+        # re-added schedule cannot silently slip back in unreviewed.
+        triggers = self._triggers()
+        if "schedule" in triggers:
+            self.skipTest("native schedule restored; cron assertions apply")
+        self.assertIn(
+            "workflow_dispatch", triggers,
+            "dispatch-only workflow must keep its workflow_dispatch trigger",
+        )
+        self.assertTrue(
+            "disabled (dispatch-only" in self.WORKFLOW.read_text(),
+            "workflow header must still document the dispatch-only state",
+        )
 
     def test_collector_enforces_experiment_date(self):
         src = (OPS / "saturday_timing.py").read_text()
