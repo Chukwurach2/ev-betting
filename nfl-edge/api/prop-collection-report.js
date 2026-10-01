@@ -138,38 +138,12 @@ WHERE e.target_at >= now() - ($1 || ' days')::interval
 GROUP BY e.checkpoint_name
 ORDER BY e.checkpoint_name`;
 
-// Pure merge: attempt-based completeness rows + never-attempted rows ->
-// rows carrying both the legacy attempt-based capture_rate and the honest
-// plan-based capture_rate_planned. Exported for unit tests.
-export function mergeCompleteness(completenessRows, neverAttemptedRows) {
-  const neverMap = new Map(
-    (neverAttemptedRows || []).map((r) => [
-      r.checkpoint_name,
-      Number(r.never_attempted) || 0,
-    ]),
-  );
-  const byCheckpoint = (completenessRows || []).map((r) => {
-    const neverAttempted = neverMap.get(r.checkpoint_name) || 0;
-    const planned = Number(r.due) + neverAttempted;
-    return {
-      ...r,
-      never_attempted: neverAttempted,
-      planned,
-      capture_rate_planned: planned > 0 ? Number(r.captured) / planned : null,
-      capture_rate: Number(r.due) > 0 ? Number(r.captured) / Number(r.due) : null,
-    };
-  });
-  const totals = byCheckpoint.reduce(
-    (a, r) => ({
-      due: a.due + Number(r.due),
-      captured: a.captured + Number(r.captured),
-      planned: a.planned + r.planned,
-      neverAttempted: a.neverAttempted + r.never_attempted,
-    }),
-    {due: 0, captured: 0, planned: 0, neverAttempted: 0},
-  );
-  return {byCheckpoint, totals};
-}
+// Pure merge lives in lib/prop-completeness.mjs (dependency-free: CI
+// runs `npm test` on the bare nfl-edge/ subtree with no node_modules, so
+// the unit tests import it from there). Re-exported to keep this module's
+// export surface stable.
+import {mergeCompleteness} from '../lib/prop-completeness.mjs';
+export {mergeCompleteness};
 
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'private, no-store');

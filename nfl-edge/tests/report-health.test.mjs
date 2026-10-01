@@ -136,7 +136,7 @@ test('late checkpoint captures are diagnostic-only in weekly health', () => {
 });
 
 test('never-attempted featured checkpoints merge into plan-true coverage', async () => {
-  const {mergePlanCoverage} = await import('../api/report-health.js');
+  const {mergePlanCoverage} = await import('../lib/plan-coverage.mjs');
   // Fixture mirrors the 2026-09-21..23 GitHub Actions spending-block era:
   // rows exist for windows the collector touched, but elapsed block-era
   // targets (no run fired at all) never materialized rows and must appear
@@ -163,7 +163,7 @@ test('never-attempted featured checkpoints merge into plan-true coverage', async
 });
 
 test('mergePlanCoverage keeps verdict inputs row-based', async () => {
-  const {mergePlanCoverage} = await import('../api/report-health.js');
+  const {mergePlanCoverage} = await import('../lib/plan-coverage.mjs');
   const rows = [{decision_window: 'T-3', planned: 10, captured: 5}];
   const {byWindow, totals} = mergePlanCoverage(rows, [{decision_window: 'T-3', never_attempted: 10}]);
   // The locked HEALTHY/DEGRADED verdict must keep seeing the legacy
@@ -174,7 +174,7 @@ test('mergePlanCoverage keeps verdict inputs row-based', async () => {
 });
 
 test('mergePlanCoverage tolerates null inputs', async () => {
-  const {mergePlanCoverage} = await import('../api/report-health.js');
+  const {mergePlanCoverage} = await import('../lib/plan-coverage.mjs');
   const {byWindow, totals} = mergePlanCoverage(null, null);
   assert.deepEqual(byWindow, []);
   assert.deepEqual(totals, {planned: 0, captured: 0, neverAttempted: 0, plannedTrue: 0});
