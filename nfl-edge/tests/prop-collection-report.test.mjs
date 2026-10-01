@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {mergeCompleteness} from '../api/prop-collection-report.js';
+import {mergeCompleteness} from '../lib/prop-completeness.mjs';
 
 // Fixture mirrors the real 2026-09-15..2026-09-22 weekly payload: every
 // attempted checkpoint captured, but NY Giants @ LA Rams (MNF) T-12/T-6/T-3/
