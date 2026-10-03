@@ -344,3 +344,46 @@ class ResolveProviderEventIdTests(unittest.TestCase):
         sql, params = conn.seen[0]
         self.assertIn("public.ncaaf_edge_checkpoints", sql)
         self.assertEqual(params, ("g9",))
+
+class CheckEventIdentityTests(unittest.TestCase):
+    """Regression for the 2026-10-02 PIT@CLE Close live test: the provider
+    restated commence_time 5 minutes off the DB kickoff and the exact-equality
+    guard failed a healthy post-commencement fetch."""
+    def _payload(self, event_id="ev1", commence="2026-10-02T00:15:00Z"):
+        return {"id": event_id, "commence_time": commence}
+
+    def _kickoff(self):
+        return dt.datetime(2026, 10, 2, 0, 15, tzinfo=dt.timezone.utc)
+
+    def test_exact_match_passes(self):
+        from collect_checkpoints import check_event_identity
+        check_event_identity(self._payload(), "ev1", self._kickoff())  # no raise
+
+    def test_five_minute_drift_passes(self):
+        from collect_checkpoints import check_event_identity
+        check_event_identity(
+            self._payload(commence="2026-10-02T00:10:00Z"), "ev1", self._kickoff())
+
+    def test_two_hour_drift_raises(self):
+        from collect_checkpoints import check_event_identity
+        with self.assertRaisesRegex(ValueError, "Provider response event changed"):
+            check_event_identity(
+                self._payload(commence="2026-10-02T02:15:00Z"), "ev1", self._kickoff())
+
+    def test_id_mismatch_raises(self):
+        from collect_checkpoints import check_event_identity
+        with self.assertRaisesRegex(ValueError, "Provider response event changed"):
+            check_event_identity(self._payload(event_id="evX"), "ev1", self._kickoff())
+
+    def test_error_message_is_whitelisted(self):
+        # The guard message must stay in SAFE_COLLECTION_ERRORS so the stored
+        # checkpoint note is operational, not opaque.
+        from collect_checkpoints import check_event_identity
+        from checkpoints import safe_collection_error
+        try:
+            check_event_identity(
+                self._payload(commence="2026-10-02T02:15:00Z"), "ev1", self._kickoff())
+        except ValueError as e:
+            self.assertEqual(safe_collection_error(e), "Provider response event changed")
+        else:
+            self.fail("expected ValueError")

@@ -153,6 +153,32 @@ def resolve_provider_event_id(connection, table, game_id):
         return None
     return (quotes[0] or {}).get('provider_event_id')
 
+# Tolerance for provider commence_time vs our kickoff on the event-identity
+# guard. Schedule sources round kickoffs to 5-minute boundaries and the
+# provider can restate commence_time after kickoff (PIT@CLE 2026-10-02 live
+# test of the event-id-reuse fix: DB kickoff 00:15Z, provider event-odds
+# payload returned a commence_time 5 minutes off -> exact-equality guard
+# raised 'Provider response event changed' on an otherwise healthy
+# post-commencement fetch, and the Close checkpoint recorded 'failed').
+# The event-id chain (our own earlier captured checkpoint -> event id ->
+# payload id equality) is the primary identity anchor; commence_time only
+# needs to rule out a genuinely different event, which differs by hours.
+COMMENCE_DRIFT_TOLERANCE_SECONDS = 1800
+
+def check_event_identity(payload, event_id, kickoff):
+    """Raise ValueError('Provider response event changed') on identity drift.
+
+    Pure and dependency-free so CI can exercise it (the message stays
+    whitelisted in checkpoints.SAFE_COLLECTION_ERRORS so the stored
+    checkpoint note remains operational, not opaque).
+    """
+    if payload.get('id') != event_id:
+        raise ValueError('Provider response event changed')
+    drift = abs((instant(payload['commence_time'])
+                 - instant(kickoff)).total_seconds())
+    if drift > COMMENCE_DRIFT_TOLERANCE_SECONDS:
+        raise ValueError('Provider response event changed')
+
 def implied(odds): return 100/(100+odds) if odds>0 else abs(odds)/(100+abs(odds))
 
 EARLY_TARGET_WAIT_SECONDS = 120
@@ -362,8 +388,10 @@ def main(argv=None):
                 if len(matches)!=1: raise ValueError('Provider event did not match exact matchup and kickoff')
                 event_id=matches[0]['id']
             payload,_=fetch_event_odds(event_id,['spreads','totals'],bookmakers=books,regions=regions,sport=sport)
-            if payload.get('id')!=event_id or instant(payload['commence_time'])!=checkpoint.kickoff:
-                raise ValueError('Provider response event changed')
+            # Event-id reuse makes post-commencement fetches possible; the
+            # identity guard tolerates small commence_time drift (see
+            # check_event_identity) while rejecting a swapped event id.
+            check_event_identity(payload,event_id,checkpoint.kickoff)
             return pair_quotes(payload,allowed_books=books,sport=sport)
         _summary = collect(checkpoints,store,fetch,clock,
                          remaining=quota(headers)['remaining'],max_requests=8,cost_per_request=2*n_regions)
