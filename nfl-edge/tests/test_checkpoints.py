@@ -387,3 +387,58 @@ class CheckEventIdentityTests(unittest.TestCase):
             self.assertEqual(safe_collection_error(e), "Provider response event changed")
         else:
             self.fail("expected ValueError")
+
+
+class ClosePriorityTests(unittest.TestCase):
+    """Regression for the 2026-10-04 16:55Z live run: the close-watch dispatch
+    (run 37218721962) exhausted its 8-request budget on stale same-deadline
+    T-90s and deferred 4 Close checkpoints, which then honestly missed. At
+    equal deadlines the freshest target must be attempted first."""
+    def _games(self):
+        kickoff=instant('2026-10-04T17:00:00Z')
+        return [
+            {'game_id':'g-b','kickoff':kickoff,'status':'scheduled'},
+            {'game_id':'g-a','kickoff':kickoff,'status':'scheduled'},
+        ]
+
+    def test_close_before_stale_t90_at_equal_deadline(self):
+        # Mirror the 16:55Z dispatch: a run landing ~4 min after the Close
+        # target sees Close and T-90 due with the same 16:59:00Z deadline.
+        now=instant('2026-10-04T16:58:51Z')
+        cps=plan(self._games(),now)
+        due=[c for c in cps if c.state=='due']
+        self.assertEqual(len(due),4)
+        self.assertEqual([c.name for c in due],['Close','Close','T-90','T-90'])
+        self.assertEqual([c.game_id for c in due],['g-a','g-b','g-a','g-b'])
+
+    def test_deadline_still_dominates_freshness(self):
+        # An earlier deadline always sorts first, even with a staler target.
+        early={'game_id':'g-early','kickoff':instant('2026-10-04T20:00:00Z'),
+               'status':'scheduled'}
+        late={'game_id':'g-late','kickoff':instant('2026-10-04T21:00:00Z'),
+              'status':'scheduled'}
+        now=instant('2026-10-04T19:50:00Z')
+        cps=plan([early,late],now)
+        due=[c for c in cps if c.state=='due']
+        # g-early T-90: deadline 19:59Z (target 80 min stale).
+        # g-late  T-90: deadline 20:59Z (target only 20 min stale).
+        # The earlier deadline wins despite the staler target.
+        self.assertEqual([(c.game_id,c.name) for c in due],
+                         [('g-early','T-90'),('g-late','T-90')])
+
+    def test_collect_attempts_close_before_budget_exhaustion(self):
+        # With max_requests=1 the single request must go to the Close, not a
+        # stale same-deadline T-90: the Close captures, the rest defer.
+        now=instant('2026-10-04T16:58:51Z')
+        cps=[c for c in plan(self._games(),now) if c.state=='due']
+        store=MemoryStore()
+        summary=collect(cps,store,lambda c:[{'observed_at':now.isoformat()}],
+                        lambda:now,100,max_requests=1)
+        close_keys={c.key for c in cps if c.name=='Close'}
+        t90_keys={c.key for c in cps if c.name=='T-90'}
+        captured_keys=[k for k,v in store.rows.items() if v['status']=='captured']
+        self.assertEqual(captured_keys,[cps[0].key])  # first in plan order
+        self.assertIn(captured_keys[0],close_keys)    # ... is a Close
+        self.assertTrue(all(k not in store.rows for k in t90_keys))
+        self.assertEqual(summary['captured'],1)
+        self.assertEqual(summary['deferred'],3)

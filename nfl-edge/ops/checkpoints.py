@@ -65,7 +65,14 @@ def plan(games,now):
             identity='|'.join([str(game['game_id']),kickoff.isoformat(),'Opener',now.strftime('%Y-%m-%d')])
             key=hashlib.sha256(identity.encode()).hexdigest()
             result[key]=Checkpoint(key,str(game['game_id']),kickoff,'Opener',target,deadline,'due')
-    return sorted(result.values(),key=lambda c:(c.deadline,c.game_id,c.name))
+    # Ordering: earliest deadline first; at equal deadlines prefer the freshest
+    # target (e.g. a Close whose observation window just opened over a stale
+    # same-deadline T-90). Regression: the 2026-10-04 16:55Z close-watch run
+    # exhausted its 8-request budget on stale same-deadline T-90s and deferred
+    # 4 Close checkpoints that then honestly missed. Ordering only: no window,
+    # deadline, quota, or pick logic changes.
+    return sorted(result.values(),
+                  key=lambda c:(c.deadline,(now-c.target).total_seconds(),c.game_id,c.name))
 
 SAFE_COLLECTION_ERRORS = {
     'Odds provider request failed',
