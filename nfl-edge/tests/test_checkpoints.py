@@ -442,3 +442,62 @@ class ClosePriorityTests(unittest.TestCase):
         self.assertTrue(all(k not in store.rows for k in t90_keys))
         self.assertEqual(summary['captured'],1)
         self.assertEqual(summary['deferred'],3)
+
+class UnavailableDiagnosticsTests(unittest.TestCase):
+    # Regression instrumentation: T-24 was 1/16 strict captured with 8
+    # 'unavailable' rows (2026-10-06), but the row carried no reason, so the
+    # cause (provider odds genuinely stale vs filter semantics) was
+    # undiagnosable. collect() now records rejection counts and stale-quote
+    # age summaries on 'unavailable' rows. Measurement only: the acceptance
+    # rule, windows, deadlines, and freshness bound are untouched.
+    def setUp(self):
+        self.kickoff=instant('2026-09-13T17:00:00Z')
+        self.game={'game_id':'g1','kickoff':self.kickoff,'status':'scheduled'}
+        self.now=self.kickoff-dt.timedelta(hours=3)  # T-3 due, target==now
+        self.cp=[c for c in plan([self.game],self.now) if c.state=='due'][0]
+        self.assertEqual(self.cp.name,'T-3')
+
+    def _collect_at(self,quotes,ended_offset_minutes):
+        ended=self.now+dt.timedelta(minutes=ended_offset_minutes)
+        times=iter([self.now,self.now,ended])
+        store=MemoryStore()
+        counts=collect([self.cp],store,
+                       lambda c:quotes,lambda:next(times),100)
+        return store.rows[self.cp.key],counts,ended
+
+    def test_unavailable_row_carries_rejection_diagnostics(self):
+        ended=self.now+dt.timedelta(minutes=60)  # inside the 90m deadline
+        quotes=[
+            {'observed_at':(ended-dt.timedelta(seconds=960)).isoformat()},  # stale
+            {'observed_at':(self.now-dt.timedelta(seconds=1)).isoformat()},  # pre-target
+            {'observed_at':(ended+dt.timedelta(seconds=1)).isoformat()},     # after fetch
+        ]
+        row,counts,_=self._collect_at(quotes,60)
+        self.assertEqual(row['status'],'unavailable')
+        self.assertEqual(counts['unavailable'],1)
+        note=row['error']
+        self.assertIn('fetched=3',note)
+        self.assertIn('stale_over_900s=1',note)
+        self.assertIn('stale_age_s_min=960',note)
+        self.assertIn('stale_age_s_max=960',note)
+        self.assertIn('before_target=1',note)
+        self.assertIn('after_fetch=1',note)
+
+    def test_nine_hundred_second_boundary_stays_valid(self):
+        ended=self.now+dt.timedelta(minutes=60)
+        quotes=[{'observed_at':(ended-dt.timedelta(seconds=900)).isoformat()}]
+        row,counts,_=self._collect_at(quotes,60)
+        self.assertEqual(row['status'],'captured')
+        self.assertIsNone(row['error'])
+
+    def test_diagnostic_note_contains_no_quote_payload(self):
+        ended=self.now+dt.timedelta(minutes=60)
+        quotes=[
+            {'observed_at':(ended-dt.timedelta(seconds=5000)).isoformat(),
+             'book':'SportsbookX','price':-110,'line':3.5},
+        ]
+        row,_,_=self._collect_at(quotes,60)
+        self.assertEqual(row['status'],'unavailable')
+        self.assertNotIn('SportsbookX',row['error'])
+        self.assertNotIn('5000',row['error'].replace('stale_age_s_max=5000',''))
+        self.assertNotIn('-110',row['error'])

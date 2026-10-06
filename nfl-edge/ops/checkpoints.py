@@ -123,19 +123,44 @@ def collect(checkpoints,store,fetch_quotes,clock,remaining,max_requests=2,reserv
                 store.finish(checkpoint,ended,'missed',[],'Response arrived after checkpoint deadline')
                 counts['missed']+=1; continue
             valid=[]
+            # Rejection accounting for 'unavailable' rows. Pure instrumentation:
+            # it only feeds the row's error field so T-24/T-3 staleness can be
+            # diagnosed (provider odds genuinely stale vs filter semantics).
+            # The acceptance rule below is byte-for-byte the old one; no
+            # window, deadline, quota, or freshness change.
+            stale_ages=[]   # provider update older than the 900s freshness bound
+            pre_target=0    # provider update older than the checkpoint target
+            post_fetch=0    # provider update timestamped after our fetch
             for q in quotes:
                 observed=instant(q['observed_at'])
-                if checkpoint.name=='Opener':
+                if observed>ended:
+                    post_fetch+=1
+                elif checkpoint.name=='Opener':
                     # First-seen capture: the provider's last_update IS the
                     # record, however long ago the line was posted. Applying
                     # the window freshness filter here would reject exactly
                     # what opener capture exists to record (nothing would
                     # ever count as "first seen").
-                    if observed<=ended:
-                        valid.append(q)
-                elif checkpoint.target<=observed<=ended and (ended-observed).total_seconds()<=900:
                     valid.append(q)
-            store.finish(checkpoint,ended,'captured' if valid else 'unavailable',valid,None)
+                elif observed<checkpoint.target:
+                    pre_target+=1
+                elif (ended-observed).total_seconds()>900:
+                    stale_ages.append(int((ended-observed).total_seconds()))
+                else:
+                    valid.append(q)
+            note=None
+            if not valid:
+                # Counts and age summaries only; no quote content or provider
+                # payload is ever written into the note (safe for the DB and
+                # for the run logs that echo row errors).
+                note=('no fresh quotes: fetched=%d stale_over_900s=%d '
+                      'stale_age_s_min=%d stale_age_s_max=%d before_target=%d '
+                      'after_fetch=%d' % (
+                          len(quotes), len(stale_ages),
+                          min(stale_ages) if stale_ages else 0,
+                          max(stale_ages) if stale_ages else 0,
+                          pre_target, post_fetch))
+            store.finish(checkpoint,ended,'captured' if valid else 'unavailable',valid,note)
             counts['captured' if valid else 'unavailable']+=1
         except Exception as error:
             store.finish(checkpoint,instant(clock()),'failed',[],safe_collection_error(error))
