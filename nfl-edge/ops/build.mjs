@@ -1,6 +1,8 @@
 import {mkdir,copyFile} from 'node:fs/promises';
 await mkdir('dist',{recursive:true});
-for(const f of ['index.html','app.js','core.mjs','style.css'])await copyFile(f,'dist/'+f);
+for(const f of ['index.html','app.js','core.mjs','style.css','ny-picks.js','arb-planner.js'])await copyFile(f,'dist/'+f);
+await mkdir('dist/lib',{recursive:true});
+await copyFile('lib/game-cards.mjs','dist/lib/game-cards.mjs');
 await copyFile('ops/schedule-2026.json','dist/schedule-2026.json');
 console.log('Built static application. Serverless handlers remain under api/.');
 const {writeFile}=await import('node:fs/promises');

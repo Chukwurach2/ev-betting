@@ -1,0 +1,27 @@
+import {escapeHtml as esc} from './core.mjs';
+const books={fanduel:'FanDuel',draftkings:'DraftKings',betmgm:'BetMGM',williamhill_us:'Caesars',fanatics:'Fanatics',thescorebet:'theScore Bet',ballybet:'Bally Bet'};
+const key='nflEdge:ny-books:v1';
+let selected;try{const saved=JSON.parse(localStorage.getItem(key));selected=Array.isArray(saved)?saved.filter(b=>books[b]):Object.keys(books);}catch{selected=Object.keys(books);}
+let loading=false,request=0;
+const $=id=>document.getElementById(id),fmt=x=>new Date(x).toLocaleString('en-US',{timeZone:'America/New_York',weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}),pct=x=>(100*Number(x)).toFixed(1)+'%',odds=x=>Number(x)>0?'+'+x:String(x);
+const fairOdds=p=>p>=.5?Math.round(-100*p/(1-p)):Math.round(100*(1-p)/p);
+$('nyBooks').innerHTML=Object.entries(books).map(([id,name])=>`<label><input type="checkbox" value="${id}" ${selected.includes(id)?'checked':''}><span>${name}</span></label>`).join('');
+$('nyBooks').addEventListener('change',()=>{selected=[...$('nyBooks').querySelectorAll(':checked')].map(x=>x.value);try{localStorage.setItem(key,JSON.stringify(selected));}catch{}load();});
+function card(g){
+ const picks=g.picks||[],shortfall=4-picks.length;
+ return `<article class="game-desk"><header class="game-desk-header"><div><div class="eyebrow">WEEK ${esc(g.week??'—')} · NFL</div><h3>${esc(g.away_team)} <span>at</span> ${esc(g.home_team)}</h3><p class="small muted">${esc(fmt(g.kickoff))} ET</p></div><span class="coverage-badge">${picks.length}/4 leans</span></header>
+ ${picks.map((p,i)=>`<section class="lean-card"><div class="lean-top"><span class="lean-rank">${i+1}</span><span class="lean-label ${p.expected_value>0?'positive':''}">${esc(p.status)}</span><span class="small muted">${esc(p.reference_books)} references</span></div><h4>${esc(p.selection)} ${esc(p.line)} <span>${esc(p.market.replace(/^(FULL_GAME_|Q1_)/,'').replaceAll('_',' ').toLowerCase())}${p.market.startsWith('Q1_')?' · first quarter':''}</span></h4><div class="lean-pricing"><div><span>Available price</span><strong>${esc(odds(p.american_odds))}</strong><small>${esc(p.sportsbook)}</small></div><div><span>Estimated fair</span><strong>${esc(odds(fairOdds(p.fair_probability)))}</strong><small>${pct(p.fair_probability)} probability</small></div><div><span>Estimated EV</span><strong class="${p.expected_value>0?'good':'muted'}">${p.expected_value>0?'+':''}${pct(p.expected_value)}</strong><small>Before fees / tax</small></div></div><div class="price-threshold">Break-even price <b>${esc(odds(fairOdds(p.fair_probability)))}</b> <span>· Better odds needed for a margin</span></div><details><summary>Why this lean?</summary><p>${esc(p.rationale)}</p><p>${esc(p.limitations)}</p><p>Quote ${esc(fmt(p.observed_at))} ET. Recheck at the sportsbook. Market availability and settlement rules must match.</p></details></section>`).join('')}
+ ${shortfall?`<div class="coverage-empty"><b>${picks.length?'More coverage needed':'No fresh supported prices yet'}</b><p>${shortfall} of four entries pending. ${g.fresh_quotes?'No additional comparable prices at your selected books.':'Waiting for fresh stored market quotes.'} We will not fill the card with invented picks.</p></div>`:''}<footer class="small muted">Individual research leans · shared game exposure · no automatic wagers</footer></article>`;
+}
+async function load(){
+ const id=++request;loading=true;$('nyRefresh').disabled=true;$('nySummary').textContent='Updating your slate…';
+ if(!selected.length){$('nyCards').innerHTML='<div class="empty">Choose at least one sportsbook above.</div>';$('nySummary').textContent='No sportsbooks selected';loading=false;$('nyRefresh').disabled=false;return;}
+ try{
+  const r=await fetch('/api/game-cards',{headers:{'X-Edge-Books':selected.join(',')},cache:'no-store',signal:AbortSignal.timeout(15000)});if(!r.ok)throw Error();const d=await r.json();if(id!==request)return;
+  const now=Date.now(),games=(d.games||[]).filter(g=>Date.parse(g.kickoff)>now).map(g=>({...g,picks:(g.picks||[]).filter(p=>{const t=Date.parse(p.observed_at),book={espnbet:'thescorebet',caesars:'williamhill_us'}[p.book_key]||p.book_key;return selected.includes(book)&&t<=now&&now-t<=15*60000;})}));
+  $('nyCards').innerHTML=games.map(card).join('')||'<div class="empty"><b>No upcoming slate returned</b><p>The feed has not returned upcoming NFL games. This does not mean there are no games or no edges.</p></div>';
+  const total=games.reduce((n,g)=>n+g.picks.length,0);$('nySummary').textContent=`${games.length} game${games.length===1?'':'s'} · ${total} research lean${total===1?'':'s'} · Checked ${fmt(new Date())} ET`;
+ }catch{if(id!==request)return;$('nySummary').textContent='Picks feed unavailable';$('nyCards').innerHTML='<div class="empty"><b>We could not refresh the slate</b><p>No cached price is being presented as current. Try Refresh; your sportsbook preferences are saved.</p></div>';}
+ finally{if(id===request){loading=false;$('nyRefresh').disabled=false;}}
+}
+$('nyRefresh').onclick=load;window.addEventListener('ny-picks-visible',()=>{if(!loading)load();});document.addEventListener('visibilitychange',()=>{if(!document.hidden&&!loading)load();});setInterval(()=>{if(!document.hidden&&!loading)load();},60000);load();
