@@ -44,3 +44,19 @@ When qualified: insert supported model and odds snapshots transactionally, verif
 ## Weekly improvement
 
 Resolve completed games and exact contracts; keep incomplete weeks provisional. Evaluate all frozen observations, not just selected wins/user bets. Report independent game counts, ROI/CLV definitions, coverage, calibration and clustered uncertainty by family/window. Preserve rejected experiments. Retrain only by running the real pipeline; retain champion until the full promotion policy passes. Update ordinary dashboard metrics in Neon without redeploying.
+
+## Phone delivery update (2026-10-19)
+
+User scope now includes NFL + NBA exploratory per-game phone cards, separate
+from frozen validated-model publication. NY Picks and sport switching are live
+(PR25/PR27). Up to four distinct supported leans may be shown; shortfalls must
+remain explicit. NBA quotes and probabilities are isolated from NFL.
+
+The earlier statement that the checkpoint scheduler needs activation is stale:
+the hourly GitHub workflow exists and ran. Run 39249776550 failed on the free
+provider events request with HTTP 401 after the secret-presence check passed.
+The worker's provider authentication needs repair; continuous fresh-price
+coverage and private curated-card publication remain separate gaps. See
+docs/collector-recovery.md for evidence and recovery. Do not mistake a
+configured secret, working Vercel schedule or green schedule sync for a
+working quote collector. No new live execution or paid subscription is authorized.
