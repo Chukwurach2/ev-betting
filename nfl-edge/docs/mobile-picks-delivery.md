@@ -62,3 +62,27 @@ need a fuller outcome model before evaluating profitability.
 Release validation: 112 Node tests; static build; phone-width UI checks with
 synthetic fixtures for rendering, preference filtering and middle arithmetic.
 Production database coverage must be checked separately from synthetic UI QA.
+
+## NBA expansion
+
+The phone now has NFL / NBA selection. NBA gets a separate live schedule from
+The Odds API's documented basketball_nba/events endpoint (zero usage credits),
+cached server-side for five minutes. Prices come exclusively from separate
+nba_edge_odds_quotes storage, never the NFL table or NFL model. Missing prices
+produce explicit pending cards. NBA begins with full-game half-point spreads
+and totals; player props and integer-line pushes remain unsupported.
+
+Apply migrations/020_nba_phone_quotes.sql before the NBA route is released.
+ops/collect-nba.mjs --confirm-quota-use performs one bounded provider odds
+request (normally two existing provider credits for spreads/totals) and stores
+only fresh paired quotes. It needs existing server-side THE_ODDS_API_KEY and
+NFL_EDGE_DATABASE_URL; it never logs them. This is an opt-in collector, not an
+active recurring quote service. No new paid subscription or frequent polling
+was enabled. NBA injury/minutes research and a sport-specific paper outcome
+ledger remain next work. No NBA strategy is validated.
+
+Provider contract verified 2026-10-19:
+https://the-odds-api.com/liveapi/guides/v4/ (GET events, GET odds, basketball_nba).
+NFL freshness diagnosis: latest stored quote was 2026-10-17T20:09:06Z at the
+2026-10-19 check; zero quotes met the existing 15-minute window. Checkpoint
+collection is not continuous phone coverage; do not widen freshness to mask it.
