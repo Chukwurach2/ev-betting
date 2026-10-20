@@ -88,3 +88,21 @@ candidate at review. No stale source observation was relabeled as a current pick
 Validation:21 focused collector/adapter/ledger tests passed locally; the runner's
 10 offline NBA tests passed before its request. Documentation receipts contain
 aggregate counts only; quote payloads and ledger rows remain private/ignored.
+
+## Final PHI/NY pregame snapshot — 2026-10-20
+
+Run[39511851302](https://github.com/Chukwurach2/ev-betting/actions/runs/39511851302),
+job118934555370, completed successfully. Free preflight reported340 remaining
+credits before one bounded request;250 rows were processed across45 provider
+events. Actual phone GET returned17 games/48 research entries, with4 entries for
+each remaining game tonight. All48 were negative-EV price watches; no positive
+edge was created to satisfy coverage. Source/reference expiry was23:12:21Z, with
+game-start removal also applicable. The app visibly confirmed48 entries at22:59Z.
+
+48 source-aware private paper observations and17 coverage records were appended.
+There are no accepted wagers or settlement/profit claims. The external supported
+NBA main-line view provided no qualifying candidate at review, and the earlier
+curated watch remains expired.21 focused collector/adapter/ledger tests passed.
+No new code deployment or continuous polling was enabled. Timing depends on
+runner and source availability; a requested pregame capture is not a guaranteed
+real-time alert or exact closing-line observation.
