@@ -66,3 +66,25 @@ Source cross-checks remain private. The external shortlist contained unavailable
 venues and an event-time discrepancy; no favorable external EV was transferred
 to a different offer or asserted as independently validated. Signed-in curated
 phone verification remains separate from the public market cards.
+
+## Evening pregame capture — 2026-10-20
+
+Run[39501340810](https://github.com/Chukwurach2/ev-betting/actions/runs/39501340810)
+(job118899324388) completed on the current main code. Preflight reported342
+credits before one bounded request, with the existing50-credit reserve enforced.
+250 quote rows were processed; independent storage read found786 total rows and
+latest source21:33:43Z. The actual phone response returned17 upcoming games and46
+entries. The two remaining games tonight each had4 entries, all negative-EV price
+watches. No positive estimate was found in the full returned slate. Earliest
+supporting expiry for tonight's cards was21:48:12Z. There is no continuous service.
+
+The private source-aware recorder appended46 observations and17 coverage records.
+Repeated game/price captures remain dependent, with no accepted wagers, stakes,
+fees, outcome or return inferred. The official result page did not provide a
+verified current final through the available read, so prior observations remain
+unresolved. A refreshed external shortlist offered no supported NBA main-line
+candidate at review. No stale source observation was relabeled as a current pick.
+
+Validation:21 focused collector/adapter/ledger tests passed locally; the runner's
+10 offline NBA tests passed before its request. Documentation receipts contain
+aggregate counts only; quote payloads and ledger rows remain private/ignored.
