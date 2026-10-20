@@ -22,3 +22,25 @@ Provider quote age and current reference support still govern availability.
 Do not call the pipeline live until a real run has completed and fresh quotes
 and phone cards are verified. This workflow is only a manual controlled path;
 private original-research/player-prop publication remains separate work.
+
+## First controlled capture receipt — 2026-10-20
+
+PR32 merged as 0a29cce3460e3a9969cf861d84f8bae2159000ef. Manual workflow
+[39457313603](https://github.com/Chukwurach2/ev-betting/actions/runs/39457313603)
+completed successfully (job118747459750). Ten offline NBA checks passed before
+collection. The free-events preflight reported346 remaining credits, then the
+single bounded spreads/totals request processed268 paired quote rows across46
+provider events. This is a two-credit budget, not a verified remaining balance
+after concurrent workers. No recurring polling was enabled.
+
+Independent storage read found268 rows with latest source time16:25:01Z.
+The actual public phone response returned18 games and54 distinct research
+entries. All54 were negative-EV price watches under the current market estimate;
+none was a positive edge. Today's first three cards had2,4,2 entries, retaining
+shortfalls rather than inventing prices. Source/reference expiry was approximately
+16:39:38Z; this capture does not establish ongoing coverage.
+
+The private offline paper recorder appended54 observations and18 coverage
+records from the actual response. Stake and settlement remain unknown. Detailed
+quotes and ledger rows stay in ignored runs/. The authenticated curated feed
+remains separate and its signed-in delivery verification is pending.
