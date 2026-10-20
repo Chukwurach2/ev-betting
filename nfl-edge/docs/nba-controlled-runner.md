@@ -44,3 +44,25 @@ The private offline paper recorder appended54 observations and18 coverage
 records from the actual response. Stake and settlement remain unknown. Detailed
 quotes and ledger rows stay in ignored runs/. The authenticated curated feed
 remains separate and its signed-in delivery verification is pending.
+
+## Pre-tip capture receipt — 2026-10-20
+
+Manual run[39476988595](https://github.com/Chukwurach2/ev-betting/actions/runs/39476988595),
+job118815399252, completed successfully. The free preflight reported344 credits
+before one bounded request.268 quote rows were processed; the phone returned60
+research entries across18 games. Today's three games each had4 entries. The
+source/reference deadline for those cards was18:56:10Z; this is another snapshot,
+not continuous monitoring. Ten offline checks again passed before collection.
+
+The actual response produced60 private paper observations and18 coverage records
+with the source-provenance-aware recorder. These are new quote observations,
+not60 independent wagers. No fills or outcomes are inferred. Exactly one entry
+across the full slate had slightly positive estimated EV (about0.37% before fees).
+Its two reference estimates straddled its break-even probability, so no robust
+positive edge or ready bet was established. All entries for today's games were
+price watches. Current injury clearance and accepted limits remain unverified.
+
+Source cross-checks remain private. The external shortlist contained unavailable
+venues and an event-time discrepancy; no favorable external EV was transferred
+to a different offer or asserted as independently validated. Signed-in curated
+phone verification remains separate from the public market cards.
