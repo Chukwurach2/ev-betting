@@ -1,0 +1,13 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {evaluatePaperOutcome as evaluate} from '../lib/paper-outcomes.mjs';
+const now=Date.parse('2026-10-20T23:00:00Z');
+const o={id:'synthetic-observation',kind:'observation',sport:'nba',game_id:'synthetic-game',home_team:'Home',away_team:'Away',kickoff:'2026-10-20T19:00:00Z',observed_at:'2026-10-20T18:40:00Z',market:'FULL_GAME_SPREAD',selection:'Away',line:3.5};
+const r={...o,status:'final',period:'full_game',includes_overtime:true,home_score:110,away_score:108,observed_at:'2026-10-20T22:00:00Z',source_url:'https://example.invalid/synthetic-result'};
+const c={observation_id:o.id,rule_key:'full_game_including_overtime',source_url:'https://example.invalid/synthetic-rule'};
+const check=(a=o,b=r,d=c)=>evaluate(a,b,d,{now});
+test('scores both sides of exact spread with no wager profit',()=>{assert.equal(check().outcome,'win');assert.equal(check({...o,selection:'Home',line:-3.5}).outcome,'loss');assert.equal(check().profit_loss,null);assert.equal(check().stake,null);});
+test('scores exact half-point totals',()=>{assert.equal(check({...o,market:'FULL_GAME_TOTAL',selection:'Over',line:217.5}).outcome,'win');assert.equal(check({...o,market:'FULL_GAME_TOTAL',selection:'Under',line:217.5}).outcome,'loss');});
+test('live, missing, void and abandoned results stay unresolved',()=>{for(const status of ['live','void','abandoned',undefined])assert.equal(check(o,{...r,status}).status,'unresolved');assert.equal(check(o,null).reason,'final_result_required');});
+test('sport event team and kickoff mismatches fail closed',()=>{for(const patch of [{sport:'nfl'},{game_id:'other'},{home_team:'Other'},{kickoff:'2026-10-20T19:10:00Z'}])assert.equal(check(o,{...r,...patch}).status,'unresolved');});
+test('missing or differently linked rule evidence never resolves',()=>{for(const d of [null,{...c,observation_id:'other'},{...c,rule_key:'regulation_only'},{...c,source_url:''}])assert.equal(check(o,r,d).status,'unresolved');});
+test('invalid timing scores periods and selections stay unresolved',()=>{for(const patch of [{observed_at:'2026-10-21T23:00:00Z'},{home_score:1.5},{home_score:108},{includes_overtime:false},{period:'q1'},{source_url:''}])assert.equal(check(o,{...r,...patch}).status,'unresolved');for(const patch of [{line:3},{market:'Q1_TOTAL'},{selection:'unknown'},{observed_at:o.kickoff}])assert.equal(check({...o,...patch}).status,'unresolved');});
+test('NFL final ties are supported but never mapped across sports',()=>{assert.equal(check({...o,sport:'nfl'},{...r,sport:'nfl',home_score:20,away_score:20}).outcome,'win');});
