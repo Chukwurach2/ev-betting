@@ -28,3 +28,14 @@ closing evidence; neither ROI nor CLV is fabricated when those inputs are absent
 zero leans. The local recorder appended 33 coverage records and zero paper
 observations, correctly retaining unavailable coverage without inventing bets.
 124 Node tests passed, including seven new paper-record tests.
+
+
+## Source provenance repair
+
+Schema phone-paper-v2 preserves supplied reference operator odds, probabilities
+and source times. Effective expiry is the earliest of the offer deadline,
+provided app expiry and each supporting source deadline. Stale/future, duplicate
+operator aliases, offered-operator references and count mismatches are rejected.
+Legacy inputs without supporting rows are explicitly marked unknown_legacy_input;
+they do not acquire certified benchmark freshness. No historical ledger is
+rewritten. A reference change is new evidence, not an independent wager.

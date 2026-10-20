@@ -9,3 +9,17 @@ test('empty games preserve coverage rather than invent a paper bet',()=>{const r
 test('sport identities remain isolated and unsupported NBA quarter contracts rejected',()=>{assert.notEqual(paperRecords(feed(),{now})[0].id,paperRecords(feed([pick],'nba'),{now})[0].id);assert.equal(paperRecords(feed([{...pick,market:'Q1_TOTAL'}],'nba'),{now}).length,1);});
 test('same selection at another venue is not another paper pick',()=>{const r=paperRecords(feed([pick,{...pick,book_key:'fanduel'}]),{now});assert.equal(r.filter(x=>x.kind==='observation').length,1);assert.equal(r.at(-1).rejected,1);});
 test('bad game envelopes fail before any recording',()=>{assert.throws(()=>paperRecords({...feed(),mode:'live'},{now}));const f=feed();f.games[0].sport='nba';assert.throws(()=>paperRecords(f,{now}));});
+
+const refs=()=>[{book_key:'fanduel',american_odds:-110,fair_probability:.5,observed_at:'2026-10-19T14:55:00Z'},{book_key:'betmgm',american_odds:-110,fair_probability:.5,observed_at:'2026-10-19T14:58:00Z'}];
+test('preserves supporting source timestamps and oldest-reference expiry',()=>{
+ const p={...pick,reference_quotes:refs(),expires_at:'2026-10-19T15:12:00Z'};
+ const r=paperRecords(feed([p]),{now})[0];assert.equal(r.expires_at,'2026-10-19T15:10:00.000Z');assert.deepEqual(r.reference_quotes.map(x=>x.book_key),['fanduel','betmgm']);assert.equal(r.reference_freshness,'source_times_preserved');
+});
+test('expired explicit or supporting deadlines reject a fresh offer',()=>{
+ for(const patch of [{expires_at:'2026-10-19T15:00:00Z'},{expires_at:'bad'},{reference_quotes:[{...refs()[0],observed_at:'2026-10-19T14:44:00Z'},refs()[1]]}])assert.equal(paperRecords(feed([{...pick,...patch}]),{now})[0].rejected,1);
+});
+test('duplicate aliased, offered, future and mismatched references fail closed',()=>{
+ const cases=[[{...refs()[0],book_key:'draftkings'},refs()[1]],[{...refs()[0],book_key:'espnbet'},{...refs()[1],book_key:'thescorebet'}],[{...refs()[0],observed_at:'2026-10-19T15:01:00Z'},refs()[1]],refs().slice(0,1)];
+ for(const reference_quotes of cases)assert.equal(paperRecords(feed([{...pick,reference_quotes}]),{now})[0].rejected,1);
+});
+test('legacy inputs explicitly disclose unknown reference freshness',()=>assert.equal(paperRecords(feed(),{now})[0].reference_freshness,'unknown_legacy_input'));
