@@ -26,13 +26,20 @@ review source permissions before delivery and omit raw subscriber tables.
 
 Original quote times survive publication. Expiry cannot exceed 15 minutes after
 the oldest known offered/reference quote; publication does not refresh it. An
-unknown reference timestamp must be null and review_status conditional. Those
+unknown reference timestamp must be null and review_status conditional (or invalidated for a withdrawal). Those
 entries explicitly show unverified reference freshness and cannot become observed.
 A conditional entry also remains conditional until exact offer and availability
 checks are complete. Expired/invalidated records are collapsed research history,
 not current picks. No automated EVSharps ingestion or continuous monitoring is
 claimed. The app refreshes private storage once per visible minute and on return.
 
-Validation: six freshness/venue/deduplication tests plus the existing Node suite.
+Validation: nine freshness/venue/deduplication tests plus the existing Node suite.
 Database branch checks verify owner A/B isolation, no anonymous SELECT privilege,
 and no authenticated INSERT privilege. Subscriber payloads remain private.
+
+
+Withdrawal repair (2026-10-20): invalidation accepts an unknown reference time,
+so a publisher can withdraw conditional research without fabricating timestamps.
+Newest-first supersession happens before applying sportsbook preferences. Hiding
+a newer observation at an unselected book must never resurrect an older quote.
+Regression cases cover withdrawals and newer expired observations across books.
