@@ -66,10 +66,43 @@ def normalize_name(name: str) -> str:
     return " ".join(parts)
 
 
+TEAM_CODE_ALIASES = {
+    "AZ": "ARI", "JAC": "JAX", "LAR": "LA", "STL": "LA",
+    "OAK": "LV", "SD": "LAC", "WSH": "WAS",
+}
+
+
+def normalize_team_code(value: str) -> str:
+    code = str(value or "").strip().upper()
+    return TEAM_CODE_ALIASES.get(code, code)
+
+
 def parse_canonical_game_id(gid: str):
-    """'2026_02_DET_BUF' -> (2026, 2, 'DET', 'BUF')."""
-    season_s, week_s, away, home = gid.split("_")
-    return int(season_s), int(week_s), away, home
+    """Parse nflverse or legacy canonical IDs into one settlement identity.
+
+    Supported forms:
+      2026_02_DET_BUF
+      nfl-2026-reg-02-det-buf
+    """
+    value = str(gid or "").strip()
+    parts = value.split("_")
+    if len(parts) == 4:
+        season_s, week_s, away, home = parts
+    else:
+        match = re.fullmatch(
+            r"nfl-(\d{4})-(?:reg|post)-(\d{2})-([a-z0-9]+)-([a-z0-9]+)",
+            value,
+            flags=re.IGNORECASE,
+        )
+        if not match:
+            raise ValueError(f"unparseable canonical game id: {gid!r}")
+        season_s, week_s, away, home = match.groups()
+    return (
+        int(season_s),
+        int(week_s),
+        normalize_team_code(away),
+        normalize_team_code(home),
+    )
 
 
 def fetch_season_stats(season: int):

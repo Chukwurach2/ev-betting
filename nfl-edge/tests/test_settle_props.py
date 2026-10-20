@@ -54,9 +54,25 @@ class TestSettlementArithmetic(unittest.TestCase):
 
 
 class TestCanonicalId(unittest.TestCase):
-    def test_parse(self):
+    def test_parse_nflverse(self):
         self.assertEqual(sp.parse_canonical_game_id("2026_02_DET_BUF"),
                          (2026, 2, "DET", "BUF"))
+
+    def test_parse_legacy(self):
+        self.assertEqual(
+            sp.parse_canonical_game_id("nfl-2026-reg-02-det-buf"),
+            (2026, 2, "DET", "BUF"),
+        )
+
+    def test_legacy_team_aliases_match_nflverse_stats(self):
+        self.assertEqual(
+            sp.parse_canonical_game_id("nfl-2026-reg-02-sf-lar"),
+            (2026, 2, "SF", "LA"),
+        )
+        self.assertEqual(
+            sp.parse_canonical_game_id("nfl-2026-reg-02-az-wsh"),
+            (2026, 2, "ARI", "WAS"),
+        )
 
     def test_bad_id_raises(self):
         with self.assertRaises(ValueError):
