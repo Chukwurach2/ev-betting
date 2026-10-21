@@ -10,3 +10,6 @@ artifacts/
 training-data/
 *.parquet
 *.joblib
+
+# Private paper observations and source feeds
+runs/
