@@ -31,8 +31,9 @@ independent settlement-rule equivalence, accepted limits or execution capacity.
 
 The separate novig-hqmm repository remains a research library. Its curated prop
 reports and licensed subscriber observations are NOT silently copied to a public
-frontend or used as a production model. A permission-aware authenticated publisher
-is still needed for those detailed prop cards to sync automatically to the phone.
+frontend or used as a production model. Private curated delivery now exists through owner-scoped research_leans; see
+docs/private-research-delivery.md. This accepts reviewed original analysis, not an
+automatic subscriber feed. Signed-in owner/phone verification remains pending.
 No old chat quote should be recast as a fresh app pick.
 
 Research diagnostics and the existing NFL/college boards remain under Research.
@@ -52,8 +53,8 @@ need a fuller outcome model before evaluating profitability.
 
 1. Verify the live route returns the current slate and stored quote coverage; fix
    underlying collector gaps rather than increasing the freshness limit.
-2. Add an authenticated original-analysis publisher for curated prop cards with
-   explicit data rights, injury/active status, source age and exact rule identity.
+2. Verify the existing private original-analysis publisher through an owner-scoped
+   phone read, retaining explicit rights, injury status, source age and rule identity.
 3. Persist immutable paper decisions and actual accepted prices separately from
    personal bets. Report unique events, CLV, net returns and drawdowns.
 4. Add paired-opportunity records with both NY venues, leg capacity, acceptance,
@@ -86,3 +87,9 @@ https://the-odds-api.com/liveapi/guides/v4/ (GET events, GET odds, basketball_nb
 NFL freshness diagnosis: latest stored quote was 2026-10-17T20:09:06Z at the
 2026-10-19 check; zero quotes met the existing 15-minute window. Checkpoint
 collection is not continuous phone coverage; do not widen freshness to mask it.
+
+## Operational status
+
+See research/AGENT.md, Verified delivery status (2026-10-21 UTC), for recovery and
+capture receipts. Earlier October 19 source times above are historical diagnostics,
+not evidence of current authentication, quote coverage or app freshness.
