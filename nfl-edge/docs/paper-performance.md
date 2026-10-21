@@ -67,3 +67,20 @@ The detailed source-review receipt is private; this review does not change origi
 provider starts or release quarantined rows. Exact event/start mapping and venue
 rules remain required before evaluating the observed contracts. Preserve the
 source's own game identifier separately from the provider identifier.
+
+## Private curated-history import
+
+Use `node ops/record-curated-paper.mjs PRIVATE_ORIGINAL_ARRAY runs/curated-DATE.jsonl`
+then pass that JSONL to the performance report. This opt-in, offline import preserves
+original analysis, quote/reference times, conditions, review status and a payload hash.
+It validates the existing private-original-analysis contract, rejects future offers
+and conflicting content under one ID, deduplicates identical IDs, and creates output
+exclusively. It does not refresh expiry or publish data. Keep all files private.
+
+Conditional, withdrawn, unknown-reference-age, unverified-offer or unchecked-availability
+entries remain unresolved even if a final is supplied; by_review_status separates these
+cohorts. Props remain unsupported for grading. Four existing original-analysis records
+were imported privately without changing their historical quotes; this is not proof
+that every earlier chat lean or backend record has been imported. Backend publication
+and history capture are still separate steps. Include this import in future curated
+publication reviews and reconcile coverage before describing statistics as complete.
