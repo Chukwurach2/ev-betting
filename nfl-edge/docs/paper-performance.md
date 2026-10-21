@@ -109,3 +109,21 @@ Sources reviewed directly:
 
 Current rendered rules, rather than older search snippets or a different state's
 rules, were used. Keep future rule revisions and result corrections append-only.
+
+## Second operator rule review (2026-10-21)
+
+Reviewed theScore Bet NY rules effective August 17, 2026, basketball BB.1.1
+(default overtime inclusion unless explicitly excluded) and completed-event
+conditions. Applied only to stored supported full-game half-point observations
+at that operator in the already verified event; no rules transferred across books.
+Source: https://thescorebethelp.zendesk.com/hc/en-us/articles/41417125762573-House-Rules-New-York
+
+Two additional entries resolved as losses. Descriptive total: four resolved in
+one event, 1 win / 3 losses (25% accuracy), hypothetical one-unit net -2.107143
+and ROI -52.678571% with zero fixed fees. Other 136 entries remain unresolved.
+All four were price watches, not a prospective positive-edge strategy; positive
+point-estimate cohort remains unresolved. Different contracts/books in the same
+game remain correlated alternatives. The result does not validate or reject a
+strategy. Preserve losses, original observation times, and outstanding coverage.
+No accepted-wager P&L or CLV is claimed. Private evidence/report files are separate
+versions; the earlier two-entry report is retained for audit.
