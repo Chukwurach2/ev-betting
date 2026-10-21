@@ -84,3 +84,28 @@ were imported privately without changing their historical quotes; this is not pr
 that every earlier chat lean or backend record has been imported. Backend publication
 and history capture are still separate steps. Include this import in future curated
 publication reviews and reconcile coverage before describing statistics as complete.
+
+## First resolved descriptive entries (2026-10-21)
+
+Two entries from one completed event now have directly reviewed official final
+and venue-specific rule evidence. The rendered FanDuel NY house rules (effective
+October 15, 2026) apply to its mobile apps; its NBA-specific section uses official
+league results and includes overtime unless a market states otherwise. This review
+was bound only to eligible stored full-game half-point contracts at that operator,
+not another book or an unsupported prop. The official four-quarter final reconciled
+and the scheduled start exactly matched the preserved provider observation identity.
+
+Private report snapshot: 256 input observations, 140 earliest contract/book entries,
+17 event IDs; two resolved and 138 unresolved. Resolved entries were one win and one
+loss: hypothetical fixed-unit net -0.107143 and ROI -5.357143%, assuming zero fixed
+fees. Both were price watches/alternatives in one game. This is neither a bet-all
+strategy nor an independent sample; positive-estimate entries remain unresolved.
+No actual accepted stake, payout or realized profitability is established. Details
+and observation-linked evidence remain private; no subscriber rows are published.
+
+Sources reviewed directly:
+- https://www.nba.com/game/okc-vs-sas-0022600003
+- https://www.fanduel.com/fanduel-sportsbook-house-rules-ny
+
+Current rendered rules, rather than older search snippets or a different state's
+rules, were used. Keep future rule revisions and result corrections append-only.
