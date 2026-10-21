@@ -57,3 +57,13 @@ to reconcile unresolved coverage. Use this queue to verify provider schedule cha
 against original event identity; never silently overwrite scheduled start with actual
 tipoff or fuzzy-match teams. A revised start needs a reviewed mapping/evidence policy
 before releasing quarantined entries. Publish aggregate diagnostics only.
+
+## First final-source review (2026-10-20)
+
+The rendered official NBA summary for game 0022600001 exposed a final banner
+and four period scores. Both team sums reconciled to the displayed final.
+Search snippets and static page text were insufficient to establish that result.
+The detailed source-review receipt is private; this review does not change original
+provider starts or release quarantined rows. Exact event/start mapping and venue
+rules remain required before evaluating the observed contracts. Preserve the
+source's own game identifier separately from the provider identifier.
