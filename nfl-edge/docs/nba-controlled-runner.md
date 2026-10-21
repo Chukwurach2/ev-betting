@@ -106,3 +106,9 @@ curated watch remains expired.21 focused collector/adapter/ledger tests passed.
 No new code deployment or continuous polling was enabled. Timing depends on
 runner and source availability; a requested pregame capture is not a guaranteed
 real-time alert or exact closing-line observation.
+
+## October 21 midday capture
+
+[Run 39629525998](https://github.com/Chukwurach2/ev-betting/actions/runs/39629525998) completed successfully. Free-events preflight reported 334 credits before the single bounded odds request; 224 quote rows processed from 43 provider events. The phone GET and rendered NBA view both showed 15 upcoming games and 48 fresh entries at 11:52 AM ET. All 11 games on the current local-date slate had four entries; none had a positive point estimate. Treat them as individual price watches, not an edge or bet-all strategy.
+
+Latest offered source time was 15:51:50Z; earliest expiry 16:06:23Z. These are a temporary snapshot, not continuous coverage. Saved 48 observations and 15 coverage records in the private ignored ledger. No code deployment, changed freshness limits, new subscription or wagers. Current EVSharps Recommendations session displayed its sign-in gate; no subscriber access or data freshness assumed.
