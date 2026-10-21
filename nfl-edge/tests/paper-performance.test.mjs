@@ -13,3 +13,5 @@ test('groups book time sport and keeps watches outside positive cohort',()=>{con
 test('rejects invalid fee and invalid/postgame odds',()=>{assert.throws(()=>run([],{}, {feePerUnit:-1}));assert.equal(run([{...o,american_odds:0},{...o,observed_at:o.kickoff}]).invalid_observations,2);});
 
 test('changed start under the same event ID is quarantined rather than two games',()=>{const x=run([o,{...o,id:'b',kickoff:'2026-10-20T20:30:00Z'}]);assert.equal(x.overall.unique_events,1);assert.equal(x.conflicting_event_ids,1);assert.equal(x.overall.resolved,0);assert.ok(x.rows.every(r=>r.result.reason==='conflicting_event_identity'));});
+
+test('explains unresolved coverage and preserves conflicting identities privately',()=>{const x=run([o,{...o,id:'b',kickoff:'2026-10-20T20:30:00Z'},{...o,id:'c',game_id:'other'}],{});assert.equal(x.unresolved_reasons.conflicting_event_identity,2);assert.equal(x.unresolved_reasons.final_result_required,1);assert.equal(x.identity_conflicts[0].variants.length,2);assert.equal(x.identity_conflicts[0].affected_entries,2);assert.equal(Object.values(x.unresolved_reasons).reduce((a,b)=>a+b,0),x.overall.unresolved);});

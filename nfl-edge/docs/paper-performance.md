@@ -48,3 +48,12 @@ times/identity; do not invent historical prices. Source-incomplete legacy rows a
 separately grouped. Next delivery work is curated-card ledger coverage, supported
 prop settlement and an owner-private phone performance view. This CLI does not
 publish results to the phone or modify the frozen model, journal or bets.
+
+## Resolution work queue
+
+The private report includes unresolved_reasons with entry counts and identity_conflicts
+with every preserved team/start variant and affected-entry count. Sum reason counts
+to reconcile unresolved coverage. Use this queue to verify provider schedule changes
+against original event identity; never silently overwrite scheduled start with actual
+tipoff or fuzzy-match teams. A revised start needs a reviewed mapping/evidence policy
+before releasing quarantined entries. Publish aggregate diagnostics only.
