@@ -118,3 +118,32 @@ Latest offered source time was 15:51:50Z; earliest expiry 16:06:23Z. These are a
 [Run39686651952](https://github.com/Chukwurach2/ev-betting/actions/runs/39686651952) succeeded at22:28UTC. Free-events preflight reported332 credits before the one bounded odds request;224 quote rows processed from43 provider events. Its immediate phone check reported48 current entries across15 games at22:28:16Z.
 
 The independent follow-up GET was generated at23:03:02.967Z and returned zero entries; the snapshot had expired by verification. Thus this run does not establish current rendered-phone delivery. Only15 no-price coverage records were appended locally; no48-observation capture is claimed. Do not refill from stale quotes, backdate fresh observations or widen freshness. No repeat odds call or deployment was made. EVSharps remained behind its sign-in gate. Next capture should retain private observations during the valid window rather than relying on delayed interactive verification.
+
+## Midday snapshot — 2026-10-22
+
+Run [39809804807](https://github.com/Chukwurach2/ev-betting/actions/runs/39809804807),
+job119932685665, passed all10 offline checks and completed one bounded NBA
+spreads/totals request. Free preflight reported326 remaining before the request;
+this is not a verified post-request balance.224 quote rows across41 provider
+events were processed. Actual independent phone GET and rendered UI confirmed
+14 games /40 fresh entries at11:59AM ET, including four distinct alternatives
+for each of tonight's two games. All40 were negative estimated-EV price watches.
+The private recorder appended40 observations and14 coverage rows, bringing
+observations to296. Earlier snapshots and losses remain untouched.
+
+Detailed versioned cards preserve exact offered and reference book prices/times,
+break-even thresholds, zero-fixed-fee assumption, unknown size/limits and
+correlation flags privately. Earliest supporting expiry for tonight was16:11:29Z;
+no continuous monitoring or accepted execution is asserted. Official11:45AM ET
+injury report was checked; questionable players remain conditional. Its scheduled
+7PM/9:30PM starts differ from provider7:10PM/9:40PM. Both are retained unchanged;
+explicit event/start mapping review is required before outcome or pilot linkage.
+Sources: https://official.nba.com/nba-injury-report-2026-27-season/ and
+https://ak-static.cms.nba.com/referee/injury/Injury-Report_2026-10-22_11_45AM.pdf
+
+NFL was checked separately:15 upcoming games, zero fresh supported phone entries,
+including tonight's game. Official team schedule/injury report confirms tonight;
+no NFL odds were invented or NBA probabilities transferred. EVSharps Recommended
+remains behind the already documented sign-in gate. Public delivery was verified;
+owner-signed-in private visibility remains pending. No code deployment, live mode,
+prop sweep or additional paid polling was enabled.
