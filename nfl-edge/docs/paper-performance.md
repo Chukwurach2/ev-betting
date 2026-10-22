@@ -146,3 +146,26 @@ advantage from these tiny correlated samples. Positive-estimate cohort is still
 unresolved; these are retrospective price-watch alternatives, not the registered
 prospective pilot. No actual accepted stake, user P&L, CLV or strategy validation
 is established. Earlier report versions and losses remain preserved privately.
+
+## Third completed event and positive-estimate cohort (2026-10-22)
+
+Reviewed official NBA game 0022600087 in the rendered final banner, game identity
+and four-quarter linescores; totals reconcile and original scheduled start/venue
+match. Applied only previously reviewed FanDuel/theScore Bet NY full-game rules
+to supported half-point contracts. Six further entries resolved: 3W/3L.
+Source: https://www.nba.com/game/cha-vs-bkn-0022600087
+
+Private versioned report: 256 input observations, 140 earliest contract/book
+entries across 17 event IDs; 15 resolved over three events, 7W/8L (46.666667%),
+hypothetical one-unit net -1.430262u, ROI -9.535080% at zero fixed fees;
+125 unresolved. FanDuel: 8 resolved, 5W/3L, +1.708266u; theScore Bet:
+7 resolved, 2W/5L, -3.138528u. Correlated alternatives and incomplete rule
+coverage prevent interpretation as independent book performance.
+
+The sole positive point-estimate entry now resolves as a win (+0.952381u
+hypothetically). Its original estimate was only +0.371745% and sensitive to
+reference choice; one winning observation establishes no profitability or
+calibration. It predates the registered prospective pilot and remains outside
+that cohort. All broader price watches stay separate, with losses preserved.
+No accepted stake, actual P&L, CLV or validated strategy is claimed. Exact quotes,
+book/time details and evidence remain private; previous versions are retained.
