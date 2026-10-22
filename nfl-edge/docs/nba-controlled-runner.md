@@ -147,3 +147,31 @@ no NFL odds were invented or NBA probabilities transferred. EVSharps Recommended
 remains behind the already documented sign-in gate. Public delivery was verified;
 owner-signed-in private visibility remains pending. No code deployment, live mode,
 prop sweep or additional paid polling was enabled.
+
+## Pregame snapshot — 2026-10-22
+
+Run[39851920384](https://github.com/Chukwurach2/ev-betting/actions/runs/39851920384),
+job120080080865, completed with10 offline checks passing. Free preflight
+reported324 remaining before one bounded request;224 quote rows/41 provider
+events processed. Independent phone GET and rendered UI confirmed14 games and46
+fresh entries at4:48PM ET. Private append-only recorder added46 observations
+and14 NBA coverage records (342 observations total);15 NFL coverage records
+were recorded separately, with zero current NFL entries. No checkpoint deleted,
+app deployment, model promotion or freshness change occurred.
+
+Tonight's two NBA games each had four supported price-watch alternatives, all
+negative point EV. One later-game observation had a tiny positive point estimate
+(~0.20% before fees), but a lower reference implied negative EV. It fails robust
+value and the registered prospective thresholds. Keep it conditional, outside
+the pilot, with unknown accepted size/offer clearance and incomplete later-game
+injury reporting. Exact prices/times, references and original sensitivity
+analysis are private. Earliest supporting expiry was21:02:23Z; this remains a
+snapshot, not continuous coverage. Past versions and outcomes remain unchanged.
+
+Reviewed official4PM injury report: tonight's questionable players remain
+conditional, with final actives/minutes unverified. Provider/official10-minute
+start differences remain explicitly unresolved; do not silently rewrite starts.
+Source: https://ak-static.cms.nba.com/referee/injury/Injury-Report_2026-10-22_04_00PM.pdf
+EVSharps Recommended still requires sign-in; the prior touchdown observations
+lack verified quote ages and were not republished as current. Owner-signed-in
+private phone verification remains pending. No subscriber table is published.
