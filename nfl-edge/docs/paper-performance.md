@@ -127,3 +127,22 @@ game remain correlated alternatives. The result does not validate or reject a
 strategy. Preserve losses, original observation times, and outstanding coverage.
 No accepted-wager P&L or CLV is claimed. Private evidence/report files are separate
 versions; the earlier two-entry report is retained for audit.
+
+## Second completed event reviewed (2026-10-22)
+
+Verified official NBA game0022600086 in its rendered final banner, summary game
+identity and four-quarter linescores. Scheduled start, exact teams/date and venue
+matched the preserved provider identity without a time correction. Applied only
+the previously reviewed FanDuel/theScore Bet NY full-game basketball rule versions
+to supported stored half-point contracts. Five further entries resolved:3W/2L.
+Official source: https://www.nba.com/game/mil-vs-was-0022600086
+
+New private report version retains256 input observations and140 earliest
+contract/book entries over17 event IDs. Nine entries resolved over two events:
+4W/5L,44.444444% accuracy; hypothetical fixed-unit net−1.291734,ROI−14.352599%
+with zero fixed fees.131 remain unresolved. By-book descriptive resolved coverage:
+FanDuel5(3W/2L,+0.799175u);theScore Bet4(1W/3L,−2.090909u). Do not infer a book
+advantage from these tiny correlated samples. Positive-estimate cohort is still
+unresolved; these are retrospective price-watch alternatives, not the registered
+prospective pilot. No actual accepted stake, user P&L, CLV or strategy validation
+is established. Earlier report versions and losses remain preserved privately.
