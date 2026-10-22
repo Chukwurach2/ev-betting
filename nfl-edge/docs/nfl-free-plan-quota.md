@@ -21,7 +21,7 @@ Validation:18 collector tests and38 checkpoint tests pass offline. Broader local
 Python discovery ran598 tests with12 import/dependency errors (including missing
 pandas/PyYAML); it did not pass. CI must verify the proposed branch.
 
-At2026-10-22 around13:05ET, public phone feeds had15 NFL games/zero fresh entries
+At the2026-10-22 coverage check, public phone feeds had15 NFL games/zero fresh entries
 and14 NBA games/zero fresh entries after the preceding snapshot expired. Tonight's
 NFL and two NBA games were checked against official schedules. EVSharps priority
 shortlist still required sign-in. Coverage was recorded privately; no stale quote
