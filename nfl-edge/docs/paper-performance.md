@@ -239,3 +239,29 @@ unmapped reports remain retained; no accepted stake, CLV or realized P&L exists.
 All171 Node tests pass, including binding tampering, future/premature reviews,
 quote timestamps between the two starts, missing rules, no mutation and duplicate
 mapping rejection. Production phone/model/journal remain unchanged.
+
+## Fifth event outcome review (2026-10-23)
+
+Verified official NBA0022600006 in the rendered final banner and quarter table:
+full-game score and quarter sums reconcile. Reviewed exact teams/date/venue and
+linked the preserved provider event through an explicit manual mapping, retaining
+both7:10PM provider and7PM official starts unchanged. Applied only previously
+reviewed FanDuel/theScore Bet NY full-game rules to supported half-point entries.
+Four additional entries resolve:3W/1L. Official source:
+https://www.nba.com/game/cle-vs-phi-0022600006
+
+Latest private report:386 observations,245 earliest contract/book entries across
+28 event IDs;21 resolved over5 events,10W/11L,47.619048% accuracy. Hypothetical
+fixed-unit net-1.590417u/ROI-7.573413% at zero fixed fees.224 unresolved:
+31 missing exact-contract evidence,16 conflicting observation identities,
+177 missing finals. By-book resolved coverage:FanDuel11(7W/4L,+2.595731u),
+theScore Bet10(3W/7L,-4.186147u). These small correlated cohorts do not establish
+book advantage or a validated policy. The three positive point-estimate entries
+remain one resolved win/two pending; broader watches are separate.
+
+No original record, price, reference time or earlier report was overwritten.
+No accepted wager, stake, CLV or actual account P&L is inferred. Current feeds
+were checked separately:14 NFL/12 NBA games, zero fresh entries after the prior
+snapshot expired. No paid request or new pregame decision occurred. Mapping
+implementation full CI run40004532303 completed successfully; this increment
+only adds private evidence and public aggregate documentation.
