@@ -204,3 +204,34 @@ card. This missed-window evidence is retained alongside successful captures,
 so availability gaps are included rather than hidden. EVSharps Recommended
 still displayed its sign-in gate. Hourly heartbeat timestamps are not proof of
 real-time attendance or continuous odds monitoring.
+
+## Full Friday slate capture — 2026-10-23
+
+Run[39996430037](https://github.com/Chukwurach2/ev-betting/actions/runs/39996430037),
+job120561089930, passed10 offline checks and made one bounded request after
+free preflight reported318 credits remaining.192 quote rows across17 provider
+events processed. Independent phone GET/rendered UI confirmed12 games/44 fresh
+entries at1:37PM ET. Ten games had4 alternatives; two had2 with explicit
+shortfalls.44 private observations plus12 NBA and14 NFL coverage rows appended;
+observation total386. Exact source/reference times and earlier histories remain
+private. Earliest supporting expiry17:50:55Z; no continuous freshness claimed.
+
+One exploratory point estimate was positive(~0.54% before fees) with references
+in a narrow range; its edge is far below registered thresholds and reverses under
+1% fixed cost stress. It is conditional on exact eligible-book offer/rules,
+accepted size, availability and event/start mapping; no independent model or
+validated strategy is claimed. Other43 entries were nonpositive price watches.
+Detailed per-game review and sensitivity are private, not a public source table.
+
+Official1PM ET injury report reviewed. Questionable/doubtful and incomplete
+clearance remain conditional; no numeric injury adjustment is invented. Source:
+https://ak-static.cms.nba.com/referee/injury/Injury-Report_2026-10-23_01_00PM.pdf
+NFL checked separately:14 upcoming games/zero fresh entries; next game is
+Sunday's international fixture, not within the next24hours. No NFL probability
+or quote was borrowed from NBA. EVSharps Recommended remains sign-in gated.
+
+Previously pending performance-branch validation run39996041987 completed
+successfully after the deployed withdrawal fix was aligned. Neither that branch
+nor the free-plan NFL guard has been merged/deployed. Public market-card delivery
+is verified separately from pending owner-signed-in private visibility. No routine
+refresh deployment, prop sweep or live execution occurred.
