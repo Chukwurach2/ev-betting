@@ -175,3 +175,32 @@ Source: https://ak-static.cms.nba.com/referee/injury/Injury-Report_2026-10-22_04
 EVSharps Recommended still requires sign-in; the prior touchdown observations
 lack verified quote ages and were not republished as current. Owner-signed-in
 private phone verification remains pending. No subscriber table is published.
+
+## Late-window receipt and availability review — 2026-10-23 UTC
+
+Heartbeat metadata was21:13:16Z October22; the audit's first explicit UTC clock
+read was01:36:24Z October23, after the intended pregame windows. This measures
+receipt-to-audit-clock delay, not a diagnosed scheduler/host failure mechanism.
+Do not claim an on-time T-3 review, retroactively select a quote or substitute
+heartbeat time for actual observation time. No paid capture was dispatched.
+
+NFL run[39882605298](https://github.com/Chukwurach2/ev-betting/actions/runs/39882605298),
+job120183280947, reported at01:12:37Z: captured0,missed2,duplicate2,failed0,
+requests0,materialized quote rows0. The successful workflow again did not supply
+fresh phone prices. Independent reads at01:36:48/49Z returned14 NFL/20 NBA games,
+zero fresh entries.34 private coverage rows were appended; observation count
+remains342. No historical checkpoint was deleted or recaptured as fresh.
+
+Official9:15PM ET injury report changed prior questionable statuses: two became
+out and one available. These updates were recorded as a new private review,
+not backdated into earlier evidence. All prior cards were already expired; no
+ready status or paper stake was inferred. Exact player/contract linkage and
+final result/rule review remain prerequisites for later descriptive outcomes.
+Source: https://ak-static.cms.nba.com/referee/injury/Injury-Report_2026-10-22_09_15PM.pdf
+
+The last recorded15 resolved descriptive entries and their losses remain
+unchanged. There is no new performance result, validated edge or active phone
+card. This missed-window evidence is retained alongside successful captures,
+so availability gaps are included rather than hidden. EVSharps Recommended
+still displayed its sign-in gate. Hourly heartbeat timestamps are not proof of
+real-time attendance or continuous odds monitoring.
