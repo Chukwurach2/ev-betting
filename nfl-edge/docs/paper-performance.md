@@ -209,3 +209,33 @@ quotes before book preference filtering. This preserves production withdrawal
 behavior instead of weakening tests. Both copied files match canonical main;
 all167 local Node tests pass with those exact files. Remote CI must be checked
 on the new commit. No performance result or private data changed.
+
+## Explicit retrospective result bridge (2026-10-23)
+
+Optional reviewed mappings now bridge a stored provider start and an official
+result start without editing either record. No mapping means exact-start checks
+remain mandatory. A bridge binds sport, provider event ID, official external ID,
+exact home/away teams, both original starts, matching HTTPS result source, review
+reason/ID and review time after result evidence and no later than now. Same UTC
+date and at most15minutes difference are guardrails, never automatic tolerance.
+Multiple mappings are ambiguous. Existing conflicting observation histories
+remain quarantined. Quotes must precede the earlier of both starts; contract,
+final score and period checks still apply. Output retains mapping ID and both
+starts for audit. The bridge is result analysis only, never pregame eligibility,
+backfilled pilot selection or a general correction of provider schedules.
+
+Reviewed the previously preserved official NBA0022600091 evidence against the
+exact recorded matchup/event/date and venue, explicitly retaining the10-minute
+schedule discrepancy. Applying previously reviewed operator-specific full-game
+rules resolves two more observations as losses. Private versioned report now has
+386 observations,245 earliest contract/book entries across28 event IDs:
+17 resolved over4 events,7W/10L (41.176471%), hypothetical fixed-unit net
+-3.430262u /ROI-20.178012% at zero fixed fees;228 unresolved. Of those,22 lack
+exact-contract evidence,16 have conflicting observation identities and190 lack
+finals. Three positive point-estimate entries:one resolved win/two unresolved.
+Do not infer profitability or book superiority. All original records and earlier
+unmapped reports remain retained; no accepted stake, CLV or realized P&L exists.
+
+All171 Node tests pass, including binding tampering, future/premature reviews,
+quote timestamps between the two starts, missing rules, no mutation and duplicate
+mapping rejection. Production phone/model/journal remain unchanged.

@@ -3,7 +3,7 @@ import {evaluatePaperOutcome} from './paper-outcomes.mjs';
 const identity=o=>JSON.stringify([o.sport,o.game_id,o.kickoff,o.market,o.selection,o.line,o.book_key]);
 const event=o=>JSON.stringify([o.sport,o.game_id]);
 function timing(o){const h=(Date.parse(o.kickoff)-Date.parse(o.observed_at))/3600000;return h<=1?'0–1h':h<=6?'1–6h':h<=24?'6–24h':'>24h';}
-export function paperPerformance(records,{results=[],contracts=[]}={}, {now=Date.now(),feePerUnit=0}={}){
+export function paperPerformance(records,{results=[],contracts=[],mappings=[]}={}, {now=Date.now(),feePerUnit=0}={}){
  if(!Number.isFinite(feePerUnit)||feePerUnit<0)throw Error('feePerUnit must be a nonnegative fixed cost per settled 1-unit paper entry');
  const observations=records.filter(o=>o.kind==='observation');
  const unique=new Map();let invalid=0;
@@ -16,7 +16,8 @@ export function paperPerformance(records,{results=[],contracts=[]}={}, {now=Date
  const rows=[...unique.values()].sort((a,b)=>Date.parse(a.observed_at)-Date.parse(b.observed_at)||a.id.localeCompare(b.id)).map(o=>{
   const rs=results.filter(r=>r.sport===o.sport&&r.game_id===o.game_id);
   const cs=contracts.filter(c=>c.observation_id===o.id);
-  const evaluated=o.schema==='curated-paper-v1'&&(o.review_status!=='observed'||!o.offer_verified||!o.availability_checked||o.reference_at===null)?{status:'unresolved',reason:'curated_review_incomplete'}:variants.get(event(o)).size>1?{status:'unresolved',reason:'conflicting_event_identity'}:rs.length>1||cs.length>1?{status:'unresolved',reason:'ambiguous_result_or_rule'}:evaluatePaperOutcome(o,rs[0],cs[0],{now});
+  const ms=mappings.filter(m=>m.sport===o.sport&&m.game_id===o.game_id);
+  const evaluated=o.schema==='curated-paper-v1'&&(o.review_status!=='observed'||!o.offer_verified||!o.availability_checked||o.reference_at===null)?{status:'unresolved',reason:'curated_review_incomplete'}:variants.get(event(o)).size>1?{status:'unresolved',reason:'conflicting_event_identity'}:rs.length>1||cs.length>1||ms.length>1?{status:'unresolved',reason:'ambiguous_result_or_rule'}:evaluatePaperOutcome(o,rs[0],cs[0],{now,mapping:ms[0]});
   const settled=evaluated.status==='outcome_evaluated';
   const profit=settled?(evaluated.outcome==='win'?(o.american_odds>0?o.american_odds/100:100/Math.abs(o.american_odds)):-1)-feePerUnit:null;
   return {...o,result:evaluated,paper_profit_units:profit,timing_bucket:timing(o),positive_estimate:typeof o.expected_value==='number'&&o.expected_value>0};
