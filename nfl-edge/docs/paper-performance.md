@@ -194,3 +194,18 @@ identities and150 missing finals. Two positive point-estimate entries exist:
 one resolved win and one unresolved; no profitability inference. Older versions
 remain preserved. All167 Node tests pass. This is offline reporting in review,
 not deployed phone performance or accepted-wager P&L.
+
+## CI base alignment (2026-10-23)
+
+CI run39885459111 failed in the curated-paper unknown-reference withdrawal test.
+The PR's older stacked base still rejected invalidated entries without reference
+times, despite the already deployed PR34 fix. Local167-test success used that
+newer validator and therefore did not establish the prior remote tree passed.
+
+Copied lib/private-leans.mjs and its regression tests byte-for-byte from canonical
+main ffe15d04855ae2be83203b759de1642eb5623df8 into this branch. Unknown reference
+age still cannot become observed; invalidations remain valid and supersede prior
+quotes before book preference filtering. This preserves production withdrawal
+behavior instead of weakening tests. Both copied files match canonical main;
+all167 local Node tests pass with those exact files. Remote CI must be checked
+on the new commit. No performance result or private data changed.

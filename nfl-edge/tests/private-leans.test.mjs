@@ -10,3 +10,18 @@ test('sport and book filtering with duplicate selection suppression',()=>{const 
 test('invalidated never becomes an active observation',()=>assert.equal(leanState({...fixture(),review_status:'invalidated'},now),'invalidated'));
 
 test('unknown reference freshness is explicitly conditional',()=>{assert.equal(leanState({...fixture(),reference_at:null},now),'conditional');assert.throws(()=>validateLean({...fixture(),reference_at:null,review_status:'observed'}));});
+
+test('withdrawal with unknown reference age is valid and supersedes its prior lean',()=>{
+ const prior=fixture(),withdrawal={...prior,id:'withdrawn',reference_at:null,review_status:'invalidated'};
+ assert.equal(leanState(withdrawal,now),'invalidated');
+ const rows=visibleLeans([withdrawal,prior].map(payload=>({payload})),{sport:'nba',books:['draftkings'],now});
+ assert.equal(rows.length,1);assert.equal(rows[0].state,'invalidated');
+});
+test('book preference cannot resurrect a superseded quote',()=>{
+ const prior=fixture(),withdrawal={...prior,id:'withdrawn',book_key:'fanduel',review_status:'invalidated'};
+ assert.deepEqual(visibleLeans([withdrawal,prior].map(payload=>({payload})),{sport:'nba',books:['draftkings'],now}),[]);
+});
+test('newer expired research cannot expose an older still-fresh quote',()=>{
+ const prior=fixture(),latest={...prior,id:'expired',book_key:'fanduel',expires_at:'2026-10-20T13:59:00Z'};
+ assert.deepEqual(visibleLeans([latest,prior].map(payload=>({payload})),{sport:'nba',books:['draftkings'],now}),[]);
+});
