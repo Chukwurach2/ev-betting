@@ -169,3 +169,28 @@ calibration. It predates the registered prospective pilot and remains outside
 that cohort. All broader price watches stay separate, with losses preserved.
 No accepted stake, actual P&L, CLV or validated strategy is claimed. Exact quotes,
 book/time details and evidence remain private; previous versions are retained.
+
+## Result timing mismatch diagnostics (2026-10-23)
+
+Do not discard an available same-event final merely because its start differs
+from the observation. Route same-sport/event-ID evidence through the existing
+strict evaluator so timing mismatch is reported explicitly. Multiple candidate
+finals remain ambiguous even if one has an exact start; do not select a favorable
+result by silently filtering competing evidence. No fuzzy matching, timestamp
+rewrite or widened identity tolerance was introduced. Regression tests cover
+both mismatch and mixed exact/different-start result evidence.
+
+Official NBA game0022600091 final and quarter totals were verified, but its
+scheduled start differs from original stored observations. Seven entries remain
+unresolved as invalid_event_timing, pending a separately reviewed explicit
+cross-source mapping; this is not permission to grade the contracts. Source:
+https://www.nba.com/game/dal-vs-hou-0022600091
+
+Private report with342 observations now contains205 earliest contract/book
+entries across28 event IDs.15 resolve:7W/8L,46.666667% accuracy, hypothetical
+fixed-unit net-1.430262u/ROI-9.535080% at zero fixed fees.190 unresolved include
+7 timing mismatches,17 missing exact-contract evidence,16 conflicting observation
+identities and150 missing finals. Two positive point-estimate entries exist:
+one resolved win and one unresolved; no profitability inference. Older versions
+remain preserved. All167 Node tests pass. This is offline reporting in review,
+not deployed phone performance or accepted-wager P&L.

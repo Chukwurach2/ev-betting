@@ -14,7 +14,7 @@ export function paperPerformance(records,{results=[],contracts=[]}={}, {now=Date
  }
  const variants=new Map();for(const o of unique.values()){const k=event(o);if(!variants.has(k))variants.set(k,new Set());variants.get(k).add(JSON.stringify([o.kickoff,o.home_team,o.away_team]));}
  const rows=[...unique.values()].sort((a,b)=>Date.parse(a.observed_at)-Date.parse(b.observed_at)||a.id.localeCompare(b.id)).map(o=>{
-  const rs=results.filter(r=>r.sport===o.sport&&r.game_id===o.game_id&&r.kickoff===o.kickoff);
+  const rs=results.filter(r=>r.sport===o.sport&&r.game_id===o.game_id);
   const cs=contracts.filter(c=>c.observation_id===o.id);
   const evaluated=o.schema==='curated-paper-v1'&&(o.review_status!=='observed'||!o.offer_verified||!o.availability_checked||o.reference_at===null)?{status:'unresolved',reason:'curated_review_incomplete'}:variants.get(event(o)).size>1?{status:'unresolved',reason:'conflicting_event_identity'}:rs.length>1||cs.length>1?{status:'unresolved',reason:'ambiguous_result_or_rule'}:evaluatePaperOutcome(o,rs[0],cs[0],{now});
   const settled=evaluated.status==='outcome_evaluated';
