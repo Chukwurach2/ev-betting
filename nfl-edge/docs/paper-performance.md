@@ -265,3 +265,25 @@ were checked separately:14 NFL/12 NBA games, zero fresh entries after the prior
 snapshot expired. No paid request or new pregame decision occurred. Mapping
 implementation full CI run40004532303 completed successfully; this increment
 only adds private evidence and public aggregate documentation.
+
+
+## Sixth event outcome review (2026-10-23)
+
+Verified official NBA0022600007 directly in the rendered NBA summary: final banner,
+four quarter totals, exact teams/date,9:30PM ET start and Paycom Center agree.
+Source: https://www.nba.com/game/den-vs-okc-0022600007
+An explicit reviewed association preserves the provider9:40PM and official9:30PM
+starts separately. Only existing reviewed FanDuel/theScore Bet full-game rules
+were applied. Three additional observations resolve:2W/1L. DraftKings/BetMGM
+entries remain unresolved without applicable reviewed operator rules; retail or
+other-jurisdiction rules were not substituted.
+
+The private report now covers386 observations and245 earliest contract/book
+entries over28 event IDs:24 resolved across6 events,12W/12L,50% accuracy.
+Hypothetical fixed-unit net is-0.638036u,ROI-2.658482%,with zero fixed fees;
+221 remain unresolved. This is a small correlated alternatives cohort, not an
+accepted-wager record or validated profitable strategy. Original observations,
+prices, source times and previous report versions remain unchanged. No odds
+credits, model changes, live actions or new phone deployment were needed.
+The Recommended page still displays its Sharp sign-in gate; no subscriber
+shortlist or fresh candidate was inferred from that page.
