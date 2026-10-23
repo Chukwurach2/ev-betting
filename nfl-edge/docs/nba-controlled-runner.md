@@ -235,3 +235,37 @@ successfully after the deployed withdrawal fix was aligned. Neither that branch
 nor the free-plan NFL guard has been merged/deployed. Public market-card delivery
 is verified separately from pending owner-signed-in private visibility. No routine
 refresh deployment, prop sweep or live execution occurred.
+
+
+## Tenth controlled capture:2026-10-23 evening
+
+Run[40028746458](https://github.com/Chukwurach2/ev-betting/actions/runs/40028746458),
+job120671422581, exact mainffe15d04855ae2be83203b759de1642eb5623df8:
+free-events quota preflight remaining316; one bounded spreads/totals request,
+176 processed quotes across17 provider events. Ten offline collector checks
+passed. Immediate workflow phone read returned11 games/40 fresh entries;
+independent private GET and rendered NBA phone view verified the same coverage.
+Nine games have four distinct entries; two have two each. Started early game
+is absent from the pregame feed. Sources21:42:47–48Z, earliest expiry21:57:47Z.
+All40 observations and11 coverage rows appended privately, taking observation
+count to426; previous quotes and reports preserved. No subscriber tables or
+raw quote rows published here.
+
+Two entries have tiny positive median point estimates, both below registered
+promotion thresholds and erased by1% fixed-unit friction; other entries remain
+negative-edge price watches. No independently validated opportunity. Full cards
+include source/ref timestamps, fair estimates and sensitivity, zero fixed-fee
+assumptions, unknown accepted liquidity, conditional injury/rule checks and
+same-game correlation warnings. Official5:15PM ET injury report reviewed:
+https://ak-static.cms.nba.com/referee/injury/Injury-Report_2026-10-23_05_15PM.pdf
+Pending statuses remain conditions, not numerical injury adjustments. Provider
+start times remain unchanged and are not substituted for official game times.
+
+EVSharps Recommended again displays Sharp sign-in gate, not an authenticated
+shortlist. No subscriber discovery inferred. Public phone cards were verified;
+owner-scoped private visibility remains unverified while app sign-in is pending.
+NFL next game independently verified from official Week7 schedule as Sunday
+October25,9:30AM ET; no NFL game in next24h and no extra NFL paid request.
+This data-only delivery uses existing production route; no deployment or model
+change. Hourly research is not continuous price monitoring; refresh exact offers
+before relying on this short-lived snapshot.
