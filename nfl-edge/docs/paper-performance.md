@@ -349,3 +349,22 @@ wagers, validated profitability, paid request, model change or deployment.
 Publication initially failed on connector transport; this aggregate update was
 recovered only after checking the unchanged branch head. Private evidence was
 preserved locally throughout the outage. Raw data remain unpublished.
+
+
+## Tenth event outcome review (2026-10-24 UTC)
+
+Rendered NBA0022600100 confirms Utah120–New Orleans119; quarters,date,9:30PM ET,
+Delta Center verified directly:
+https://www.nba.com/game/nop-vs-uta-0022600100?lid=zml3ljvyq5o5
+Explicit reviewed mapping preserves provider9:40PM/official9:30PM. Four more
+rule-supported entries resolve3W/1L, including the previously positive-estimate
+spread watch. No validation promotion follows from an isolated result.
+
+Including today's distinct observations, private ledger454 observations yields
+292 earliest contract/book entries over36 IDs:40 resolved across10 events,
+20W/20L,50% accuracy,hypothetical fixed-unit net-1.063240u/ROI-2.658099%,zero
+fixed fees;252 unresolved. Earlier records,reports,quote/reference times and
+losses retained. Correlated alternatives,not accepted wagers or account P&L.
+No paid request,deployment,model or journal change. Recommended remains gated.
+The official recap also reports a new in-game knee injury to Missi; tonight's
+NOP game requires updated official availability review before any promotion.
