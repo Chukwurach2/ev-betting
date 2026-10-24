@@ -368,3 +368,21 @@ losses retained. Correlated alternatives,not accepted wagers or account P&L.
 No paid request,deployment,model or journal change. Recommended remains gated.
 The official recap also reports a new in-game knee injury to Missi; tonight's
 NOP game requires updated official availability review before any promotion.
+
+
+## Eleventh event outcome review (2026-10-24 UTC)
+
+Rendered NBA0022600102 confirms Lakers125–Clippers117; quarter sums,date,
+10PM ET and Crypto.com Arena verified:
+https://www.nba.com/game/lac-vs-lal-0022600102
+Explicit reviewed mapping identifies official LA Clippers label with the stored
+Los Angeles Clippers identity and preserves10:10PM provider/10PM official starts.
+Five supported FD/theScore entries resolve2W/3L; all eligible alternatives
+retained, not only the previously positive watch.
+
+Private454 observations ->292 earliest contract/book entries over36 event IDs:
+45 resolved across11 games,22W/23L,48.888889% accuracy,hypothetical fixed-unit
+net-2.192610u/ROI-4.872468%,zero fixed fees;247 unresolved. The positive-estimate
+subset is tiny and selected; wins alone do not establish calibration,independence
+or policy profitability. Original quotes,earliest-observation rule and losses
+preserved. No accepted wager,paid capture,deployment or strategy promotion.
