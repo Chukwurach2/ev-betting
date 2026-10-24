@@ -310,3 +310,21 @@ pretend pregame decision or paid capture was made for the missed window.
 EVSharps Recommended still shows sign-in gate. No new subscriber-backed card
 claimed. Code CI previously passed; this increment is private evidence and
 aggregate docs, requiring no deployment or model change.
+
+
+## Eighth event outcome review (2026-10-24 UTC)
+
+Direct rendered NBA0022600095 final banner and quarters verify Dallas121–Indiana105,
+October23,7PM ET at Gainbridge Fieldhouse:
+https://www.nba.com/game/dal-vs-ind-0022600095
+A cached secondary score118 was not used; official quarter sums reconcile121.
+Explicit reviewed mapping preserves stored7:10PM and official7PM ET starts.
+Only reviewed FD/theScore full-game contracts resolve: four more entries,1W/3L.
+
+Private report426 observations,264 earliest contract/book entries,28 event IDs:
+32 resolved over8 events,15W/17L,46.875% accuracy. Hypothetical fixed-unit
+net-2.771735u/ROI-8.661673%,zero fixed fees;232 unresolved. All original
+quotes,source times,earlier reports and losing observations retained. This
+correlated alternatives cohort is neither accepted wagers nor a validated
+strategy. No paid request, deployment, model or private journal change.
+Recommended page remains signed out; no new subscriber-backed opportunities.
