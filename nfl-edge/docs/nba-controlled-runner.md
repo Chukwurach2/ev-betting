@@ -294,3 +294,24 @@ claimed. NFL phone14 games/zero fresh entries,nextSunday9:30AM ET. No extraNFL
 capture, deployment or model change. Routine private sign-in visibility remains
 unverified; public NBA cards were visibly verified. Snapshot freshness expires
 within15minutes; hourly research is not continuous monitoring.
+
+
+## Twelfth controlled capture:2026-10-24 pregame delivery gap
+
+Run[40131946357](https://github.com/Chukwurach2/ev-betting/actions/runs/40131946357),
+job120985320746:10 offline tests passed;free-events preflight292 remaining;
+one bounded request,128 quotes/13provider events. Workflow phone read20:55:43Z
+returned8games/24fresh entries. Independent read generated21:54:27Z returned
+8games/zero entries; clock21:54:33Z confirmed observation was about59minutes
+later. Current delivery cannot be claimed. Preserve this missed fresh window;
+no widening freshness, no invented quote timestamps, no duplicate retry purchase.
+Only8coverage records appended,zero observations; observation count stays454.
+
+Official4:15PM ET injury report reviewed:
+https://ak-static.cms.nba.com/referee/injury/Injury-Report_2026-10-24_04_15PM.pdf
+Substantial availability changes include Missi,Flagg,Curry out; multiple other
+questionable/doubtful players. Prior cards remain expired and conditional.
+No independent injury model adjustment was made. Recommended still gated.
+NFL25games/zero fresh entries,nextSunday9:30AM ET. No extraNFLrequest or
+code deployment. Hourly assistant scheduling and tool execution do not ensure
+real-time delivery; green workflow is insufficient evidence of current cards.
