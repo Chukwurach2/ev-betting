@@ -7,7 +7,7 @@ export function validateLean(p){
  if(p.rights!=='private_original_analysis')throw Error('Private original analysis required');
  for(const k of ['kickoff','observed_at','expires_at'])if(!Number.isFinite(Date.parse(p[k])))throw Error('Missing timestamp '+k);
  if(p.reference_at!==null&&!Number.isFinite(Date.parse(p.reference_at)))throw Error('Invalid reference timestamp');
- if(p.reference_at===null&&p.review_status!=='conditional')throw Error('Unknown reference age requires conditional review');
+ if(p.reference_at===null&&!['conditional','invalidated'].includes(p.review_status))throw Error('Unknown reference age requires conditional review');
  const oldest=p.reference_at===null?Date.parse(p.observed_at):Math.min(Date.parse(p.observed_at),Date.parse(p.reference_at));
  if(Date.parse(p.expires_at)>oldest+15*60000||Date.parse(p.expires_at)<=oldest)throw Error('Invalid expiry');
  if(!Number.isInteger(p.american_odds)||Math.abs(p.american_odds)<100||!Number.isInteger(p.minimum_odds)||Math.abs(p.minimum_odds)<100)throw Error('Invalid odds');
@@ -26,7 +26,7 @@ export function leanState(p,now=Date.now()){
 export function visibleLeans(rows,{sport,books,now=Date.now()}){
  const seen=new Set();
  return rows.map(r=>r.payload).filter(p=>{
-  const state=leanState(p,now);if(state==='unavailable'||p.sport!==sport||!books.includes(p.book_key))return false;
-  const key=[p.sport,p.game_id,p.market,p.selection,p.line??''].join('|');if(seen.has(key))return false;seen.add(key);return true;
+  const state=leanState(p,now);if(state==='unavailable'||p.sport!==sport)return false;
+  const key=[p.sport,p.game_id,p.market,p.selection,p.line??''].join('|');if(seen.has(key))return false;seen.add(key);return books.includes(p.book_key);
  }).map(p=>({...p,state:leanState(p,now)}));
 }
