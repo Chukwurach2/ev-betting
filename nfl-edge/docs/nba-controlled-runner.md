@@ -269,3 +269,28 @@ October25,9:30AM ET; no NFL game in next24h and no extra NFL paid request.
 This data-only delivery uses existing production route; no deployment or model
 change. Hourly research is not continuous price monitoring; refresh exact offers
 before relying on this short-lived snapshot.
+
+
+## Eleventh controlled capture:2026-10-24 midday
+
+Run[40107496903](https://github.com/Chukwurach2/ev-betting/actions/runs/40107496903),
+job120912117708:10 offline checks passed, free-events preflight310 remaining,
+one bounded odds request,128 quotes/13 provider events. Immediate phone read
+returned8 games/28 fresh entries; independent GET and rendered NBA view agree.
+Six four-entry cards; SAS–DAL and NOP–DEN two entries each. All entries negative
+estimated edge; no positive-EV opportunity claimed. Earliest expiry15:47:26Z.
+Private append28 observations+8 coverage rows,total454 observations. Pre-completion
+zero-price GET retained separately; only completed fresh snapshot appended.
+
+Official11:15AM ET report checked:
+https://ak-static.cms.nba.com/referee/injury/Injury-Report_2026-10-24_11_15AM.pdf
+Many teams NOT YET SUBMITTED; all entries remain conditional, no quantified
+injury adjustment or certified exact offer/rule/accepted size. Per-game private
+reviews preserve fair probabilities,quotes/reference times,break-even price,
+zero fixed-fee assumptions,unknown liquidity and correlation warnings. Negative
+entries are price watches, not a recommendation to bet all alternatives.
+Recommended page still shows membership sign-in gate; no subscriber shortlist
+claimed. NFL phone14 games/zero fresh entries,nextSunday9:30AM ET. No extraNFL
+capture, deployment or model change. Routine private sign-in visibility remains
+unverified; public NBA cards were visibly verified. Snapshot freshness expires
+within15minutes; hourly research is not continuous monitoring.
