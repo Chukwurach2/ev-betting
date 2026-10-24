@@ -328,3 +328,24 @@ quotes,source times,earlier reports and losing observations retained. This
 correlated alternatives cohort is neither accepted wagers nor a validated
 strategy. No paid request, deployment, model or private journal change.
 Recommended page remains signed out; no new subscriber-backed opportunities.
+
+
+## Ninth event outcome review (2026-10-24 UTC)
+
+Rendered official NBA0022600097 confirms Toronto112–Washington102. Quarter
+sums,date,7PM ET and Capital One Arena verified:
+https://www.nba.com/game/tor-vs-was-0022600097
+Explicit mapping retains provider7:10PM and official7PM ET. Four further
+rule-supported FD/theScore entries resolve2W/2L. Earliest-per-contract/book
+selection remains frozen; later tiny-positive quotes cannot replace an earlier
+observation based on the final outcome.
+
+Private report426 observations,264 earliest contract/book entries across28 IDs:
+36 resolved across9 events,17W/19L,47.222222% accuracy,hypothetical fixed-unit
+net-2.884943u/ROI-8.013730%,zero fixed fees;228 unresolved. All prior reports,
+original quote/reference times and losing alternatives retained. No accepted
+wagers, validated profitability, paid request, model change or deployment.
+
+Publication initially failed on connector transport; this aggregate update was
+recovered only after checking the unchanged branch head. Private evidence was
+preserved locally throughout the outage. Raw data remain unpublished.
