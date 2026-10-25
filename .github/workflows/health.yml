@@ -59,8 +59,9 @@ jobs:
         env:
           NFL_EDGE_DATABASE_URL: ${{ secrets.NFL_EDGE_DATABASE_URL }}
         run: |
-          python ops/health.py
-          code=$?
+          # Capture documented nonzero statuses under GitHub's bash -e.
+          code=0
+          python ops/health.py || code=$?
           if [ $code -ge 2 ]; then echo 'PIPELINE DOWN: a core component is stale'; exit 1; fi
-          if [ $code -eq 1 ]; then echo '::warning::Pipeline degraded (settlement stale or odds credits low)'; fi
+          if [ $code -eq 1 ]; then echo '::warning::Pipeline degraded; inspect component details above'; fi
           exit 0
