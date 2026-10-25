@@ -386,3 +386,20 @@ net-2.192610u/ROI-4.872468%,zero fixed fees;247 unresolved. The positive-estimat
 subset is tiny and selected; wins alone do not establish calibration,independence
 or policy profitability. Original quotes,earliest-observation rule and losses
 preserved. No accepted wager,paid capture,deployment or strategy promotion.
+
+
+## Twelfth event outcome review (2026-10-25 UTC)
+
+The previously blocked Miami–Charlotte review is now verified directly in
+rendered NBA0022600104:Charlotte115–Miami110,quarter sums,date,6PM ET and
+Spectrum Center match:
+https://www.nba.com/game/mia-vs-cha-0022600104
+Explicit mapping preserves stored6:10PM/official6PM ET. Two further supported
+operator-rule entries resolve1W/1L; unsupported books stay unresolved.
+
+Private454 observations ->292 earliest contract/book entries over36 IDs:
+47 resolved across12 events,23W/24L,48.936170% accuracy,hypothetical fixed-unit
+net-2.283520u/ROI-4.858552%,zero fixed fees;245 unresolved. Original rows and
+previous blocked-review receipt retained; no retrospective quote substitution,
+accepted wager or strategy validation. No odds request, model change or deployment.
+Recommended was rechecked and remains behind its sign-in gate.
