@@ -315,3 +315,23 @@ No independent injury model adjustment was made. Recommended still gated.
 NFL25games/zero fresh entries,nextSunday9:30AM ET. No extraNFLrequest or
 code deployment. Hourly assistant scheduling and tool execution do not ensure
 real-time delivery; green workflow is insufficient evidence of current cards.
+
+
+## Thirteenth capture:2026-10-25 delayed independent verification
+
+Run[40227736767](https://github.com/Chukwurach2/ev-betting/actions/runs/40227736767),
+job121272620093:10offline tests passed;free-events preflight264remaining;
+one bounded request,112quotes/12provider events. Workflow phone read19:48:19Z
+reported7games/24fresh entries. Independent read20:07:23Z returned7games/0entries,
+confirmed clock20:07:54Z. Thus capture succeeded but no independently current
+card was verified. No repeat request;zero observations appended,7coverage rows,
+454observation count unchanged. Raw odds never reconstructed from aggregate logs.
+
+Official3:30PM ET report reviewed:
+https://ak-static.cms.nba.com/referee/injury/Injury-Report_2026-10-25_03_30PM.pdf
+Multiple outs/questionables remain conditions; no model adjustment or ready
+candidate claimed. Repeated tool/scheduling delays can exceed15minute freshness.
+Future controlled captures should preserve authorized private observations in
+the same timely delivery transaction before claiming unattended delivery; until
+then avoid repeated paid retries solely because assistant verification is late.
+No freshness relaxation,live mode,model change or deployment.
