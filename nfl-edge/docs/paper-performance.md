@@ -403,3 +403,22 @@ net-2.283520u/ROI-4.858552%,zero fixed fees;245 unresolved. Original rows and
 previous blocked-review receipt retained; no retrospective quote substitution,
 accepted wager or strategy validation. No odds request, model change or deployment.
 Recommended was rechecked and remains behind its sign-in gate.
+
+
+## Fourteen final-source reviews, thirteen graded events (2026-10-26 UTC)
+
+Verified rendered NBA0022600105 and0022600106 final banners,quarter sums,
+October24 date,7:30PM ET and respective Rocket Arena/Xfinity Mobile Arena:
+https://www.nba.com/game/BKN-vs-CLE-0022600105
+https://www.nba.com/game/mil-vs-phi-0022600106
+Explicit per-event mappings preserve provider7:40PM/official7:30PM ET starts.
+One further rule-supported observation resolves as a win. All recorded entries
+for the other reviewed event remain ungraded because applicable operator rules
+are not reviewed. Knowing a final score never substitutes for contract evidence.
+
+Private454observations ->292earliest contract/book entries across36IDs:
+48graded over13events(out of14reviewed finals),24W/24L,50%accuracy,hypothetical
+fixed-unit net-1.374429u/ROI-2.863393%,zero fixed fees;244unresolved(77contract
+rules,16identity conflicts,151missing finals). Original rows,losing alternatives,
+source timestamps and earlier reports preserved. No accepted-wager P&L,
+validation promotion,paid request or deployment.
