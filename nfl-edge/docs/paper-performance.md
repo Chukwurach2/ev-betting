@@ -422,3 +422,25 @@ fixed-unit net-1.374429u/ROI-2.863393%,zero fixed fees;244unresolved(77contract
 rules,16identity conflicts,151missing finals). Original rows,losing alternatives,
 source timestamps and earlier reports preserved. No accepted-wager P&L,
 validation promotion,paid request or deployment.
+
+
+## Sixteen final-source reviews, fifteen graded events (2026-10-26 UTC)
+
+Reviewed official NBA finals 0022600108 (Washington at Chicago) and 0022600109
+(San Antonio at Dallas), including quarter sums, October24 date, 8:00PM ET,
+and respective United Center/American Airlines Center venues:
+https://www.nba.com/game/0022600108
+https://www.nba.com/game/0022600109?resume=true
+Explicit retrospective mappings retain provider8:10PM and official8:00PM ET;
+no pregame identity or eligibility decision is rewritten. Four exact full-game
+half-point observations have previously reviewed applicable FanDuel/theScore
+rules and resolve3W/1L. DraftKings/BetMGM entries remain unresolved.
+
+Private454 observations ->292 earliest contract/book entries over36 IDs:
+52 graded across15 games from16 reviewed finals,27W/25L,51.923077% accuracy,
+hypothetical fixed-unit net+0.396134u/ROI+0.761796%,zero fixed fees. All240
+unresolved entries remain excluded. This small, correlated, exploratory sample
+is not a registered strategy, accepted-wager P&L, or profitability validation.
+Original timestamps, losing alternatives and previous evidence versions remain
+preserved. Offline report rerun completed; documentation-only increment;
+no new provider credits, model change or deployment.
