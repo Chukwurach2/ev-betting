@@ -128,6 +128,18 @@
       "outcome": "Terminal retirement under the frozen stop rule after the corrected bounded pull: usable N was 25 for pass attempts and 23 for rush attempts, below the required 25 for both endpoints. No outcomes inspected and no confirmatory test run. Approximately 1,497 pull-attributable credits were consumed across the retained identity incident and corrected pull; the preregistered family-wise slot was consumed without endpoint-level testing.",
       "report": "docs/nfl-h-d-retirement.md",
       "role": "SHADOW"
+    },
+    {
+      "id": "nba-b2b-rest-spread-v1",
+      "market_family": "nba_full_game_spread_rest",
+      "status": "registered_data_blocked",
+      "registered_at": "2026-10-26",
+      "hypothesis": "A pregame rest/travel/workload model adds calibrated cover-probability information beyond the decision-time NBA spread market; test the user's B2B underdog overreaction mechanism.",
+      "report": "docs/cross-sport-strategy-agenda.md",
+      "protocol": "research/protocols/nba-b2b-rest-spread-v1.json",
+      "outcome": null,
+      "role": "SHADOW",
+      "blocker": "No authorized historical NBA decision-time spread/price bundle is present locally; existing Odds API free plan excludes historical NBA odds. No historical outcomes or performance inspected for this experiment."
     }
   ]
 }
