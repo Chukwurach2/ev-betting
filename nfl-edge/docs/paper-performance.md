@@ -444,3 +444,22 @@ is not a registered strategy, accepted-wager P&L, or profitability validation.
 Original timestamps, losing alternatives and previous evidence versions remain
 preserved. Offline report rerun completed; documentation-only increment;
 no new provider credits, model change or deployment.
+
+
+## Overtime final review (2026-10-28 UTC)
+
+Official NBA0022600128 now shows Boston125–Brooklyn124 FINAL/OT:
+https://www.nba.com/game/bkn-vs-bos-0022600128
+Verified four regulation periods plus overtime sum to each final, October27,
+7:30PM ET and TDGarden. Earlier117–117ENDQ4 was explicitly rejected as nonfinal;
+that receipt remains preserved. The explicit retrospective mapping retains
+provider7:40PM/official7:30PM ET without rewriting pregame eligibility.
+
+Two previously rule-supported observations grade1W/1L. Unsupported operator
+contracts remain unresolved. Private488observations ->326 earliest contract/book
+entries over45IDs;54graded across16games from17reviewed finals,28W/26L,
+51.851852%accuracy,hypothetical fixed-unit net+0.348515u/ROI+0.645398%,zero
+fixed fees;272unresolved. Offline evaluator rerun completed using the same code;
+no new strategy test, accepted-wager profit, paid request, deployment or promotion.
+This small correlated sample remains exploratory; original quotes, losing
+alternatives and nonfinal evidence are preserved privately.
