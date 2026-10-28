@@ -32,7 +32,17 @@ research has limited remaining observations; baseball ideas are also suitable
 for the next full season. NCAAB activation depends on its actual season/slate.
 Do not spend scarce odds credits on broad prop sweeps or every proposed family.
 
-## First registered test
+## Current evidence (updated 2026-10-28)
+
+The separate preregistered closing-line screen is completed; see
+[nba-b2b-closing-screen-v1-results.md](nba-b2b-closing-screen-v1-results.md).
+The primary underdog rule was not supported. The fade comparator remains an
+unvalidated lead. The 2024–25 sample is now inspected development evidence.
+A metadata-only [next-season source audit](nba-next-season-data-audit-2026-10-28.md)
+identifies a replication candidate; no second experiment was run today.
+The full T−60 feature model remains blocked on decision-time prices/features.
+
+## First registered model
 
 See research/protocols/nba-b2b-rest-spread-v1.json. It freezes the B2B definition,
 12 inputs, decision window, chronological seasons, model/selection rules,
@@ -63,7 +73,8 @@ copy its curve or record into our own performance results.
 
 ## Data audit and current limitation
 
-The current local inventory has no authorized historical NBA spread/price bundle.
+The current local inventory now includes a privately retained consensus closing-line
+sample for a descriptive screen, but no decision-time offered-book NBA price bundle.
 The existing NFL2022–24 bundle and prior retired NFL experiments are not NBA data;
 do not relabel them, revive retired families, or count those tests as this test.
 
