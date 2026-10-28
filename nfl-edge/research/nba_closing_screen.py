@@ -5,7 +5,7 @@ import hashlib
 import json
 import math
 from collections import Counter
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -32,6 +32,10 @@ def summarize(outcomes):
 def screen(rows):
     seen, teams, parsed = set(), {}, []
     for r in rows:
+        # This helper implements one registered season, including its known
+        # December Cup exclusions. Other seasons require a separate protocol.
+        if r.get('season') != '2024-25':
+            raise ValueError('Protocol requires season 2024-25; register other seasons separately')
         gid = r['game_id']
         if not gid or gid in seen:
             raise ValueError('Missing or duplicate game ID')
@@ -40,6 +44,8 @@ def screen(rows):
         if t.tzinfo is None:
             raise ValueError('Timezone required')
         day = t.astimezone(ZoneInfo('America/New_York')).date()
+        if not date(2024, 7, 1) <= day < date(2025, 7, 1):
+            raise ValueError('Game date outside registered season 2024-25')
         if day.isoformat() != r['date_et']:
             raise ValueError('Date/time identity mismatch')
         for side in ('home', 'away'):

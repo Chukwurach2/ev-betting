@@ -51,5 +51,26 @@ class ClosingScreenTest(unittest.TestCase):
         self.assertAlmostEqual(float(r['hypothetical_minus110_net_units']),74*100/110-33)
         self.assertAlmostEqual(r['cover_rate'],74/107)
 
+    def test_unregistered_or_missing_season_fails_before_grading(self):
+        for season in ('2025-26', '', None):
+            row = self.population()[0]
+            row['season'] = season
+            row['ats_result'] = 'invalid'
+            with self.assertRaisesRegex(ValueError, 'Protocol requires season'):
+                screen([row])
+        row = self.population()[0]
+        del row['season']
+        with self.assertRaisesRegex(ValueError, 'Protocol requires season'):
+            screen([row])
+
+    def test_relabelled_next_season_and_mixed_seasons_fail(self):
+        row = game('later', '2025-12-01', 'A', 'B')
+        with self.assertRaisesRegex(ValueError, 'outside registered season'):
+            screen([row])
+        rows = self.population()
+        rows[-1]['season'] = '2025-26'
+        with self.assertRaisesRegex(ValueError, 'Protocol requires season'):
+            screen(rows)
+
 
 if __name__ == '__main__': unittest.main()

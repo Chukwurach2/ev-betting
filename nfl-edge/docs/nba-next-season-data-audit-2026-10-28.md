@@ -51,3 +51,15 @@ independent source validation. Freeze this disclosure in any next protocol.
 
 No raw rows, subscriber data, account details or hypothetical future picks are
 published here. No purchase, account creation or odds-provider credits used.
+
+## Guard added before any next-season evaluation
+
+The existing helper now rejects missing or non-2024–25 season labels before
+ATS grading, and rejects calendar dates outside July 2024–June 2025 even if a
+later season is relabeled. This prevents silently applying December-2024-only
+exclusions to a 2025–26 input. The helper remains bound to the original screen;
+no configurable follow-up evaluator or second experiment is introduced.
+Eight focused tests passed, including mixed-season/missing-label rejection.
+Replay of the previously inspected source produced an exactly identical full
+report and source hash. Existing results and selection rules were not changed.
+A later protocol still requires its own season-aware implementation and tests.
