@@ -144,11 +144,12 @@
     {
       "id": "nba-b2b-closing-screen-v1",
       "market_family": "nba_full_game_spread_rest",
-      "status": "registered_descriptive_screen",
+      "status": "completed_descriptive_no_promotion",
       "protocol": "research/protocols/nba-b2b-closing-screen-v1.json",
       "registered_at": "2026-10-28T15:19:11.022Z",
-      "outcome": null,
-      "role": "descriptive-only"
+      "outcome": "Primary B2B dogs43W57L; predeclared fade106W79L. Consensus closing-only, not executable ROI; fade interval includes -110 break-even; no promotion.",
+      "role": "descriptive-only",
+      "report": "docs/nba-b2b-closing-screen-v1-results.md"
     }
   ]
 }

@@ -1,0 +1,47 @@
+{
+  "mode": "descriptive_consensus_close_not_execution",
+  "input_rows": 1314,
+  "team_ids": 30,
+  "exclusions": {
+    "previous_game_unavailable": 16,
+    "rest_population_not_met": 807,
+    "not_half_point": 31,
+    "december_missing_cup_schedule": 185,
+    "postseason": 90
+  },
+  "b2b_underdog": {
+    "wins": 43,
+    "losses": 57,
+    "pushes": 0,
+    "decisions": 100,
+    "cover_rate": 0.43,
+    "wilson95": [
+      0.33733298524110106,
+      0.5278461045078768
+    ],
+    "hypothetical_minus110_net_units": "-17.90909090909090909090909091",
+    "hypothetical_minus110_roi": -0.17909090909090908
+  },
+  "fade_b2b": {
+    "wins": 106,
+    "losses": 79,
+    "pushes": 0,
+    "decisions": 185,
+    "cover_rate": 0.572972972972973,
+    "wilson95": [
+      0.5009233868279171,
+      0.6420536912385929
+    ],
+    "hypothetical_minus110_net_units": "17.36363636363636363636363636",
+    "hypothetical_minus110_roi": 0.09385749385749385
+  },
+  "selected_game_count": 185,
+  "limitations": [
+    "One season; December candidates excluded for missing Cup games.",
+    "Publisher provenance not independently certified.",
+    "No quote times or offered per-book prices; -110 is hypothetical.",
+    "Wilson interval ignores team/week dependence; not confirmatory.",
+    "No fitted model, calibrated 60% probabilities or future picks."
+  ],
+  "source_sha256": "e756b4c09c3ac56070f95ad8b6de78fc1b95a1df1049825a5f329d7ce57968cc"
+}
