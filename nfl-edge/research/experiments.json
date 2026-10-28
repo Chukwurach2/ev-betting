@@ -140,6 +140,15 @@
       "outcome": null,
       "role": "SHADOW",
       "blocker": "No authorized historical NBA decision-time spread/price bundle is present locally; existing Odds API free plan excludes historical NBA odds. No historical outcomes or performance inspected for this experiment."
+    },
+    {
+      "id": "nba-b2b-closing-screen-v1",
+      "market_family": "nba_full_game_spread_rest",
+      "status": "registered_descriptive_screen",
+      "protocol": "research/protocols/nba-b2b-closing-screen-v1.json",
+      "registered_at": "2026-10-28T15:19:11.022Z",
+      "outcome": null,
+      "role": "descriptive-only"
     }
   ]
 }
