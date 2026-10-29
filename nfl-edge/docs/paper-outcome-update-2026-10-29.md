@@ -37,3 +37,23 @@ exact rule linkage, result status and output counts were checked. No source
 rows or per-game selection ledger are published. Detailed result/rule/mapping
 and full performance artifacts stay ignored and private. No paid request,
 model promotion, live wagering or deployment occurred.
+
+## Subsequent review: Washington at Cleveland
+
+Official NBA0022600133 finished111–121 at Rocket Arena, October28,7PM ET:
+https://www.nba.com/game/was-vs-cle-0022600133
+Washington42/27/23/19 and Cleveland34/25/33/29 reconcile to the final.
+The provider7:10PM time remains separate in an explicit reviewed mapping.
+FanDuel NY basketball rules (effectiveOctober15,2026) were rechecked for
+completed NBA games, official results and overtime inclusion. One additional
+exact-book half-point observation grades as a win; other-book alternatives
+remain unresolved, with no transfer of rule evidence.
+
+Updated unchanged-evaluator result:56graded across18games from19reviewed
+finals,29W/27L;312unresolved among368earliest contract/book entries.
+Hypothetical fixed1u/zero-fee net+0.27444105u,ROI+0.4900733%.
+This small descriptive mean, with correlated watches and incomplete coverage,
+is not positive-EV strategy validation, accepted wager profit or CLV.
+The private ledger remains890unique records; prior evidence/report retained
+and new evidence/report files created separately. No financial behavior,
+provider call, new statistical experiment, model or deployment changed.
