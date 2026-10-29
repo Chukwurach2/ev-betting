@@ -30,12 +30,16 @@ def summarize(outcomes):
 
 
 def screen(rows):
+    return _screen(rows, '2024-25', date(2024, 7, 1), date(2025, 7, 1), (2024, 12))
+
+
+def _screen(rows, season, season_start, season_end, excluded_month):
     seen, teams, parsed = set(), {}, []
     for r in rows:
         # This helper implements one registered season, including its known
         # December Cup exclusions. Other seasons require a separate protocol.
-        if r.get('season') != '2024-25':
-            raise ValueError('Protocol requires season 2024-25; register other seasons separately')
+        if r.get('season') != season:
+            raise ValueError('Protocol requires season '+season+'; register other seasons separately')
         gid = r['game_id']
         if not gid or gid in seen:
             raise ValueError('Missing or duplicate game ID')
@@ -44,8 +48,8 @@ def screen(rows):
         if t.tzinfo is None:
             raise ValueError('Timezone required')
         day = t.astimezone(ZoneInfo('America/New_York')).date()
-        if not date(2024, 7, 1) <= day < date(2025, 7, 1):
-            raise ValueError('Game date outside registered season 2024-25')
+        if not season_start <= day < season_end:
+            raise ValueError('Game date outside registered season '+season)
         if day.isoformat() != r['date_et']:
             raise ValueError('Date/time identity mismatch')
         for side in ('home', 'away'):
@@ -76,7 +80,7 @@ def screen(rows):
         reason = None
         if r['season_type'] != 'regular':
             reason = 'postseason'
-        elif day.year == 2024 and day.month == 12:
+        elif (day.year, day.month) == excluded_month:
             reason = 'december_missing_cup_schedule'
         elif any(x is None for x in prior):
             reason = 'previous_game_unavailable'
