@@ -38,8 +38,10 @@ The separate preregistered closing-line screen is completed; see
 [nba-b2b-closing-screen-v1-results.md](nba-b2b-closing-screen-v1-results.md).
 The primary underdog rule was not supported. The fade comparator remains an
 unvalidated lead. The 2024–25 sample is now inspected development evidence.
-A metadata-only [next-season source audit](nba-next-season-data-audit-2026-10-28.md)
-identifies a replication candidate; no second experiment was run today.
+The separately registered [2025–26 replication](nba-b2b-fade-replication-v1-results.md)
+completed on 2026-10-29: 97–99 (49.49%); the fade lead was not reproduced.
+Both 2024–25 and 2025–26 are now inspected descriptive/development evidence.
+No positive strategy or future-pick promotion follows from these screens.
 The full T−60 feature model remains blocked on decision-time prices/features.
 
 ## First registered model
@@ -49,9 +51,10 @@ See research/protocols/nba-b2b-rest-spread-v1.json. It freezes the B2B definitio
 baselines, uncertainty, exclusions and promotion boundary before evaluation.
 
 The claim being tested is incremental cover-probability information after
-market pricing. A fatigue effect on scores alone is insufficient. Training on
-earlier years, tuning on2024-25 and testing2025-26 is permitted only after an audit
-confirms that this family has not already been tuned against that holdout.
+market pricing. A fatigue effect on scores alone is insufficient. The earlier proposed
+2025–26 holdout is now inspected by the descriptive replication and cannot be
+called an untouched holdout for later rest-family model selection. Any fitted
+follow-up needs a revised registration and genuinely new prospective evidence.
 The2026-27 season is prospective only from the registration time onward.
 
 The user's60%/40% thresholds are a candidate decision rule, not evidence that

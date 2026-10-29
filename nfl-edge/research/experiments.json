@@ -154,12 +154,13 @@
     {
       "id": "nba-b2b-fade-replication-v1",
       "market_family": "nba_full_game_spread_rest",
-      "status": "registered_not_evaluated",
+      "status": "completed_descriptive_not_supported",
       "registered_at": "2026-10-28T20:36:53Z",
       "protocol": "research/protocols/nba-b2b-fade-replication-v1.json",
       "role": "independently_dated_descriptive_replication_only",
-      "outcome": null,
-      "blocker": "Evaluator/coverage audit pending; next daily experiment slot no earlier than 2026-10-29 ET."
+      "outcome": "Fixed 2025-26 fade/rest rule97W99L(49.4898%); four-week bootstrap95%42.2764–59.0551. Earlier57.30%lead not reproduced. No offered-book historical profit or promotion.",
+      "blocker": "Evaluator/coverage audit pending; next daily experiment slot no earlier than 2026-10-29 ET.",
+      "report": "docs/nba-b2b-fade-replication-v1-results.md"
     }
   ]
 }
