@@ -128,6 +128,39 @@
       "outcome": "Terminal retirement under the frozen stop rule after the corrected bounded pull: usable N was 25 for pass attempts and 23 for rush attempts, below the required 25 for both endpoints. No outcomes inspected and no confirmatory test run. Approximately 1,497 pull-attributable credits were consumed across the retained identity incident and corrected pull; the preregistered family-wise slot was consumed without endpoint-level testing.",
       "report": "docs/nfl-h-d-retirement.md",
       "role": "SHADOW"
+    },
+    {
+      "id": "nba-b2b-rest-spread-v1",
+      "market_family": "nba_full_game_spread_rest",
+      "status": "registered_data_blocked",
+      "registered_at": "2026-10-26",
+      "hypothesis": "A pregame rest/travel/workload model adds calibrated cover-probability information beyond the decision-time NBA spread market; test the user's B2B underdog overreaction mechanism.",
+      "report": "docs/cross-sport-strategy-agenda.md",
+      "protocol": "research/protocols/nba-b2b-rest-spread-v1.json",
+      "outcome": null,
+      "role": "SHADOW",
+      "blocker": "No authorized historical NBA decision-time spread/price bundle is present locally; existing Odds API free plan excludes historical NBA odds. No historical outcomes or performance inspected for this experiment."
+    },
+    {
+      "id": "nba-b2b-closing-screen-v1",
+      "market_family": "nba_full_game_spread_rest",
+      "status": "completed_descriptive_no_promotion",
+      "protocol": "research/protocols/nba-b2b-closing-screen-v1.json",
+      "registered_at": "2026-10-28T15:19:11.022Z",
+      "outcome": "Primary B2B dogs43W57L; predeclared fade106W79L. Consensus closing-only, not executable ROI; fade interval includes -110 break-even; no promotion.",
+      "role": "descriptive-only",
+      "report": "docs/nba-b2b-closing-screen-v1-results.md"
+    },
+    {
+      "id": "nba-b2b-fade-replication-v1",
+      "market_family": "nba_full_game_spread_rest",
+      "status": "completed_descriptive_not_supported",
+      "registered_at": "2026-10-28T20:36:53Z",
+      "protocol": "research/protocols/nba-b2b-fade-replication-v1.json",
+      "role": "independently_dated_descriptive_replication_only",
+      "outcome": "Fixed 2025-26 fade/rest rule97W99L(49.4898%); four-week bootstrap95%42.2764–59.0551. Earlier57.30%lead not reproduced. No offered-book historical profit or promotion.",
+      "blocker": "Evaluator/coverage audit pending; next daily experiment slot no earlier than 2026-10-29 ET.",
+      "report": "docs/nba-b2b-fade-replication-v1-results.md"
     }
   ]
 }

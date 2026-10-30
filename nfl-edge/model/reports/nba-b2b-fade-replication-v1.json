@@ -1,0 +1,51 @@
+{
+  "experiment_id": "nba-b2b-fade-replication-v1",
+  "mode": "descriptive_consensus_close_not_execution",
+  "input_rows": 1315,
+  "team_ids": 30,
+  "exclusions": {
+    "previous_game_unavailable": 16,
+    "rest_population_not_met": 821,
+    "december_missing_cup_schedule": 191,
+    "postseason": 91
+  },
+  "primary": {
+    "wins": 97,
+    "losses": 99,
+    "pushes": 0,
+    "decisions": 196,
+    "cover_rate": 0.49489795918367346,
+    "wilson95": [
+      0.4256769001828971,
+      0.5643151664693262
+    ],
+    "hypothetical_minus110_net_units": "-10.81818181818181818181818182",
+    "hypothetical_minus110_roi": -0.05519480519480519
+  },
+  "uncertainty": {
+    "method": "four_week_circular_bootstrap_descriptive",
+    "seed": 20261029,
+    "block_weeks": 4,
+    "calendar_weeks": 25,
+    "nonempty_weeks": 21,
+    "decisions": 196,
+    "minimum_decisions": 100,
+    "minimum_nonempty_weeks": 20,
+    "valid_replicates": 20000,
+    "skipped_zero_decision": 0,
+    "attempts": 20000,
+    "interval95": [
+      0.42276422764227645,
+      0.5905511811023622
+    ],
+    "sample_gate": "sufficient",
+    "limitations": "Approximate local dependence only; no season-long team clustering, executable ROI or promotion."
+  },
+  "limitations": [
+    "Same compiler, not independent-source validation.",
+    "Known Cup omissions isolated; full independent schedule audit not certified.",
+    "No offered-book prices/times or executable ROI.",
+    "No calibrated individual probabilities or automatic promotion."
+  ],
+  "source_sha256": "9ff4950cd96dc97da58dd64632444e5865d39f1e02a0673533a924f895d1ecae"
+}

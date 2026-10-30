@@ -1,0 +1,38 @@
+{
+  "id": "nba-b2b-fade-replication-v1",
+  "registered_at": "2026-10-28T20:36:53Z",
+  "status": "registered_not_evaluated",
+  "role": "independently_dated_descriptive_replication_only",
+  "earliest_evaluation_date_et": "2026-10-29",
+  "daily_experiment_boundary": "No row download or statistical evaluation on 2026-10-28; today's completed screen consumed the daily experiment slot.",
+  "hypothesis": "The predeclared fade/rest comparator from inspected 2024-25 evidence also covers above the hypothetical -110 break-even frequency in 2025-26 under unchanged rest/handicap rules.",
+  "source": "https://huggingface.co/datasets/minmaxxxer/nba-closing-lines-ats-2025-26",
+  "source_review": "Publisher README metadata and league-wide aggregate summaries already visible. Individual rows and B2B subgroup outcomes not inspected. Same compiler is not independent-source validation; do not call this a wholly blind external holdout. Publisher CC BY4.0 label does not certify all upstream rights.",
+  "development_evidence": "nba-b2b-closing-screen-v1: 2024-25 inspected; 106W79L fade comparator is motivation, not part of replication sample or probability training.",
+  "population": {
+    "season": "2025-26",
+    "season_type": "regular",
+    "excluded_candidate_months": [
+      "2025-12"
+    ],
+    "reason": "Known Cup knockout omission; retain exclusion before outcomes. Exclude unavailable prior game, non-half-point spread, invalid schedule coverage or unmet rest population. No postseason."
+  },
+  "selection": "Exactly one B2B team: consecutive America/New_York dates AND 18<=tip-to-tip elapsed hours<=36; opponent elapsed>=48h from its previous exact source-ID game. Take the opponent's exact opposite signed half-point consensus closing spread regardless favorite status. One observation per game; no underdog/home/travel/price/workload subgroups.",
+  "coverage_gate": "Fingerprint source bytes and audit exact team IDs, unique game IDs, ET/UTC identity, season dates, final scores/OT and ATS label/margin reconciliation before computing selection results. Audit known missing fixtures against retained rest sequences. Stop on unresolved affected-game schedule gaps; never invent prior games, silently repair data, change exclusion months or count unverified rows as complete. Calendar dates must lie within July2025-June2026.",
+  "sample_gate": {
+    "minimum_decisions": 100,
+    "minimum_nonempty_iso_weeks": 20,
+    "if_insufficient": "Report all fixed counts as descriptive inconclusive; no rescue variants or changed floor."
+  },
+  "primary_endpoint": "Fade-side wins/(wins+losses). Half-point spreads imply no pushes; unexpected push fails audit. Compare against exact hypothetical break-even 110/210; do not substitute a game-level model probability.",
+  "uncertainty": {
+    "wilson95": "Descriptive secondary interval only.",
+    "primary_descriptive_interval": "Circular moving-block bootstrap over Monday-start ET calendar-week aggregates, including zero-eligible weeks between first/last eligible dates. Draw uniform block starts, concatenate consecutive 4-week blocks with wraparound until original number of weeks, truncate. Each replicate is summed wins/summed decisions; skip zero-decision replicates and record skips. 20,000 valid replicates; cap100,000 attempts; seed20261029; stdlib random.Random. Sort replicates and use nearest-rank 2.5%/97.5% quantiles (ceil(q*N)-1). Record original nonempty weeks/total weeks and block length.",
+    "limits": "Captures local week dependence approximately, not full season-long team dependence or independent-source uncertainty. No confirmatory p-value, familywise certification or production validation."
+  },
+  "accounting": "Fixed one-unit risk, blanket -110 returns as counterfactual sensitivity only; wins*(100/110)-losses. No actual offered-book prices/times, executable ROI, fees/CLV/fills or stake advice.",
+  "report": "Preserve record, source SHA256, every exclusion, unique games/weeks, both intervals, hypothetical unit arithmetic, all audit failures. Single primary rule only. Disappointing/inconclusive results retained; no cutoff search or pooled post-selection rescue.",
+  "interpretation": "A lower bootstrap interval above 110/210 is a replication lead only; otherwise not supported/inconclusive. Either outcome requires prospective source-complete paper evidence and actual eligible-book prices before any future card. No automatic promotion.",
+  "implementation_gate": "The 2024-25 helper intentionally rejects this season. Write separately protocol-bound evaluator plus synthetic tests and verify no changed original results BEFORE row-level evaluation. Registration is not implementation completion.",
+  "outcome": null
+}

@@ -1,0 +1,18 @@
+{
+  "id": "nba-b2b-closing-screen-v1",
+  "registered_at": "2026-10-28T15:19:11.022Z",
+  "status": "registered_before_row_download",
+  "role": "descriptive_screen_only",
+  "source": "https://huggingface.co/datasets/minmaxxxer/nba-closing-lines-ats-2024-25",
+  "license_claim": "CC BY4.0 per publisher; provenance not independently certified",
+  "hypothesis": "B2B underdogs against rested opponents cover the consensus closing half-point spread more often than the52.380952% hypothetical-110 break-even rate.",
+  "population": "2024-25 regular-season source rows. Exclude all December2024 candidate games because source omits six NBA Cup knockout games, which can corrupt rest reconstruction; first appearance for each team unavailable. Do not count postseason.",
+  "rest": "From previous source-listed game for each exact team ID, with previous game strictly earlier. B2B consecutive America/New_York calendar dates AND18<=elapsed tip-to-tip hours<=36. Opponent elapsed>=48h. No roster/model fitting.",
+  "selection": "Exactly one B2B team versus rested opponent; B2B team must have positive handicap at close. Half-point main spreads only. One observation per game. No probability60%/40% model claim.",
+  "secondary": "Always fade the B2B team in the same rest-eligible half-point population, regardless favorite status; descriptive comparator only. Never select a winning variant after results.",
+  "grading": "Recompute margin+handicap from final scores including overtime; cross-check publisher ATS labels separately. Wins/losses/pushes; no individual-book execution or historical ROI claim.",
+  "report": "ATS record, Wilson95% interval, N, exclusions and data SHA256. Report hypothetical flat1unit P&L at-110 only as sensitivity, not actual-price profitability. No confirmatory p-value or promotion; one season, missing December coverage, team/week dependence and publisher provenance limitations.",
+  "stop": "Malformed dates/scores/duplicate IDs or contradictory publisher ATS labels fail audit rather than silently repair. Unavailable exact prices/time prevent registeredT-60 model evaluation. No alternative filters after results.",
+  "unseen_status": "Row-level outcomes not downloaded before registration; aggregate dataset-card summaries already seen. This is exploratory, not an untouched confirmatory holdout.",
+  "primary_model_boundary": "Separate from nba-b2b-rest-spread-v1;2024-25 now explicitly inspected development/descriptive evidence.2025-26 and prospective observations not evaluated here."
+}
