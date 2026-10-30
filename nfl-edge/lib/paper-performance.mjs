@@ -6,13 +6,14 @@ function timing(o){const h=(Date.parse(o.kickoff)-Date.parse(o.observed_at))/360
 export function paperPerformance(records,{results=[],contracts=[],mappings=[]}={}, {now=Date.now(),feePerUnit=0}={}){
  if(!Number.isFinite(feePerUnit)||feePerUnit<0)throw Error('feePerUnit must be a nonnegative fixed cost per settled 1-unit paper entry');
  const observations=records.filter(o=>o.kind==='observation');
- const unique=new Map();let invalid=0;
+ const unique=new Map(),variants=new Map();let invalid=0;
  for(const o of observations){
   if(!o.id||!o.book_key||!Number.isFinite(Date.parse(o.observed_at))||!Number.isFinite(Date.parse(o.kickoff))||Date.parse(o.observed_at)>=Date.parse(o.kickoff)||!Number.isInteger(o.american_odds)||Math.abs(o.american_odds)<100){invalid++;continue;}
-  const k=identity(o),p=unique.get(k);
-  if(!p||Date.parse(o.observed_at)<Date.parse(p.observed_at)||(o.observed_at===p.observed_at&&o.id<p.id))unique.set(k,o);
+  const ek=event(o);if(!variants.has(ek))variants.set(ek,new Set());
+  variants.get(ek).add(JSON.stringify([o.kickoff,o.home_team,o.away_team]));
+  const k=identity(o),p=unique.get(k),at=Date.parse(o.observed_at);
+  if(!p||at<Date.parse(p.observed_at)||(at===Date.parse(p.observed_at)&&o.id<p.id))unique.set(k,o);
  }
- const variants=new Map();for(const o of unique.values()){const k=event(o);if(!variants.has(k))variants.set(k,new Set());variants.get(k).add(JSON.stringify([o.kickoff,o.home_team,o.away_team]));}
  const rows=[...unique.values()].sort((a,b)=>Date.parse(a.observed_at)-Date.parse(b.observed_at)||a.id.localeCompare(b.id)).map(o=>{
   const rs=results.filter(r=>r.sport===o.sport&&r.game_id===o.game_id);
   const cs=contracts.filter(c=>c.observation_id===o.id);

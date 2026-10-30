@@ -18,3 +18,23 @@ test('explains unresolved coverage and preserves conflicting identities privatel
 
 test('official result with a different start surfaces identity mismatch without grading',()=>{const x=run([o],{results:[{...r,kickoff:'2026-10-20T19:50:00Z'}],contracts:[c]});assert.equal(x.overall.resolved,0);assert.equal(x.rows[0].result.reason,'invalid_event_timing');assert.equal(x.rows[0].kickoff,o.kickoff);});
 test('different-start evidence cannot be silently discarded to select a favorable final',()=>{const x=run([o],{results:[r,{...r,kickoff:'2026-10-20T19:50:00Z'}],contracts:[c]});assert.equal(x.overall.resolved,0);assert.equal(x.rows[0].result.reason,'ambiguous_result_or_rule');});
+
+test('a collapsed repeat cannot hide conflicting teams in either input order',()=>{
+ const repeat={...o,id:'later-conflict',home_team:'Different',observed_at:'2026-10-20T19:00:00Z'};
+ for(const xs of [[o,repeat],[repeat,o]]){
+  const x=run(xs);assert.equal(x.overall.entries,1);assert.equal(x.overall.resolved,0);
+  assert.equal(x.rows[0].result.reason,'conflicting_event_identity');
+  assert.equal(x.identity_conflicts[0].variants.length,2);assert.equal(x.identity_conflicts[0].affected_entries,1);
+  assert.equal(x.overall.hypothetical_roi,null);
+ }
+});
+
+test('equal parsed quote times use the ID tie break regardless of spelling or order',()=>{
+ const b={...o,id:'b',observed_at:'2026-10-20T18:00:00+00:00',american_odds:200};
+ for(const xs of [[b,o],[o,b]]){const x=run(xs);assert.equal(x.rows[0].id,'a');assert.equal(x.overall.hypothetical_net_units,100/110);}
+});
+
+test('invalid postgame observations do not contaminate valid identity evidence',()=>{
+ const x=run([o,{...o,id:'bad',home_team:'Different',observed_at:o.kickoff}]);
+ assert.equal(x.invalid_observations,1);assert.equal(x.conflicting_event_ids,0);assert.equal(x.overall.resolved,1);
+});
