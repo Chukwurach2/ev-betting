@@ -113,3 +113,10 @@ a research PR does not itself deploy a strategy or deliver a phone pick.
 
 No paid subscription, live wager, model promotion or production change is part
 of this registration.
+
+## Tennis source feasibility (2026-10-30)
+
+See [tennis-workload-data-feasibility-2026-10-30.md](tennis-workload-data-feasibility-2026-10-30.md).
+A metadata-only audit identifies tournament dates/arbitrary match numbers as
+insufficient for a48-hour recovery test. The workload mechanism remains proposed;
+no match rows, backtest, fair probabilities or app strategy were created.
