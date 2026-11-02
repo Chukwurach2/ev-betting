@@ -31,6 +31,17 @@ class CheckpointTests(unittest.TestCase):
         self.assertEqual(seconds_until_imminent_target(
             [{**self.game, 'status': 'final'}], before_close), 0)
 
+    def test_free_plan_budget_reserves_fifty_and_caps_one_request(self):
+        games=[self.game, {**self.game, 'game_id':'g2'}]
+        cps=[c for c in plan(games,self.now) if c.state=='due']
+        for remaining,cost,expected in [(51,2,0),(52,2,1),(53,4,0),(54,4,1),(326,2,1)]:
+            calls=[]
+            result=collect(cps,MemoryStore(),lambda c:calls.append(c) or [],
+                           lambda:self.now,remaining,max_requests=1,
+                           reserve=50,cost_per_request=cost)
+            self.assertEqual(len(calls),expected)
+            self.assertEqual(result['requests'],expected)
+
     def test_deadlines_and_missed_checkpoints(self):
         checkpoints=plan([self.game],self.now)
         self.assertEqual([(c.name,c.state) for c in checkpoints],[('T-24','missed'),('T-3','due')])

@@ -67,15 +67,16 @@ def collector_env(sport):
     return books,regions,n_regions
 
 def quota_reserve_ok(sport, headers):
-    """Quota isolation: the NFL collector has priority on the shared key.
+    """NFL free-plan reserve; college isolation retains its separate policy.
 
-    When remaining provider quota falls below the NCAAF reserve floor, the
-    NCAAF collector stands down entirely (free events feed only, zero paid
-    requests) so a large college slate -- or any unexpected college-collector
-    cost -- can never starve an NFL T-90/close checkpoint. The NFL collector
-    has no such gate. Pure: decides from sport + response headers only.
+    NFL unknown quota fails closed. At least one two-market request must fit
+    above the 50-credit shared research reserve. The collection loop separately
+    enforces the actual region cost, reserve, and one-request NFL run cap.
     """
-    if sport != 'ncaaf':
+    if sport == 'nfl':
+        remaining = quota(headers).get('remaining')
+        if remaining is None or remaining < 52:
+            return False, {'remaining': remaining, 'reserve': 50}
         return True, None
     remaining = quota(headers).get('remaining')
     reserve = int(os.environ.get('NCAAF_EDGE_MIN_QUOTA_REMAINING', '2000'))
@@ -358,7 +359,7 @@ def main(argv=None):
         events,headers=fetch_events(sport=sport)
         ok, quota_info = quota_reserve_ok(sport, headers)
         if not ok:
-            print(json.dumps({'status':'quota_reserved_for_nfl','sport':sport,
+            print(json.dumps({'status':'quota_reserve_stand_down','sport':sport,
                               **quota_info}))
             try:
                 from heartbeat import record_heartbeat
@@ -394,7 +395,10 @@ def main(argv=None):
             check_event_identity(payload,event_id,checkpoint.kickoff)
             return pair_quotes(payload,allowed_books=books,sport=sport)
         _summary = collect(checkpoints,store,fetch,clock,
-                         remaining=quota(headers)['remaining'],max_requests=8,cost_per_request=2*n_regions)
+                         remaining=quota(headers)['remaining'],
+                         max_requests=1 if sport=='nfl' else 8,
+                         reserve=50 if sport=='nfl' else 10,
+                         cost_per_request=2*n_regions)
         try:
             # Fan captured checkpoints out to the normalized quotes table the
             # picks engine and settlement read. Backfills old checkpoints too.

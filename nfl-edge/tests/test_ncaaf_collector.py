@@ -204,8 +204,15 @@ class QuotaIsolationTests(unittest.TestCase):
         return {"x-requests-remaining": str(remaining),
                 "x-requests-used": "1", "x-requests-last": "2"}
 
-    def test_nfl_never_gated(self):
-        ok, info = quota_reserve_ok("nfl", self._headers(0))
+    def test_nfl_unknown_or_low_quota_stands_down(self):
+        for remaining in (None, -1, 0, 50, 51, "unknown", "52.5"):
+            headers = {} if remaining is None else self._headers(remaining)
+            ok, info = quota_reserve_ok("nfl", headers)
+            self.assertFalse(ok)
+            self.assertEqual(info["reserve"], 50)
+
+    def test_nfl_one_request_fits_at_boundary(self):
+        ok, info = quota_reserve_ok("nfl", self._headers(52))
         self.assertTrue(ok)
         self.assertIsNone(info)
 
