@@ -32,17 +32,31 @@ research has limited remaining observations; baseball ideas are also suitable
 for the next full season. NCAAB activation depends on its actual season/slate.
 Do not spend scarce odds credits on broad prop sweeps or every proposed family.
 
-## Current evidence (updated 2026-10-28)
+## Current evidence (updated 2026-11-03)
 
 The separate preregistered closing-line screen is completed; see
 [nba-b2b-closing-screen-v1-results.md](nba-b2b-closing-screen-v1-results.md).
-The primary underdog rule was not supported. The fade comparator remains an
-unvalidated lead. The 2024–25 sample is now inspected development evidence.
+The primary underdog rule was not supported. The fade comparator's apparent lead did not reproduce in the separately
+registered next-season test. The 2024–25 sample is now inspected development evidence.
 The separately registered [2025–26 replication](nba-b2b-fade-replication-v1-results.md)
 completed on 2026-10-29: 97–99 (49.49%); the fade lead was not reproduced.
 Both 2024–25 and 2025–26 are now inspected descriptive/development evidence.
 No positive strategy or future-pick promotion follows from these screens.
 The full T−60 feature model remains blocked on decision-time prices/features.
+
+The independently motivated [NHL homecoming calibration screen](nhl-homecoming-calibration-v1-results.md)
+completed on2026-11-03. Its fixed last-three-away schedule proxy produced191treated
+games; home-win residual contrast+2.20945pp was opposite the predicted negative
+direction, with four-week bootstrap95%−3.83893to+8.79611pp. The hypothesis is not
+supported. Do not reverse the rule or search trip/rest cutoffs on this inspected
+2025–26season. The NHL goalie-confirmation mechanism remains separately data-blocked;
+this screen did not test announcements,goalie workload or executable prices.
+
+Today's2026-11-03Eastern substantial experiment slot is consumed. Continue exact
+paper settlement or permitted fresh-card review; do not run a second statistical
+screen today. Further mechanism tests require their own pre-outcome registration
+and usable authorized data. There is no validated strategy to activate from these
+NBA/NHL results, and missing current prices remain Pending rather than no-edge.
 
 ## First registered model
 
