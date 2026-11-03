@@ -3,7 +3,7 @@ import {dirname} from 'node:path';
 import {paperPerformance} from '../lib/paper-performance.mjs';
 const [ledger='runs/phone-paper.jsonl',evidence,output='runs/paper-performance.json',fee='0']=process.argv.slice(2);
 const records=(await readFile(ledger,'utf8')).split('\n').filter(Boolean).map(JSON.parse);
-const proof=evidence?JSON.parse(await readFile(evidence,'utf8')):{};
+const proof=evidence&&evidence!=='-'?JSON.parse(await readFile(evidence,'utf8')):{};
 const report=paperPerformance(records,proof,{feePerUnit:Number(fee)});
 await mkdir(dirname(output),{recursive:true,mode:0o700});
 await writeFile(output,JSON.stringify(report,null,2)+'\n',{mode:0o600,flag:'wx'});

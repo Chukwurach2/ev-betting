@@ -8,7 +8,14 @@ remain historical observations; they do not become current picks again.
 `node ops/report-paper-performance.mjs runs/phone-paper.jsonl runs/result-evidence.json runs/performance-YYYYMMDD.json 0`
 
 The evidence file contains `results` and `contracts` arrays using the exact schemas
-in docs/paper-outcomes.md. Omit the evidence argument to audit unresolved coverage.
+in docs/paper-outcomes.md. Use `-` in the evidence position to audit unresolved
+coverage while retaining an explicit output path and fixed cost:
+
+`node ops/report-paper-performance.mjs runs/phone-paper.jsonl - runs/unresolved-YYYYMMDD.json 0`
+
+Omitting all optional arguments still uses the exclusive default output filename;
+for repeated audits, pass `-` and a new output filename. The sentinel is not a source
+file and supplies no result, rule or mapping evidence.
 Output creation is exclusive: use a new filename for every review; never replace an
 old report. Detailed output stays in ignored runs/ and includes original quote fields
 alongside result evidence. The final argument is a fixed fee per settled one-unit
