@@ -1,0 +1,56 @@
+{
+  "id": "nhl-homecoming-calibration-v1",
+  "registered_at": "2026-11-03T14:17:10Z",
+  "status": "registered",
+  "role": "descriptive_consensus_closing_screen_only",
+  "hypothesis": "The first designated home game after at least three consecutive away games has a lower home win rate than consensus closing probability implies, relative to other home games.",
+  "motivation": "Re-entry/travel workload after a multi-game road sequence may be incompletely priced. This is a schedule proxy, not measured travel, goalie confirmation or a rescue of failed NBA rest rules.",
+  "prior_inspection": "Publisher season-wide aggregate outcomes and schema were visible; no NHL game rows or homecoming subgroup outcomes downloaded or inspected. NBA seasons were previously inspected and are not used.",
+  "source": {
+    "url": "https://huggingface.co/datasets/minmaxxxer/nhl-closing-odds-2025-26",
+    "filename": "nhl_2025_26_closing_odds.csv",
+    "license": "Publisher labels CC BY4.0; retain attribution and upstream provenance/coverage caveats. No purchase or account."
+  },
+  "population": "2025-26 regular season only. Stable team/event IDs and scheduled UTC starts. Postseason excluded.",
+  "outcome_blind_gates": {
+    "regular_games": 1312,
+    "teams": 32,
+    "games_per_team": 82,
+    "unique_game_ids": true,
+    "unique_team_starts": true,
+    "valid_ET_date": true,
+    "season_start_inclusive": "2025-07-01",
+    "season_end_exclusive": "2026-07-01",
+    "close_home_win_prob": "finite strictly between0and1",
+    "minimum_treated": 50,
+    "minimum_treated_home_teams": 20,
+    "minimum_controls": 500,
+    "invalid_required_input": "abort whole screen; no silent row dropping"
+  },
+  "exposure": {
+    "definition": "For each designated home game, the team's immediately preceding three regular-season games were designated away, all three starts strictly before this game, oldest within14days, and prior start18to96hours before current start (inclusive). At least three prior games required. A longer away streak qualifies with same last-three rule.",
+    "controls": "All other regular-season designated home games, including early-season insufficient-history home games. No rest-matched or cutoff variants.",
+    "timing": "Only prior schedule positions/times determine exposure. Current/future scores, odds changes and future schedule never determine eligibility."
+  },
+  "endpoint": {
+    "name": "difference_in_mean_home_win_residual",
+    "residual": "1(home_score>away_score)-close_home_win_prob",
+    "contrast": "treated mean residual minus control mean residual",
+    "direction": "negative",
+    "grading": "Final scores including overtime/shootout, per publisher schema. Reject tied, negative or noninteger finals; verify moneyline_winner if provided. No sportsbook acceptance/settlement compatibility claim.",
+    "secondary": "Report treated/control counts,wins,mean probability,mean residual,Brier score and all exclusion/audit counts. No subgroup searches."
+  },
+  "uncertainty": {
+    "method": "Circular four-week block bootstrap over all calendar weeks between first and last regular-season start; anchor Monday in America/New_York; preserve every game and exposure classification within week;20,000draws;seed20261103;percentile95%interval for contrast",
+    "dependence": "Week blocks address local temporal dependence; same-team and cross-block dependence remain limitations. No independent-trial binomial interpretation."
+  },
+  "decision": {
+    "support_descriptive_lead": "All gates pass, contrast<=-0.03 and upper95%bootstrap bound<0.",
+    "otherwise": "Not supported, or data-infeasible if pre-outcome gate fails. Retain failure and all original thresholds.",
+    "promotion": "Never publish picks/profitability from this screen. Requires independent-season replication and prospective decision-time paired executable prices, availability and exact rules."
+  },
+  "variants": "Exactly one fixed contrast; no alternative trip lengths,rest bands,teams,season filters or endpoints after inspection.",
+  "holdout": "One descriptive season; no fitted model or train/test split. After inspection2025-26 is development evidence for this family.",
+  "costs": "No per-book executable prices,fees,limits or quote times; do not compute ROI,CLV or price-specific future picks.",
+  "daily_slot": "First substantial new statistical screen on2026-11-03Eastern if endpoint evaluation occurs; feasibility-only abort does not inspect outcomes."
+}

@@ -1,0 +1,56 @@
+{
+  "id": "nba-b2b-rest-spread-v1",
+  "version": 1,
+  "status": "registered_data_blocked",
+  "registered_at": "2026-10-26",
+  "objective": "Test incremental value beyond bookmaker pricing, not whether fatigue affects raw scores.",
+  "population": "NBA regular-season games with exactly one team playing on consecutive official NBA game dates, elapsed tip-to-tip 18–36h inclusive, and opponent elapsed tip-to-tip >=48h. Verify date/time identity. Exclude preseason, postseason, both-team B2B, integer spreads, cancellations and unresolved contracts. Retain excluded-game reasons.",
+  "decision": "T-60 minutes; latest complete same-book paired full-game half-point spread quote at or before decision, no older than15 minutes; all features available by decision. Actual offered prices, no blanket -110. Closing-only odds are a separate descriptive baseline, never an executable T-60 backtest.",
+  "splits": {
+    "development": "2018-19 through2023-24; interrupted seasons separately reported",
+    "validation": "2024-25 for fixed calibration and model choice",
+    "untouched_test": "2025-26 only if access audit confirms no prior outcome-driven tuning on this family; otherwise descriptive/development evidence, with 2026-27 prospective as the new test",
+    "prospective": "2026-27, only observations frozen after this protocol and before game start"
+  },
+  "features": [
+    "decision-time spread on B2B team",
+    "same-line paired-market de-vig probability",
+    "B2B team home indicator",
+    "opponent rest hours capped at168",
+    "B2B team3-in4-days indicator",
+    "prior-game top8 rotation minutes using information available before decision",
+    "prior-game overtime minutes",
+    "great-circle travel distance between prior and current venues",
+    "east/west time-zone shift",
+    "destination altitude",
+    "lagged trailing10-game B2B-team strength residual",
+    "lagged trailing10-game opponent strength residual"
+  ],
+  "availability": "Pregame timestamped injury/availability and roster checks are mandatory eligibility and workload interpretation, not retrospectively reconstructed injury features. Missing essential inputs -> unavailable; do not drop losing missing rows after viewing results. Publish feature dictionary, coverage and fingerprint before outcome join.",
+  "models": {
+    "primary": "L2 logistic regression for B2B team's cover indicator with market logit as offset; other numeric features standardized using training data only. Select C in[0.01,0.1,1,10] using chronological season-block validation log loss; no random split; tie selects smaller C. One fixed logistic recalibration on2024-25 then freeze.",
+    "baselines": [
+      "paired-market probability",
+      "always back B2B underdog when eligible",
+      "always fade B2B team when eligible"
+    ],
+    "variants": "Baselines are descriptive comparators, not additional discovered winning strategies. Any new filters/features/thresholds are a new registered version; inspected holdout never reused as confirmatory."
+  },
+  "selection": "Primary fixed rule: p(B2B cover)>=0.60 -> B2B spread; p<=0.40 -> opponent at exact opposite half-point line; otherwise abstain. Also require actual-price EV>=4%, estimated edge>=3 percentage points, offered odds>=-150, reviewed settlement/eligibility and fresh quote. At most one side per game; fixed book priority among eligible nonexcluded books: fanduel,draftkings,betmgm,williamhill_us,fanatics,thescorebet,ballybet. No favorable unavailable-venue price transfer.",
+  "evaluation": {
+    "primary": "Mean held-out log-loss improvement over paired market, game-weighted.",
+    "secondary": [
+      "Brier score",
+      "calibration slope/intercept and60% bucket realization",
+      "all-selection actual-price fixed1-unit ROI with fees",
+      "season and team/rest/travel strata",
+      "maximum drawdown",
+      "quote coverage and abstention reasons",
+      "CLV only where a valid independent closing observation exists"
+    ],
+    "uncertainty": "Week-block bootstrap10000 replicates, seed20261026; cluster same-game entries. Report sample size and intervals even if inconclusive; no minimum-N rescue tuning.",
+    "multiplicity": "Only this family is registered now. Other sports remain proposed. Before additional confirmatory families run, freeze family list and use Holm familywise alpha0.05 across their primary tests. Report every variant, failed test and exclusion.",
+    "promotion": "No automatic promotion from profitable last season or one p-value. Require stable calibrated held-out improvement, actual-price positive net return with uncertainty and prospective corroboration. Exploratory phone leans may be separately conditional under existing delivery policy."
+  },
+  "data_policy": "No paid purchases, new account credentials, subscriber redistribution, invented historical timestamps or live execution. Historical source coverage/license must be reviewed first."
+}

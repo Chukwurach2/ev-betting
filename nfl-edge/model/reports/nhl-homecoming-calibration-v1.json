@@ -1,0 +1,50 @@
+{
+  "experiment": "nhl-homecoming-calibration-v1",
+  "audit": {
+    "regular_games": 1312,
+    "teams": 32,
+    "games_per_team": 82,
+    "treated": 191,
+    "treated_home_teams": 32,
+    "controls": 1121,
+    "excluded_postseason": 82,
+    "sample_gate": "sufficient"
+  },
+  "status": "not_supported",
+  "endpoint": 0.022094458481815515,
+  "groups": {
+    "treated": {
+      "n": 191,
+      "wins": 103,
+      "probability": 0.5326785340314133,
+      "residual": 0.0065884816753926795,
+      "brier": 0.2478730373821989
+    },
+    "controls": {
+      "n": 1121,
+      "wins": 582,
+      "probability": 0.5346852809991068,
+      "residual": -0.015505976806422834,
+      "brier": 0.24381560968777832
+    }
+  },
+  "uncertainty": {
+    "method": "four_week_circular_bootstrap",
+    "seed": 20261103,
+    "calendar_weeks": 28,
+    "draws": 20000,
+    "valid_draws": 20000,
+    "skipped_empty_group": 0,
+    "interval95": [
+      -0.0383892660581821,
+      0.08796106576601928
+    ]
+  },
+  "limitations": "Closing compiler estimates, schedule proxy, incomplete dependence control; no executable prices, ROI, independent-source validation or pick promotion.",
+  "evaluated_at": "2026-11-03T14:25:01.825445+00:00",
+  "registration_commit": "64e83e4c165f36bc23ff838689c2d9397ab3e61a",
+  "tested_implementation_commit": "3e1aa0242989711a53bfe35dcf8c5986d597c13a",
+  "source_bytes": 335103,
+  "source_sha256": "459588b31cf4dd543f745910b018d42aa6c7ac4cbf53c9b2068e549dcb62b345",
+  "source_commit": "fa3ce3a5f3019aaa9f00626a01441a9e96529602"
+}
