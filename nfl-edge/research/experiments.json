@@ -165,13 +165,13 @@
     {
       "id": "nhl-homecoming-calibration-v1",
       "market_family": "nhl_full_game_moneyline_homecoming",
-      "status": "registered",
+      "status": "completed_descriptive_not_supported",
       "registered_at": "2026-11-03T14:17:10Z",
       "protocol": "research/protocols/nhl-homecoming-calibration-v1.json",
       "role": "descriptive-only",
       "hypothesis": "The first designated home game after at least three consecutive away games has a lower home win rate than consensus closing probability implies, relative to other home games.",
-      "outcome": null,
-      "report": "docs/nhl-homecoming-calibration-v1.md"
+      "outcome": "191homecoming games/103home wins; fixed home-win residual contrast+2.20945pp (opposite predicted negative),four-week bootstrap95%-3.83893to+8.79611pp. No cutoff rescue,profitability or pick promotion.",
+      "report": "docs/nhl-homecoming-calibration-v1-results.md"
     }
   ]
 }
