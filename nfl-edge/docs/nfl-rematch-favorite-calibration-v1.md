@@ -13,3 +13,9 @@ A fixed three-week circular bootstrap uses the complete18week grid,20,000draws a
 This bounded increment registers rules and verifies source metadata only. Next: implement/test outcome-blind schedule assignment,exclusions,gates and bootstrap before downloading game rows; then hash the pinned CSV and preserve every result. No substantial statistical experiment has run today in this increment. Registry preserves all earlier variants.
 
 Validation: JSON parsed;ID uniqueness and prior18registry entries preserved. Current source README retrieved without downloading the CSV. Current phone feeds at13:33Z contain15NFL/14NBA games and0fresh entries; Recommended remains gated. Host resumed the05:35trigger at13:30Z,so these checks are not backdated. No provider collection,deployment or model/journal change.
+
+## Tested implementation before acquisition
+
+research/nfl_rematch.py separates schedule-only auditing from outcome evaluation,checks the frozen coverage/identity gates,retains the two declared exclusions and computes the fixed same-week contrast/three-week bootstrap. Ten synthetic regressions cover outcome blindness,input ordering,coverage/identity/date failures,exclusions,away favorites,within-week weighting,invalid inputs,deterministic20kdraws and exclusive private receipts. All ten pass locally before bulk CSV acquisition. Hosted CI explicitly runs this suite.
+
+Run only after the tested implementation commit is retained: `python3 -m research.nfl_rematch PRIVATE_PINNED_CSV runs/nfl-rematch-2026-11-04`. It creates a source hash receipt,then an outcome-blind schedule audit,then the result,each exclusively. No threshold overrides are exposed by the CLI. A gate/sample failure stays failed; do not edit rules to accommodate the data. This implementation receipt is not an empirical finding.

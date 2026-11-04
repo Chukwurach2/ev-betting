@@ -56,3 +56,6 @@ jobs:
 
       - name: Fixed descriptive NBA and NHL research regressions
         run: python -m unittest tests.test_nba_closing_screen tests.test_nba_fade_replication tests.test_nba_replication_uncertainty research.test_nhl_homecoming -v
+
+      - name: Fixed NFL rematch regressions
+        run: python -m unittest research.test_nfl_rematch -v
