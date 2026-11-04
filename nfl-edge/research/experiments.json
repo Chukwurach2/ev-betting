@@ -176,12 +176,13 @@
     {
       "id": "nfl-rematch-favorite-calibration-v1",
       "market_family": "nfl_full_game_moneyline_rematch",
-      "status": "registered_implementation_tested_pending_data",
+      "status": "completed_descriptive_not_supported",
       "registered_at": "2026-11-04T13:35:52Z",
       "protocol": "research/protocols/nfl-rematch-favorite-calibration-v1.json",
       "role": "descriptive_development_only",
       "hypothesis": "Within a regular-season week, closing favorites in repeat opponent pairings have lower win-minus-closing-probability residuals than favorites in first meetings; familiarity may reduce the advantage priced for the stronger team.",
-      "outcome": "Ten synthetic regressions pass before bulk CSV download; no empirical result yet."
+      "outcome": "Fixed within-week contrast−4.39533pp;3week95%−12.99861to+7.97446pp.32treated/100controls across9comparable weeks;48totalrematches. Not supported;no rescue cutoff or pick promotion.",
+      "report": "docs/nfl-rematch-favorite-calibration-v1-results.md"
     }
   ]
 }

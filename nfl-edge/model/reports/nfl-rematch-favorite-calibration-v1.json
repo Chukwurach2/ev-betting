@@ -1,0 +1,72 @@
+{
+  "id": "nfl-rematch-favorite-calibration-v1",
+  "status": "not_supported",
+  "exclusions": {
+    "search_exposed": 2,
+    "even_probability": 3,
+    "tied_final": 1
+  },
+  "treated": {
+    "games": 48,
+    "wins": 30,
+    "mean_probability": 0.7002333333333332,
+    "mean_residual": -0.0752333333333333,
+    "brier": 0.22143612583333327
+  },
+  "controls": {
+    "games": 218,
+    "wins": 144,
+    "mean_probability": 0.6648050458715593,
+    "mean_residual": -0.0042545871559633045,
+    "brier": 0.211423885
+  },
+  "comparable_weeks": [
+    8,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17
+  ],
+  "comparable_treated": 32,
+  "comparable_controls": 100,
+  "primary_contrast": -0.043953292748917745,
+  "uncertainty": {
+    "valid_draws": 19978,
+    "skipped_zero_weight": 22,
+    "interval": [
+      -0.12998605394605398,
+      0.07974462626262628
+    ]
+  },
+  "inference": "descriptive development only; no ROI/CLV/pick",
+  "provenance": {
+    "at": "2026-11-04T13:44:02.106192+00:00",
+    "registration": "c7aeac86f54cf42e3f39af28ed338adfb2fd6d4e",
+    "tested_implementation": "ea3b1347a532feca53c8a7d358ae427e51b172c5",
+    "ci_run": 41840504309,
+    "ci_job": 126610510811,
+    "ci_conclusion": "success",
+    "source": {
+      "bytes": 71573,
+      "sha256": "fdd15d1c67c59ff5440f5ea5de79067b5aaa1ebf5ab872014f9e1175204a89e3"
+    },
+    "status": "not_supported",
+    "reconciliation_passed": true,
+    "experiment_date_eastern": "2026-11-04",
+    "daily_substantial_experiment_slot": "consumed",
+    "raw_private": true
+  },
+  "schedule": {
+    "regular_games": 272,
+    "teams": 32,
+    "games_per_team": 17,
+    "postseason_excluded": 13,
+    "treated_schedule": 48
+  },
+  "source_revision": "1d90317a9258ed8ad7984ed13ee516834de763ba",
+  "publisher_license": "CC BY4.0 label; upstream rights not independently certified"
+}
