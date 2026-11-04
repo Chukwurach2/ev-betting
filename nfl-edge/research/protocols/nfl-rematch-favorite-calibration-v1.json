@@ -1,0 +1,67 @@
+{
+  "id": "nfl-rematch-favorite-calibration-v1",
+  "registered_at": "2026-11-04T13:35:52Z",
+  "status": "registered_before_bulk_data_acquisition",
+  "role": "descriptive_development_only",
+  "hypothesis": "Within a regular-season week, closing favorites in repeat opponent pairings have lower win-minus-closing-probability residuals than favorites in first meetings; familiarity may reduce the advantage priced for the stronger team.",
+  "source": {
+    "publisher": "minmaxxxer",
+    "dataset": "nfl-closing-lines-ats-2025",
+    "revision": "1d90317a9258ed8ad7984ed13ee516834de763ba",
+    "file": "nfl_2025_closing_lines_ats.csv",
+    "license": "Publisher CC BY4.0; attribution retained; upstream rights not certified; CSV private",
+    "method": "Publisher median of proportionally de-vigged probabilities; same compiler as prior NBA/NHL, not independent validation"
+  },
+  "prior_exposure": {
+    "metadata": "README season-wide aggregate rates/schema inspected. Search snippets exposed two full game rows before registration.",
+    "evaluation_excluded_game_ids": [
+      "IL4EwN7l",
+      "fH8rHjXi"
+    ],
+    "rule": "These rows supply schedule identity only; exclude their outcomes from every evaluated group. No bulk CSV/rematch subgroup results inspected. Not an untouched holdout."
+  },
+  "population": "2025 regular season only; postseason excluded before features; no2026 data.",
+  "gates": {
+    "regular_games": 272,
+    "teams": 32,
+    "games_per_team": 17,
+    "weeks": [
+      1,
+      18
+    ],
+    "unique_game_ids": true,
+    "unique_team_start": true,
+    "stable_id_name_bijection": true,
+    "pair_meetings_max": 2,
+    "valid_timezone_aware_start_and_et_date": true,
+    "probabilities_strictly_between_zero_and_one": true,
+    "finite_integer_nonnegative_scores": true,
+    "abort_on_invalid_required_input": true,
+    "source_hash_before_outcomes": true
+  },
+  "feature": "For each unordered pair of stable team IDs, treated iff a regular-season meeting has a strictly earlier start in the same season. Schedule only; previous winner/margin/odds/injuries never define treatment. Other eligible games are controls.",
+  "selection": "One closing favorite per game: home if close_home_win_prob>0.5,away if<0.5; exactly0.5 excluded. Tied finals excluded because offered tie settlement/conditional probability is uncertified. Report exclusions. No executable decision-time or book-price claim.",
+  "primary": "Within each week with both groups,D_week=mean(favorite_win-favorite_close_probability)_treated minus control mean. Primary=sum(n_treated_week*D_week)/sum(n_treated_week). Weeks lacking either group have zero primary weight and remain reported.",
+  "minimums": {
+    "treated_in_comparable_weeks": 30,
+    "controls_in_comparable_weeks": 80,
+    "comparable_weeks": 8
+  },
+  "uncertainty": {
+    "method": "Circular blocks of3 consecutive NFL week labels over full1..18 grid,including zero-weight weeks; sample6blocks=18weeks/draw; recompute weighted contrast",
+    "attempts": 20000,
+    "seed": 20261104,
+    "minimum_valid_draws": 19000,
+    "interval": "95% percentile,linear interpolation at(n-1)*q; report skipped zero-treated draws"
+  },
+  "support_rule": "Descriptive lead only if contrast<=-0.03 and upper95<0;otherwise not_supported. Sample/gate failure insufficient_data/aborted. No fitted coefficients,subgroups,alternate lines or threshold sweeps.",
+  "outputs": [
+    "outcome-blind schedule gate receipt",
+    "source bytes/SHA256/revision/license",
+    "exclusion/group/week counts",
+    "fixed contrast/interval with18week ceiling",
+    "aggregate original report; raw private"
+  ],
+  "limits": "Closing consensus is a benchmark,not offered odds or T-60 information. Same-week control reduces calendar drift but does not identify causality. Division/team/pair dependence persists; block CI cannot eliminate team dependence. One season and prior exposed rows mean development evidence. No ROI/CLV,fees,injury treatment,validation or picks. Across-project family search requires independent future confirmation; passing descriptive rule cannot promote.",
+  "next": "Implement and test schedule blindness,identity/gates,exclusions,bootstrap before bulk CSV download; retain failures. No new cutoff after inspection."
+}

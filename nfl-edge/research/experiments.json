@@ -172,6 +172,17 @@
       "hypothesis": "The first designated home game after at least three consecutive away games has a lower home win rate than consensus closing probability implies, relative to other home games.",
       "outcome": "191homecoming games/103home wins; fixed home-win residual contrast+2.20945pp (opposite predicted negative),four-week bootstrap95%-3.83893to+8.79611pp. No cutoff rescue,profitability or pick promotion.",
       "report": "docs/nhl-homecoming-calibration-v1-results.md"
+    },
+    {
+      "id": "nfl-rematch-favorite-calibration-v1",
+      "market_family": "nfl_full_game_moneyline_rematch",
+      "status": "completed_descriptive_not_supported",
+      "registered_at": "2026-11-04T13:35:52Z",
+      "protocol": "research/protocols/nfl-rematch-favorite-calibration-v1.json",
+      "role": "descriptive_development_only",
+      "hypothesis": "Within a regular-season week, closing favorites in repeat opponent pairings have lower win-minus-closing-probability residuals than favorites in first meetings; familiarity may reduce the advantage priced for the stronger team.",
+      "outcome": "Fixed within-week contrast−4.39533pp;3week95%−12.99861to+7.97446pp.32treated/100controls across9comparable weeks;48totalrematches. Not supported;no rescue cutoff or pick promotion.",
+      "report": "docs/nfl-rematch-favorite-calibration-v1-results.md"
     }
   ]
 }
