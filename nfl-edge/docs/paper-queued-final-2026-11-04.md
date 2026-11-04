@@ -49,3 +49,14 @@ Two exact previously rule-supported same-book full-game half-point contracts gra
 Full948unique records/560observations still yield398earliest entries/67provider IDs.31final reviews now support70grades across30games,39W/31L;328unresolved reconcile to178exact-contract evidence,16identity conflicts and134missing finals. All68prior grades/profits are identical. Hypothetical fixed1u/zero-additional-fee net+5.4398759589u,graded-only ROI+7.7712514%; incomplete,correlated exploratory alternatives remain unvalidated and do not establish wager P&L or a bet-all policy.
 
 Private queue next-outcome-review-queue-2026-11-04T1538.json and31final evidence/performance files retained exclusively;earlier receipts preserved. Rendered phone15:38–39Z has15NFL/14NBA upcoming games and0fresh entries;Recommended still gated. No new experiment,provider collection,deployment or model/journal change. Today's substantive experiment slot remains consumed by the completed unsupported NFL rematch study.
+
+
+## Two-event review with venue applicability held open
+
+The next two distinct events were queued before opening official summaries. [Houston–San Antonio](https://www.nba.com/game/hou-vs-sas-0022600009) verifies114–110,all periods,October23,9:30PM ET and Moody Center in Austin. The designated home team is San Antonio,but the original quote's venue and applicable venue-change treatment are not established. Retain final/result identity evidence while leaving this exact contract ungraded;the observed Austin venue alone is not proof a relocation occurred. Do not infer a win or void from the score.
+
+[Memphis–Golden State](https://www.nba.com/game/mem-vs-gsw-0022600101) verifies111–108,period sums,October23,10PM ET and Chase Center. One exact previously rule-supported full-game half-point total grades as a loss. Both explicit retrospective identity bridges preserve provider/official starts ten minutes apart. No other-book rule transfer.
+
+Complete unchanged948records/560observations→398earliest entries/67provider IDs.33final reviews support71grades across31games,39W/32L;327unresolved reconcile to194exact-contract evidence,16identity conflicts and117missing finals. All70prior outcomes/profits compare exactly unchanged. Hypothetical fixed1u/zero-additional-fee net+4.4398759589u,graded-only ROI+6.2533464%;this incomplete,correlated cohort remains unvalidated and is not wager P&L.
+
+Private33final evidence/performance and queue next-outcome-review-queue-2026-11-04T1711.json retained exclusively;earlier receipts/original ledger unchanged. Rendered phone17:42–43Z has15NFL/14NBA upcoming games and0fresh entries;Recommended gated. Host delay separates these observations from the16:38trigger. No new statistical experiment,provider collection,deployment or model/journal change;Nov4Eastern experiment slot remains consumed.
