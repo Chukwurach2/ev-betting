@@ -145,3 +145,16 @@ Recomputed full current953-record/564-observation cohort after the real-time NFL
 Hypothetical fixed1u/zero-additional-fee graded-only net+2.2594415210u / ROI+2.7894340% remains descriptive accounting, not validation, wager P&L, CLV or bet-all evidence. Correlation, negative-edge watches, incomplete settlement coverage and unverified accepted prices remain limitations. Validation: complete replay and exact comparison of every previous grade/profit, all period sums, no remaining final-required NBA FanDuel rows. Parent428adb7 passed CI42063307588; documentation only, no new statistical experiment/manual provider collection/model promotion/release requested.
 
 The four NFL watches captured earlier expired16:23:08UTC. At17:11UTC rendered phone16NFL/2NBAupcoming with0freshentries, confirming the expired card was no longer active. Recommended sign-in gate persists. Historical prices must not be reused as current. The separate78-grade cost-stress report remains historical.
+
+
+## Remaining same-book contract associations — November 5, 18:14 UTC
+
+Froze all seven remaining NBA FanDuel entries lacking exact-contract evidence before adding any association. Preserved the Houston/San Antonio venue-applicability hold; reviewed the other six half-point full-game spreads/totals individually against retained official finals, period sums, explicit start bridges and designated-home venue evidence. Re-read the current FanDuel NY rules (effectiveOctober15) covering official league results, completion, overtime, designated home and venue-change void conditions: https://www.fanduel.com/fanduel-sportsbook-house-rules-ny . No other-book transfer, blanket rule backfill or accepted-wager certification.
+
+The fixed six-entry set yields2wins/4losses; no new independent games or final reviews. All81prior grades/profits unchanged. FanDuel NBA unresolved coverage now consists of one identity-conflict entry and the preserved venue hold; neither was overridden to improve coverage.
+
+Full953-record/564-observation cohort:402earliest entries/68providerIDs,43retained final reviews;87graded across41games,45W/42L;315unresolved(216exact-contract,16identity,83missing finals). Private result-evidence-contract-completion-2026-11-05.json / performance-contract-completion-2026-11-05.json preserve complete replay; original ledger and all prior evidence unchanged.
+
+Hypothetical fixed1u/zero-additional-fee graded-only net+0.0625604294u / ROI+0.0719085% is essentially flat before any added friction. It is not strategy validation, wager P&L, CLV or a bet-all policy. Correlated alternatives, negative-edge watches, unresolved coverage and unverified accepted offers remain limitations. Old81-grade and78-grade cost-sensitivity reports are historical, not current-cohort returns.
+
+Validation: complete cohort replay; exact comparison of every prior grade/profit; six new associations only, unchanged43finals, reconciled period sums, preserved venue hold null, exactly two remaining unresolved FanDuel NBA entries. Parent8abc7f9 passed CI42072465469; documentation only, no new statistical experiment/manual provider collection/model promotion/release requested. Current rendered phone still lacks fresh entries; earlier NFL watches expired16:23:08UTC.
