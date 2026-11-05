@@ -11,3 +11,11 @@ One primary in this family; all secondary summaries descriptive and prior famili
 Next bounded increment: implement/test synthetic gates, rest blindness, selected-team orientation, exclusions, weighting and bootstrap before evaluating this subgroup. This registration runs no statistical experiment and consumes no provider credits. Preserve frozen model, phone feed, journal and paper ledger.
 
 Validation: JSON roundtrip; unique experiment ID; prior19registry entries compared unchanged; fixed feature/control/minimum/uncertainty/decision fields specified. No outcomes or observed counts generated.
+
+## Implementation before subgroup evaluation — 2026-11-05
+
+Added an offline evaluator and12synthetic tests before loading or computing the actual long-rest subgroup. The CLI rejects any source whose byte count/SHA256 differs from the registration; schedule labels reuse the tested identity/coverage validator, then derive immediately previous regular starts without reading outcomes. Inclusive elapsed bounds, home/away control orientation, nonexclusive missing/rest/exposed/tie exclusion counts, zero-weight strata and treated-count weighting are explicit. Exactly-even probabilities remain eligible here, as registered; no rematch exclusion is silently transferred.
+
+The20k/seed20261105/3week bootstrap retains the full18week grid and shared control-game roles, with99%linear-interpolated percentiles and19000valid-draw gate. Synthetic tests independently reconstruct seeded block draws and check both uncertainty and the directional3pp decision threshold. Existing38NBA/NHL/rematch regressions plus12new tests pass locally (50total). CI explicitly runs the new suite. Protocol and registry are unchanged. Hosted checks must pass at the implementation commit before evaluating the pinned private source in a later bounded increment.
+
+No actual subgroup counts, outcomes or contrast have been computed by this increment; no statistical-experiment result or daily-slot consumption claimed. The complete season remains previously inspected development evidence. Phone review at20:42–43UTC returned16NFL/2NBAgames and0fresh entries; Recommended remained sign-in gated, private owner read unverified. No provider capture, deployment, frozen-model/journal/ledger change or wager.
