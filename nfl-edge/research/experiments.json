@@ -183,6 +183,17 @@
       "hypothesis": "Within a regular-season week, closing favorites in repeat opponent pairings have lower win-minus-closing-probability residuals than favorites in first meetings; familiarity may reduce the advantage priced for the stronger team.",
       "outcome": "Fixed within-week contrast−4.39533pp;3week95%−12.99861to+7.97446pp.32treated/100controls across9comparable weeks;48totalrematches. Not supported;no rescue cutoff or pick promotion.",
       "report": "docs/nfl-rematch-favorite-calibration-v1-results.md"
+    },
+    {
+      "id": "nfl-long-rest-calibration-v1",
+      "market_family": "nfl_full_game_moneyline_long_rest",
+      "status": "registered_development_evaluation_pending",
+      "registered_at": "2026-11-05T19:18:15Z",
+      "protocol": "research/protocols/nfl-long-rest-calibration-v1.json",
+      "role": "descriptive_development_only",
+      "hypothesis": "An NFL team with substantially more time since its previous regular-season start has a positive win-minus-closing-probability residual relative to ordinary-rest teams in the same week and home/away role; additional preparation/recovery may be imperfectly reflected in consensus prices.",
+      "prior_exposure": "NFL2025 already inspected development; no holdout/validation claim.",
+      "next": "Implement and test schedule blindness, home/away orientation, inclusive elapsed bounds, missing/tied/exposed exclusions, stratum weighting and deterministic bootstrap using synthetic fixtures before computing this subgroup. Preserve protocol bytes unchanged."
     }
   ]
 }
