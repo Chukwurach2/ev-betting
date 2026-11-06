@@ -1,0 +1,76 @@
+{
+  "id": "nfl-long-rest-calibration-v1",
+  "registered_at": "2026-11-05T19:18:15Z",
+  "status": "registered_before_long_rest_subgroup_evaluation",
+  "role": "descriptive_development_only",
+  "hypothesis": "An NFL team with substantially more time since its previous regular-season start has a positive win-minus-closing-probability residual relative to ordinary-rest teams in the same week and home/away role; additional preparation/recovery may be imperfectly reflected in consensus prices.",
+  "distinction": "Schedule-derived long rest, not verified official bye status. This is not a reversal/rescue of the failed NBA B2B or NFL rematch rules.",
+  "source": {
+    "publisher": "minmaxxxer",
+    "dataset": "nfl-closing-lines-ats-2025",
+    "revision": "1d90317a9258ed8ad7984ed13ee516834de763ba",
+    "file": "nfl_2025_closing_lines_ats.csv",
+    "sha256": "fdd15d1c67c59ff5440f5ea5de79067b5aaa1ebf5ab872014f9e1175204a89e3",
+    "bytes": 71573,
+    "license": "Publisher CC BY4.0 label; upstream rights not certified. Raw stays private; use existing authorized source receipt, do not download again.",
+    "benchmark": "Publisher consensus proportional de-vig closing probability; not decision-time or offered executable odds."
+  },
+  "prior_exposure": {
+    "season": "Entire2025season already inspected in the separate rematch study. Long-rest subgroup outcomes/counts/contrasts not computed or inspected for this protocol. No untouched holdout claim.",
+    "evaluation_excluded_game_ids": [
+      "IL4EwN7l",
+      "fH8rHjXi"
+    ],
+    "reason": "Retain earlier search-exposed-row exclusions for comparability; exclusion does not make inspected season independent."
+  },
+  "population": "2025regular season only, weeks1..18; postseason/preseason/2026 excluded.",
+  "gates": {
+    "regular_games": 272,
+    "teams": 32,
+    "games_per_team": 17,
+    "unique_game_ids": true,
+    "unique_team_start": true,
+    "stable_id_name_bijection": true,
+    "timezone_and_local_date_valid": true,
+    "source_hash_match": true,
+    "abort_on_invalid_required_input": true
+  },
+  "feature": {
+    "prior_start": "Immediately previous strictly earlier regular-season start for each stable team ID, schedule only; no scores/odds/injuries define rest.",
+    "long_rest_days": [
+      12,
+      18
+    ],
+    "ordinary_rest_days": [
+      5,
+      9
+    ],
+    "bounds": "Inclusive elapsed24hour-day bounds, not calendar dates.",
+    "treated": "One team per game iff its prior-start gap is12..18days and opponent gap5..9days. Both-long-rest, missing-prior and all other gaps ineligible for treatment.",
+    "controls": "Games where both teams have prior gaps5..9days. For home-treated strata use each control home team; for away-treated strata use control away team. Same control game may contribute to two venue strata; retain shared game/week dependence."
+  },
+  "outcomes": "Win indicator minus selected-team closing probability; p_home for home or1-p_home for away. Tied finals excluded from evaluated groups because exact tie pricing/settlement uncertified. First-game/missing-prior, search-exposed and ties reported separately.",
+  "primary": "In each week×home-away stratum with both groups, mean treated residual minus mean control residual. Weight by treated count; sum(n_treated*contrast)/sum(n_treated). Strata lacking either group get zero weight and are reported; no substitute controls.",
+  "minimums": {
+    "comparable_treated": 20,
+    "comparable_control_appearances": 80,
+    "comparable_weeks": 6
+  },
+  "uncertainty": {
+    "method": "Circular3-week blocks over full1..18grid; sample6blocks per draw, preserving all roles/games within sampled week and recompute primary.",
+    "attempts": 20000,
+    "seed": 20261105,
+    "minimum_valid_draws": 19000,
+    "interval": "99% two-sided percentile using linear interpolation at(n-1)*q; report zero-weight skips."
+  },
+  "decision": "Descriptive lead only if contrast>=0.03 and lower99%>0; otherwise not_supported. Gate/minimum failure aborted/insufficient_data. No cutoff rescue/reverse rule.",
+  "multiplicity": "One predeclared primary in this new long-rest family; Brier/group summaries descriptive only. All previous project families remain disclosed. No project-wide false-positive-control or independent-validation claim from this reused season; confirmation requires a separately registered independent/prospective sample.",
+  "outputs": [
+    "outcome-blind source/schedule audit",
+    "all exclusions and comparable/zero-weight strata counts",
+    "fixed primary and99%interval",
+    "aggregate original report; raw private"
+  ],
+  "limits": "Closing calibration only, not ROI/CLV/causality or T-60 information. Long rest can reflect scheduling/travel/postponements rather than official bye; team/strength/calendar/injury confounding remains. Week blocks cannot eliminate team dependence. No model/pick promotion from any result.",
+  "next": "Implement and test schedule blindness, home/away orientation, inclusive elapsed bounds, missing/tied/exposed exclusions, stratum weighting and deterministic bootstrap using synthetic fixtures before computing this subgroup. Preserve protocol bytes unchanged."
+}

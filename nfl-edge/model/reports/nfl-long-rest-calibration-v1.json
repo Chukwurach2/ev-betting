@@ -1,0 +1,858 @@
+{
+  "id": "nfl-long-rest-calibration-v1",
+  "status": "not_supported",
+  "exclusions_nonexclusive": {
+    "missing_prior": 16,
+    "search_exposed": 2,
+    "other_rest": 65,
+    "tied_final": 1
+  },
+  "strata": [
+    {
+      "week": 1,
+      "role": "home",
+      "treated": {
+        "appearances": 0,
+        "wins": 0,
+        "mean_probability": null,
+        "mean_residual": null,
+        "brier": null
+      },
+      "controls": {
+        "appearances": 0,
+        "wins": 0,
+        "mean_probability": null,
+        "mean_residual": null,
+        "brier": null
+      },
+      "contrast": null,
+      "weight": 0
+    },
+    {
+      "week": 1,
+      "role": "away",
+      "treated": {
+        "appearances": 0,
+        "wins": 0,
+        "mean_probability": null,
+        "mean_residual": null,
+        "brier": null
+      },
+      "controls": {
+        "appearances": 0,
+        "wins": 0,
+        "mean_probability": null,
+        "mean_residual": null,
+        "brier": null
+      },
+      "contrast": null,
+      "weight": 0
+    },
+    {
+      "week": 2,
+      "role": "home",
+      "treated": {
+        "appearances": 0,
+        "wins": 0,
+        "mean_probability": null,
+        "mean_residual": null,
+        "brier": null
+      },
+      "controls": {
+        "appearances": 11,
+        "wins": 4,
+        "mean_probability": 0.5497636363636365,
+        "mean_residual": -0.18612727272727278,
+        "brier": 0.20808203454545457
+      },
+      "contrast": null,
+      "weight": 0
+    },
+    {
+      "week": 2,
+      "role": "away",
+      "treated": {
+        "appearances": 0,
+        "wins": 0,
+        "mean_probability": null,
+        "mean_residual": null,
+        "brier": null
+      },
+      "controls": {
+        "appearances": 11,
+        "wins": 7,
+        "mean_probability": 0.45023636363636366,
+        "mean_residual": 0.18612727272727278,
+        "brier": 0.20808203454545457
+      },
+      "contrast": null,
+      "weight": 0
+    },
+    {
+      "week": 3,
+      "role": "home",
+      "treated": {
+        "appearances": 0,
+        "wins": 0,
+        "mean_probability": null,
+        "mean_residual": null,
+        "brier": null
+      },
+      "controls": {
+        "appearances": 13,
+        "wins": 9,
+        "mean_probability": 0.5322692307692307,
+        "mean_residual": 0.16003846153846155,
+        "brier": 0.2027910623076923
+      },
+      "contrast": null,
+      "weight": 0
+    },
+    {
+      "week": 3,
+      "role": "away",
+      "treated": {
+        "appearances": 0,
+        "wins": 0,
+        "mean_probability": null,
+        "mean_residual": null,
+        "brier": null
+      },
+      "controls": {
+        "appearances": 13,
+        "wins": 4,
+        "mean_probability": 0.4677307692307692,
+        "mean_residual": -0.16003846153846155,
+        "brier": 0.2027910623076923
+      },
+      "contrast": null,
+      "weight": 0
+    },
+    {
+      "week": 4,
+      "role": "home",
+      "treated": {
+        "appearances": 0,
+        "wins": 0,
+        "mean_probability": null,
+        "mean_residual": null,
+        "brier": null
+      },
+      "controls": {
+        "appearances": 12,
+        "wins": 9,
+        "mean_probability": 0.5757749999999999,
+        "mean_residual": 0.17422499999999996,
+        "brier": 0.21034907583333337
+      },
+      "contrast": null,
+      "weight": 0
+    },
+    {
+      "week": 4,
+      "role": "away",
+      "treated": {
+        "appearances": 0,
+        "wins": 0,
+        "mean_probability": null,
+        "mean_residual": null,
+        "brier": null
+      },
+      "controls": {
+        "appearances": 12,
+        "wins": 3,
+        "mean_probability": 0.4242249999999999,
+        "mean_residual": -0.17422499999999996,
+        "brier": 0.21034907583333337
+      },
+      "contrast": null,
+      "weight": 0
+    },
+    {
+      "week": 5,
+      "role": "home",
+      "treated": {
+        "appearances": 0,
+        "wins": 0,
+        "mean_probability": null,
+        "mean_residual": null,
+        "brier": null
+      },
+      "controls": {
+        "appearances": 11,
+        "wins": 4,
+        "mean_probability": 0.5191727272727272,
+        "mean_residual": -0.1555363636363636,
+        "brier": 0.2722131609090909
+      },
+      "contrast": null,
+      "weight": 0
+    },
+    {
+      "week": 5,
+      "role": "away",
+      "treated": {
+        "appearances": 0,
+        "wins": 0,
+        "mean_probability": null,
+        "mean_residual": null,
+        "brier": null
+      },
+      "controls": {
+        "appearances": 11,
+        "wins": 7,
+        "mean_probability": 0.48082727272727277,
+        "mean_residual": 0.15553636363636364,
+        "brier": 0.2722131609090909
+      },
+      "contrast": null,
+      "weight": 0
+    },
+    {
+      "week": 6,
+      "role": "home",
+      "treated": {
+        "appearances": 3,
+        "wins": 3,
+        "mean_probability": 0.6506333333333333,
+        "mean_residual": 0.34936666666666666,
+        "brier": 0.16955470333333333
+      },
+      "controls": {
+        "appearances": 8,
+        "wins": 4,
+        "mean_probability": 0.483475,
+        "mean_residual": 0.016525000000000012,
+        "brier": 0.16256322499999998
+      },
+      "contrast": 0.33284166666666665,
+      "weight": 3
+    },
+    {
+      "week": 6,
+      "role": "away",
+      "treated": {
+        "appearances": 1,
+        "wins": 1,
+        "mean_probability": 0.31310000000000004,
+        "mean_residual": 0.6869,
+        "brier": 0.47183160999999996
+      },
+      "controls": {
+        "appearances": 8,
+        "wins": 4,
+        "mean_probability": 0.516525,
+        "mean_residual": -0.016524999999999984,
+        "brier": 0.162563225
+      },
+      "contrast": 0.703425,
+      "weight": 1
+    },
+    {
+      "week": 7,
+      "role": "home",
+      "treated": {
+        "appearances": 0,
+        "wins": 0,
+        "mean_probability": null,
+        "mean_residual": null,
+        "brier": null
+      },
+      "controls": {
+        "appearances": 11,
+        "wins": 6,
+        "mean_probability": 0.5276454545454544,
+        "mean_residual": 0.017809090909090906,
+        "brier": 0.16023908636363635
+      },
+      "contrast": null,
+      "weight": 0
+    },
+    {
+      "week": 7,
+      "role": "away",
+      "treated": {
+        "appearances": 1,
+        "wins": 0,
+        "mean_probability": 0.3909,
+        "mean_residual": -0.3909,
+        "brier": 0.15280281
+      },
+      "controls": {
+        "appearances": 11,
+        "wins": 5,
+        "mean_probability": 0.47235454545454564,
+        "mean_residual": -0.017809090909090906,
+        "brier": 0.16023908636363635
+      },
+      "contrast": -0.37309090909090914,
+      "weight": 1
+    },
+    {
+      "week": 8,
+      "role": "home",
+      "treated": {
+        "appearances": 1,
+        "wins": 1,
+        "mean_probability": 0.574,
+        "mean_residual": 0.42600000000000005,
+        "brier": 0.18147600000000003
+      },
+      "controls": {
+        "appearances": 8,
+        "wins": 6,
+        "mean_probability": 0.6958875,
+        "mean_residual": 0.054112499999999994,
+        "brier": 0.14291289875000002
+      },
+      "contrast": 0.37188750000000004,
+      "weight": 1
+    },
+    {
+      "week": 8,
+      "role": "away",
+      "treated": {
+        "appearances": 1,
+        "wins": 1,
+        "mean_probability": 0.7645,
+        "mean_residual": 0.23550000000000004,
+        "brier": 0.05546025000000002
+      },
+      "controls": {
+        "appearances": 8,
+        "wins": 2,
+        "mean_probability": 0.30411250000000006,
+        "mean_residual": -0.054112499999999994,
+        "brier": 0.14291289875000002
+      },
+      "contrast": 0.28961250000000005,
+      "weight": 1
+    },
+    {
+      "week": 9,
+      "role": "home",
+      "treated": {
+        "appearances": 1,
+        "wins": 1,
+        "mean_probability": 0.8842,
+        "mean_residual": 0.11580000000000001,
+        "brier": 0.013409640000000004
+      },
+      "controls": {
+        "appearances": 7,
+        "wins": 3,
+        "mean_probability": 0.5400714285714285,
+        "mean_residual": -0.11149999999999997,
+        "brier": 0.3096080671428571
+      },
+      "contrast": 0.2273,
+      "weight": 1
+    },
+    {
+      "week": 9,
+      "role": "away",
+      "treated": {
+        "appearances": 2,
+        "wins": 2,
+        "mean_probability": 0.47775,
+        "mean_residual": 0.52225,
+        "brier": 0.282009125
+      },
+      "controls": {
+        "appearances": 7,
+        "wins": 4,
+        "mean_probability": 0.4599285714285714,
+        "mean_residual": 0.11149999999999997,
+        "brier": 0.3096080671428571
+      },
+      "contrast": 0.41075,
+      "weight": 2
+    },
+    {
+      "week": 10,
+      "role": "home",
+      "treated": {
+        "appearances": 1,
+        "wins": 0,
+        "mean_probability": 0.5754,
+        "mean_residual": -0.5754,
+        "brier": 0.33108516000000004
+      },
+      "controls": {
+        "appearances": 8,
+        "wins": 5,
+        "mean_probability": 0.557225,
+        "mean_residual": 0.067775,
+        "brier": 0.15679093249999998
+      },
+      "contrast": -0.643175,
+      "weight": 1
+    },
+    {
+      "week": 10,
+      "role": "away",
+      "treated": {
+        "appearances": 1,
+        "wins": 1,
+        "mean_probability": 0.5,
+        "mean_residual": 0.5,
+        "brier": 0.25
+      },
+      "controls": {
+        "appearances": 8,
+        "wins": 3,
+        "mean_probability": 0.44277500000000003,
+        "mean_residual": -0.06777500000000002,
+        "brier": 0.15679093249999998
+      },
+      "contrast": 0.567775,
+      "weight": 1
+    },
+    {
+      "week": 11,
+      "role": "home",
+      "treated": {
+        "appearances": 1,
+        "wins": 0,
+        "mean_probability": 0.3182,
+        "mean_residual": -0.3182,
+        "brier": 0.10125123999999999
+      },
+      "controls": {
+        "appearances": 10,
+        "wins": 5,
+        "mean_probability": 0.4955400000000001,
+        "mean_residual": 0.0044599999999999865,
+        "brier": 0.19441448200000003
+      },
+      "contrast": -0.32265999999999995,
+      "weight": 1
+    },
+    {
+      "week": 11,
+      "role": "away",
+      "treated": {
+        "appearances": 1,
+        "wins": 0,
+        "mean_probability": 0.31820000000000004,
+        "mean_residual": -0.31820000000000004,
+        "brier": 0.10125124000000002
+      },
+      "controls": {
+        "appearances": 10,
+        "wins": 5,
+        "mean_probability": 0.5044599999999999,
+        "mean_residual": -0.0044599999999999865,
+        "brier": 0.194414482
+      },
+      "contrast": -0.3137400000000001,
+      "weight": 1
+    },
+    {
+      "week": 12,
+      "role": "home",
+      "treated": {
+        "appearances": 1,
+        "wins": 0,
+        "mean_probability": 0.5263,
+        "mean_residual": -0.5263,
+        "brier": 0.27699169
+      },
+      "controls": {
+        "appearances": 9,
+        "wins": 6,
+        "mean_probability": 0.5848888888888889,
+        "mean_residual": 0.08177777777777778,
+        "brier": 0.14828260222222223
+      },
+      "contrast": -0.6080777777777777,
+      "weight": 1
+    },
+    {
+      "week": 12,
+      "role": "away",
+      "treated": {
+        "appearances": 1,
+        "wins": 0,
+        "mean_probability": 0.3396,
+        "mean_residual": -0.3396,
+        "brier": 0.11532816000000001
+      },
+      "controls": {
+        "appearances": 9,
+        "wins": 3,
+        "mean_probability": 0.4151111111111111,
+        "mean_residual": -0.08177777777777778,
+        "brier": 0.14828260222222223
+      },
+      "contrast": -0.25782222222222223,
+      "weight": 1
+    },
+    {
+      "week": 13,
+      "role": "home",
+      "treated": {
+        "appearances": 2,
+        "wins": 2,
+        "mean_probability": 0.748,
+        "mean_residual": 0.252,
+        "brier": 0.06723721
+      },
+      "controls": {
+        "appearances": 7,
+        "wins": 5,
+        "mean_probability": 0.4946428571428571,
+        "mean_residual": 0.21964285714285717,
+        "brier": 0.20086693000000005
+      },
+      "contrast": 0.032357142857142834,
+      "weight": 2
+    },
+    {
+      "week": 13,
+      "role": "away",
+      "treated": {
+        "appearances": 0,
+        "wins": 0,
+        "mean_probability": null,
+        "mean_residual": null,
+        "brier": null
+      },
+      "controls": {
+        "appearances": 7,
+        "wins": 2,
+        "mean_probability": 0.5053571428571428,
+        "mean_residual": -0.21964285714285717,
+        "brier": 0.20086693000000005
+      },
+      "contrast": null,
+      "weight": 0
+    },
+    {
+      "week": 14,
+      "role": "home",
+      "treated": {
+        "appearances": 0,
+        "wins": 0,
+        "mean_probability": null,
+        "mean_residual": null,
+        "brier": null
+      },
+      "controls": {
+        "appearances": 9,
+        "wins": 3,
+        "mean_probability": 0.45309999999999995,
+        "mean_residual": -0.11976666666666667,
+        "brier": 0.22730868777777774
+      },
+      "contrast": null,
+      "weight": 0
+    },
+    {
+      "week": 14,
+      "role": "away",
+      "treated": {
+        "appearances": 0,
+        "wins": 0,
+        "mean_probability": null,
+        "mean_residual": null,
+        "brier": null
+      },
+      "controls": {
+        "appearances": 9,
+        "wins": 6,
+        "mean_probability": 0.5468999999999999,
+        "mean_residual": 0.11976666666666667,
+        "brier": 0.22730868777777774
+      },
+      "contrast": null,
+      "weight": 0
+    },
+    {
+      "week": 15,
+      "role": "home",
+      "treated": {
+        "appearances": 3,
+        "wins": 1,
+        "mean_probability": 0.6261333333333333,
+        "mean_residual": -0.2928,
+        "brier": 0.1821497866666667
+      },
+      "controls": {
+        "appearances": 9,
+        "wins": 7,
+        "mean_probability": 0.7087777777777777,
+        "mean_residual": 0.069,
+        "brier": 0.13536612666666667
+      },
+      "contrast": -0.3618,
+      "weight": 3
+    },
+    {
+      "week": 15,
+      "role": "away",
+      "treated": {
+        "appearances": 1,
+        "wins": 0,
+        "mean_probability": 0.5641,
+        "mean_residual": -0.5641,
+        "brier": 0.31820881000000006
+      },
+      "controls": {
+        "appearances": 9,
+        "wins": 2,
+        "mean_probability": 0.2912222222222222,
+        "mean_residual": -0.069,
+        "brier": 0.13536612666666667
+      },
+      "contrast": -0.49510000000000004,
+      "weight": 1
+    },
+    {
+      "week": 16,
+      "role": "home",
+      "treated": {
+        "appearances": 0,
+        "wins": 0,
+        "mean_probability": null,
+        "mean_residual": null,
+        "brier": null
+      },
+      "controls": {
+        "appearances": 13,
+        "wins": 4,
+        "mean_probability": 0.5095615384615384,
+        "mean_residual": -0.20186923076923075,
+        "brier": 0.22063669153846155
+      },
+      "contrast": null,
+      "weight": 0
+    },
+    {
+      "week": 16,
+      "role": "away",
+      "treated": {
+        "appearances": 0,
+        "wins": 0,
+        "mean_probability": null,
+        "mean_residual": null,
+        "brier": null
+      },
+      "controls": {
+        "appearances": 13,
+        "wins": 9,
+        "mean_probability": 0.4904384615384616,
+        "mean_residual": 0.20186923076923075,
+        "brier": 0.22063669153846155
+      },
+      "contrast": null,
+      "weight": 0
+    },
+    {
+      "week": 17,
+      "role": "home",
+      "treated": {
+        "appearances": 0,
+        "wins": 0,
+        "mean_probability": null,
+        "mean_residual": null,
+        "brier": null
+      },
+      "controls": {
+        "appearances": 11,
+        "wins": 4,
+        "mean_probability": 0.46535454545454535,
+        "mean_residual": -0.10171818181818182,
+        "brier": 0.2326418609090909
+      },
+      "contrast": null,
+      "weight": 0
+    },
+    {
+      "week": 17,
+      "role": "away",
+      "treated": {
+        "appearances": 0,
+        "wins": 0,
+        "mean_probability": null,
+        "mean_residual": null,
+        "brier": null
+      },
+      "controls": {
+        "appearances": 11,
+        "wins": 7,
+        "mean_probability": 0.5346454545454545,
+        "mean_residual": 0.10171818181818182,
+        "brier": 0.2326418609090909
+      },
+      "contrast": null,
+      "weight": 0
+    },
+    {
+      "week": 18,
+      "role": "home",
+      "treated": {
+        "appearances": 0,
+        "wins": 0,
+        "mean_probability": null,
+        "mean_residual": null,
+        "brier": null
+      },
+      "controls": {
+        "appearances": 10,
+        "wins": 8,
+        "mean_probability": 0.7055899999999999,
+        "mean_residual": 0.09441000000000002,
+        "brier": 0.164575647
+      },
+      "contrast": null,
+      "weight": 0
+    },
+    {
+      "week": 18,
+      "role": "away",
+      "treated": {
+        "appearances": 0,
+        "wins": 0,
+        "mean_probability": null,
+        "mean_residual": null,
+        "brier": null
+      },
+      "controls": {
+        "appearances": 10,
+        "wins": 2,
+        "mean_probability": 0.29441000000000006,
+        "mean_residual": -0.09441000000000002,
+        "brier": 0.164575647
+      },
+      "contrast": null,
+      "weight": 0
+    }
+  ],
+  "weeks": {
+    "1": {
+      "weight": 0,
+      "weighted_contrast": 0
+    },
+    "2": {
+      "weight": 0,
+      "weighted_contrast": 0
+    },
+    "3": {
+      "weight": 0,
+      "weighted_contrast": 0
+    },
+    "4": {
+      "weight": 0,
+      "weighted_contrast": 0
+    },
+    "5": {
+      "weight": 0,
+      "weighted_contrast": 0
+    },
+    "6": {
+      "weight": 4,
+      "weighted_contrast": 1.7019499999999999
+    },
+    "7": {
+      "weight": 1,
+      "weighted_contrast": -0.37309090909090914
+    },
+    "8": {
+      "weight": 2,
+      "weighted_contrast": 0.6615000000000001
+    },
+    "9": {
+      "weight": 3,
+      "weighted_contrast": 1.0488
+    },
+    "10": {
+      "weight": 2,
+      "weighted_contrast": -0.07540000000000002
+    },
+    "11": {
+      "weight": 2,
+      "weighted_contrast": -0.6364000000000001
+    },
+    "12": {
+      "weight": 2,
+      "weighted_contrast": -0.8658999999999999
+    },
+    "13": {
+      "weight": 2,
+      "weighted_contrast": 0.06471428571428567
+    },
+    "14": {
+      "weight": 0,
+      "weighted_contrast": 0
+    },
+    "15": {
+      "weight": 4,
+      "weighted_contrast": -1.5805
+    },
+    "16": {
+      "weight": 0,
+      "weighted_contrast": 0
+    },
+    "17": {
+      "weight": 0,
+      "weighted_contrast": 0
+    },
+    "18": {
+      "weight": 0,
+      "weighted_contrast": 0
+    }
+  },
+  "comparable_treated": 22,
+  "comparable_control_appearances": 136,
+  "comparable_weeks": [
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    15
+  ],
+  "primary_contrast": -0.0024693919716647157,
+  "uncertainty": {
+    "attempts": 20000,
+    "seed": 20261105,
+    "valid_draws": 19972,
+    "skipped_zero_weight": 28,
+    "interval": [
+      -0.395125,
+      0.33595420681818194
+    ]
+  },
+  "inference": "Reused-season development diagnostic only; no ROI/CLV/causality/pick promotion.",
+  "source": {
+    "bytes": 71573,
+    "sha256": "fdd15d1c67c59ff5440f5ea5de79067b5aaa1ebf5ab872014f9e1175204a89e3"
+  },
+  "schedule": {
+    "regular_games": 272,
+    "teams": 32,
+    "games_per_team": 17,
+    "postseason_excluded": 13,
+    "schedule_counts": {
+      "missing_prior": 16,
+      "other_rest": 65,
+      "control": 169,
+      "home": 13,
+      "away": 9
+    }
+  },
+  "verification": {
+    "verified_at": "2026-11-06T02:13:35.080836+00:00",
+    "fixed_contrast_reconstructed_from_rows_and_frozen_schedule_labels": true,
+    "treated_games": 22,
+    "treated_wins": 13,
+    "unique_control_games_all_evaluated": 167,
+    "daily_slot_eastern": "2026-11-05",
+    "daily_slot_consumed": true,
+    "source_read_local_only": true
+  }
+}
