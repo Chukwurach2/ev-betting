@@ -56,3 +56,6 @@ jobs:
 
       - name: Paper report CLI and performance regressions
         run: node --test tests/paper-report-cli.test.mjs tests/paper-performance.test.mjs
+
+      - name: Exact-book paper outcome and performance regressions
+        run: node --test tests/paper-outcomes.test.mjs tests/paper-event-mapping.test.mjs tests/paper-performance.test.mjs

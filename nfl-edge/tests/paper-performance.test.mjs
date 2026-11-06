@@ -2,7 +2,7 @@ import test from 'node:test';import assert from 'node:assert/strict';import {pap
 const now=Date.parse('2026-10-21T00:00:00Z');
 const o={id:'a',kind:'observation',sport:'nba',game_id:'g',home_team:'Home',away_team:'Away',kickoff:'2026-10-20T20:00:00Z',observed_at:'2026-10-20T18:00:00Z',market:'FULL_GAME_TOTAL',selection:'Over',line:210.5,book_key:'example',american_odds:-110,expected_value:.01};
 const r={...o,status:'final',period:'full_game',includes_overtime:true,home_score:110,away_score:108,observed_at:'2026-10-20T23:00:00Z',source_url:'https://example.invalid/result'};
-const c={observation_id:'a',rule_key:'full_game_including_overtime',source_url:'https://example.invalid/rules'};
+const c={book_key:o.book_key,observation_id:'a',rule_key:'full_game_including_overtime',source_url:'https://example.invalid/rules'};
 const run=(xs=[o],proof={results:[r],contracts:[c]},opts={})=>report(xs,proof,{now,...opts});
 test('reports -110 winning return and explicit fee stress',()=>{let x=run();assert.equal(x.overall.accuracy,1);assert.equal(x.overall.hypothetical_roi,100/110);assert.equal(run([o],{results:[r],contracts:[c]},{feePerUnit:.02}).overall.hypothetical_roi,100/110-.02);});
 test('high accuracy can lose at expensive odds',()=>{const xs=[0,1,2].map(i=>({...o,id:String(i),game_id:String(i),american_odds:-300}));const results=xs.map((x,i)=>({...r,game_id:x.game_id,home_score:i===2?90:110}));const contracts=xs.map(x=>({...c,observation_id:x.id}));const x=run(xs,{results,contracts});assert.equal(x.overall.accuracy,2/3);assert.ok(x.overall.hypothetical_roi<0);});
@@ -38,3 +38,5 @@ test('invalid postgame observations do not contaminate valid identity evidence',
  const x=run([o,{...o,id:'bad',home_team:'Different',observed_at:o.kickoff}]);
  assert.equal(x.invalid_observations,1);assert.equal(x.conflicting_event_ids,0);assert.equal(x.overall.resolved,1);
 });
+
+test('copied rule with wrong book remains unresolved with null returns',()=>{const x=run([o],{results:[r],contracts:[{...c,book_key:'other'}]});assert.equal(x.overall.resolved,0);assert.equal(x.unresolved_reasons.exact_contract_evidence_required,1);assert.equal(x.rows[0].paper_profit_units,null);assert.equal(x.overall.hypothetical_net_units,null);});
