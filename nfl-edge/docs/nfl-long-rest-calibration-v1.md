@@ -19,3 +19,7 @@ Added an offline evaluator and12synthetic tests before loading or computing the 
 The20k/seed20261105/3week bootstrap retains the full18week grid and shared control-game roles, with99%linear-interpolated percentiles and19000valid-draw gate. Synthetic tests independently reconstruct seeded block draws and check both uncertainty and the directional3pp decision threshold. Existing38NBA/NHL/rematch regressions plus12new tests pass locally (50total). CI explicitly runs the new suite. Protocol and registry are unchanged. Hosted checks must pass at the implementation commit before evaluating the pinned private source in a later bounded increment.
 
 No actual subgroup counts, outcomes or contrast have been computed by this increment; no statistical-experiment result or daily-slot consumption claimed. The complete season remains previously inspected development evidence. Phone review at20:42–43UTC returned16NFL/2NBAgames and0fresh entries; Recommended remained sign-in gated, private owner read unverified. No provider capture, deployment, frozen-model/journal/ledger change or wager.
+
+## Fixed evaluation completed
+
+See docs/nfl-long-rest-calibration-v1-results.md. The registered contrast is−0.246939pp,99%−39.51250to+33.59542pp;not supported.22treated/136control appearances/9weeks. November5Eastern substantial experiment consumed. Preserve this protocol,prior failures and the wide uncertainty;no cutoff rescue,reverse rule or promotion.
