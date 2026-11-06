@@ -11,7 +11,7 @@ export function evaluatePaperOutcome(observation,result,contract,{now=Date.now()
  if(!Number.isFinite(kickoff)||!Number.isFinite(start)||(start!==kickoff&&!reviewedEventMapping(o,result,mapping,now))||!Number.isFinite(at)||at<Math.max(kickoff,start)||at>now||!Number.isFinite(quote)||quote>=Math.min(kickoff,start))return pending('invalid_event_timing');
  const url=x=>{try{return new URL(x).protocol==='https:';}catch{return false;}};
  if(!url(result.source_url))return pending('result_source_required');
- if(contract?.observation_id!==o.id||contract.rule_key!=='full_game_including_overtime'||!url(contract.source_url))return pending('exact_contract_evidence_required');
+ if(typeof o.book_key!=='string'||!o.book_key.trim()||contract?.book_key!==o.book_key||contract?.observation_id!==o.id||contract.rule_key!=='full_game_including_overtime'||!url(contract.source_url))return pending('exact_contract_evidence_required');
  if(result.period!=='full_game'||result.includes_overtime!==true)return pending('result_period_mismatch');
  const home=result.home_score,away=result.away_score;
  if(!Number.isSafeInteger(home)||!Number.isSafeInteger(away)||home<0||away<0||home>1000||away>1000||(o.sport==='nba'&&home===away))return pending('invalid_final_score');
