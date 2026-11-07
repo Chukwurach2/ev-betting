@@ -1,0 +1,17 @@
+# BetMGM paper-contract scope audit — November 7, 2026
+
+The fixed backlog contains133earliest NBA contract/book entries across44provider events with retained finals but missing exact-contract evidence. No entry was selected by its win/loss outcome. This review adds no rule association or grade: all133remain unresolved.
+
+The operator's [educational NFL tie article](https://sports.betmgm.com/en/blog/nfl/what-happens-in-nfl-betting-for-a-tie-game-bm06/) links its house-rules text to a West Virginia help page. That [Management Rules page](https://help.wv.betmgm.com/en/sports-help/sports-house-rules) displayed Last Updated09/01/2026 and explicitly scoped physical-presence and regulator provisions to West Virginia. It does not establish the required NY mobile NBA contract association. No rule is transferred across jurisdictions.
+
+The operator's [NY promotional page](https://sports.betmgm.com/en/blog/betmgm-state-promos/new-york-sportsbook/) identifies NY products but links its Help Center to NJ. Following its visible NY registration link led to a generic registration page containing NJ legal references. The form was only viewed;no data was entered,no terms accepted and no account created. Promotional availability and a registration route are insufficient settlement evidence.
+
+The NY regulator's [BetMGM approved-wager material](https://gaming.ny.gov/betmgm-sub-binder-2-part-6) appeared in search as a menu of approved basketball wager types. Full retrieval exceeded the reader's content limit (reported12,378,244bytes),so the full document was not inspected. This audit makes no claim that the unread document contains or lacks the needed settlement provisions. Search results also surfaced Massachusetts/UK/Canada material;none was applied to these entries.
+
+To remove this blocker, retain an authoritative NY mobile full-game basketball spread/total rule,including overtime and relevant cancellation/site-change provisions,and associate it with each exact observation/contract. Record source and review time and any retrospective applicability limitation. Do not backfill rule associations from educational articles,another jurisdiction,another operator or the bare approved-market name. Accepted offers and pregame rule applicability remain separate evidence gaps.
+
+Validation at2026-11-07T20:40:53.553Z: full953-record/564-observation replay reproduces the complete retained report at its original time. At current time all402earliest rows/results/grades/profits and unresolved reasons remain unchanged.112grades across43games remain retained;290unresolved comprise208exact-contract evidence,16identity conflicts and66missing finals.133BetMGM queued entries still have null profit and exact_contract_evidence_required. No contracts,finals,mappings or ledger rows were appended. Strict separately tested PR44guard used in isolation;not merged/deployed.
+
+Private immutable queue and readiness receipts: runs/betmgm-contract-queue-2026-11-07.json and runs/betmgm-contract-readiness-2026-11-07.json. No raw subscriber rows are published. This is source-scope review,not a new statistical experiment or strategy result. NBA.com/EVSharps permission questions remain pending;neither blocked origin was retried. No provider request,manual capture,purchase,release,model or journal change.
+
+Do not repeat this unchanged source search on each heartbeat. Revisit when an authoritative jurisdiction-specific rule/export is available or the source materially changes;continue other authorized research and current-card review in the meantime.
