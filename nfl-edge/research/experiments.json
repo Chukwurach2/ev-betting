@@ -196,6 +196,19 @@
       "next": "Retain failed diagnostic and consumed November5Eastern experiment slot. No cutoff rescue,reverse rule or promotion;future confirmation requires separately registered independent/prospective evidence.",
       "outcome": "Fixed week×home/away residual contrast−0.246939pp;3week99%−39.51250to+33.59542pp.22treated(13wins),136comparable control appearances across9weeks. Not supported;wide uncertainty,no rescue or pick promotion.",
       "report": "docs/nfl-long-rest-calibration-v1-results.md"
+    },
+    {
+      "id": "nfl-longshot-calibration-v1",
+      "market_family": "nfl_full_game_moneyline_probability_calibration",
+      "status": "completed_descriptive_not_supported",
+      "registered_at": "2026-11-07T16:34:06Z",
+      "protocol": "research/protocols/nfl-longshot-calibration-v1.json",
+      "role": "descriptive_development_only",
+      "hypothesis": "Lower-probability NFL teams may win less often than publisher closing consensus probabilities imply, relative to moderate underdogs in the same week, if favorite-longshot distortion remains after consensus de-vigging.",
+      "prior_exposure": "Entire 2025 NFL season already inspected in rematch and long-rest studies. This reused season is development evidence, never an untouched holdout. No new longshot-group count/outcome/contrast is computed in this registration.",
+      "next": "Retain unsupported diagnostic and consumed November7Eastern experiment slot. No rescue search or promotion;any confirmation requires separately registered independent/prospective evidence.",
+      "outcome": "Fixed same-week treated-count-weighted residual contrast−1.827453pp;3week99%−13.950552to+12.612762pp.68treated(14wins),142controls(61wins),18comparable weeks.20kvalid draws/0skips. Not supported;no cutoff rescue,reverse rule or pick promotion.",
+      "report": "docs/nfl-longshot-calibration-v1-results.md"
     }
   ]
 }
