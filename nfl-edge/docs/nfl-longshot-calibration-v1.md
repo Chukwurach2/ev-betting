@@ -14,3 +14,6 @@ Next implement/test synthetic boundary,source,identity,score-blind-label,orienta
 
 
 Implementation increment (2026-11-07): `research/nfl_longshot.py` preserves exact decimal-to-rational band assignment and score-blind labels, validates required outcomes before nonexclusive exclusions, retains all18weeks and their zero weights, and implements the frozen20k/seed20261107/99%three-week block calculation. The source byte/hash gate runs before parsing; private output creation refuses replacement. The registered protocol and registry are unchanged. Fourteen new synthetic cases pass locally with the50retained NBA/NHL/NFL research cases (64total); focused hosted CI explicitly runs the new suite. No actual source parsing, group count, outcome contrast or bootstrap on real rows has occurred in this increment. Await exact-head hosted success before actual evaluation; this remains development research with no daily statistical-slot consumption, phone pick, promotion, provider request or release.
+
+
+Completed2026-11-07: fixed diagnostic not_supported;−1.827453pp primary,99%−13.950552to+12.612762pp;68treated/142controls/18weeks,20kvalid draws. See [full result](nfl-longshot-calibration-v1-results.md). Frozen protocol unchanged;all prior20registry entries retained. November7Eastern substantial-experiment slot consumed;no rescue search or promotion.

@@ -200,13 +200,15 @@
     {
       "id": "nfl-longshot-calibration-v1",
       "market_family": "nfl_full_game_moneyline_probability_calibration",
-      "status": "registered_development_evaluation_pending",
+      "status": "completed_descriptive_not_supported",
       "registered_at": "2026-11-07T16:34:06Z",
       "protocol": "research/protocols/nfl-longshot-calibration-v1.json",
       "role": "descriptive_development_only",
       "hypothesis": "Lower-probability NFL teams may win less often than publisher closing consensus probabilities imply, relative to moderate underdogs in the same week, if favorite-longshot distortion remains after consensus de-vigging.",
       "prior_exposure": "Entire 2025 NFL season already inspected in rematch and long-rest studies. This reused season is development evidence, never an untouched holdout. No new longshot-group count/outcome/contrast is computed in this registration.",
-      "next": "Implement and test synthetic source/boundary/identity/score-blind labels,selected-team orientation,exclusions,week weighting and deterministic bootstrap; commit and pass hosted checks before actual group evaluation. Preserve protocol bytes unchanged."
+      "next": "Retain unsupported diagnostic and consumed November7Eastern experiment slot. No rescue search or promotion;any confirmation requires separately registered independent/prospective evidence.",
+      "outcome": "Fixed same-week treated-count-weighted residual contrast−1.827453pp;3week99%−13.950552to+12.612762pp.68treated(14wins),142controls(61wins),18comparable weeks.20kvalid draws/0skips. Not supported;no cutoff rescue,reverse rule or pick promotion.",
+      "report": "docs/nfl-longshot-calibration-v1-results.md"
     }
   ]
 }

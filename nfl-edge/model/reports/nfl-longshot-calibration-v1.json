@@ -1,0 +1,431 @@
+{
+  "id": "nfl-longshot-calibration-v1",
+  "status": "not_supported",
+  "exclusions_nonexclusive": {
+    "gap": 58,
+    "even_probability": 3,
+    "search_exposed": 2,
+    "tied_final": 1
+  },
+  "treated": {
+    "games": 68,
+    "wins": 14,
+    "mean_probability": 0.18416323529411763,
+    "mean_residual": 0.021719117647058833,
+    "brier": 0.15337728867647052
+  },
+  "controls": {
+    "games": 142,
+    "wins": 61,
+    "mean_probability": 0.41246338028169016,
+    "mean_residual": 0.017114084507042254,
+    "brier": 0.24434634338028172
+  },
+  "weeks": {
+    "1": {
+      "treated": {
+        "games": 1,
+        "wins": 0,
+        "mean_probability": 0.2076,
+        "mean_residual": -0.2076,
+        "brier": 0.043097760000000006
+      },
+      "controls": {
+        "games": 10,
+        "wins": 3,
+        "mean_probability": 0.43696999999999997,
+        "mean_residual": -0.13696999999999998,
+        "brier": 0.23160366100000002
+      },
+      "contrast": -0.07063000000000003,
+      "weight": 1,
+      "weighted_contrast": -0.07063000000000003
+    },
+    "2": {
+      "treated": {
+        "games": 1,
+        "wins": 0,
+        "mean_probability": 0.1394,
+        "mean_residual": -0.1394,
+        "brier": 0.01943236
+      },
+      "controls": {
+        "games": 10,
+        "wins": 5,
+        "mean_probability": 0.41215,
+        "mean_residual": 0.08785,
+        "brier": 0.250932319
+      },
+      "contrast": -0.22725,
+      "weight": 1,
+      "weighted_contrast": -0.22725
+    },
+    "3": {
+      "treated": {
+        "games": 3,
+        "wins": 1,
+        "mean_probability": 0.20266666666666666,
+        "mean_residual": 0.13066666666666668,
+        "brier": 0.22872706
+      },
+      "controls": {
+        "games": 8,
+        "wins": 1,
+        "mean_probability": 0.4387375,
+        "mean_residual": -0.3137375,
+        "brier": 0.19989121124999998
+      },
+      "contrast": 0.4444041666666667,
+      "weight": 3,
+      "weighted_contrast": 1.3332125000000001
+    },
+    "4": {
+      "treated": {
+        "games": 4,
+        "wins": 0,
+        "mean_probability": 0.186075,
+        "mean_residual": -0.186075,
+        "brier": 0.0370769375
+      },
+      "controls": {
+        "games": 9,
+        "wins": 4,
+        "mean_probability": 0.4193111111111111,
+        "mean_residual": 0.02513333333333334,
+        "brier": 0.24251543333333336
+      },
+      "contrast": -0.21120833333333333,
+      "weight": 4,
+      "weighted_contrast": -0.8448333333333333
+    },
+    "5": {
+      "treated": {
+        "games": 4,
+        "wins": 3,
+        "mean_probability": 0.21134999999999998,
+        "mean_residual": 0.5386500000000001,
+        "brier": 0.464868635
+      },
+      "controls": {
+        "games": 9,
+        "wins": 6,
+        "mean_probability": 0.4099222222222222,
+        "mean_residual": 0.25674444444444444,
+        "brier": 0.2972252966666667
+      },
+      "contrast": 0.28190555555555563,
+      "weight": 4,
+      "weighted_contrast": 1.1276222222222225
+    },
+    "6": {
+      "treated": {
+        "games": 4,
+        "wins": 1,
+        "mean_probability": 0.20279999999999998,
+        "mean_residual": 0.047200000000000006,
+        "brier": 0.18049947
+      },
+      "controls": {
+        "games": 8,
+        "wins": 2,
+        "mean_probability": 0.3970875,
+        "mean_residual": -0.14708749999999998,
+        "brier": 0.21788100374999997
+      },
+      "contrast": 0.1942875,
+      "weight": 4,
+      "weighted_contrast": 0.77715
+    },
+    "7": {
+      "treated": {
+        "games": 3,
+        "wins": 0,
+        "mean_probability": 0.20119999999999996,
+        "mean_residual": -0.20119999999999996,
+        "brier": 0.042702246666666666
+      },
+      "controls": {
+        "games": 9,
+        "wins": 3,
+        "mean_probability": 0.43444444444444447,
+        "mean_residual": -0.1011111111111111,
+        "brier": 0.20650706888888884
+      },
+      "contrast": -0.10008888888888887,
+      "weight": 3,
+      "weighted_contrast": -0.30026666666666657
+    },
+    "8": {
+      "treated": {
+        "games": 4,
+        "wins": 0,
+        "mean_probability": 0.1856,
+        "mean_residual": -0.1856,
+        "brier": 0.037751975
+      },
+      "controls": {
+        "games": 6,
+        "wins": 0,
+        "mean_probability": 0.39386666666666664,
+        "mean_residual": -0.39386666666666664,
+        "brier": 0.15604865
+      },
+      "contrast": 0.20826666666666666,
+      "weight": 4,
+      "weighted_contrast": 0.8330666666666666
+    },
+    "9": {
+      "treated": {
+        "games": 5,
+        "wins": 2,
+        "mean_probability": 0.17231999999999997,
+        "mean_residual": 0.22768000000000002,
+        "brier": 0.29451518800000004
+      },
+      "controls": {
+        "games": 8,
+        "wins": 4,
+        "mean_probability": 0.42727499999999996,
+        "mean_residual": 0.07272499999999998,
+        "brier": 0.262200305
+      },
+      "contrast": 0.15495500000000004,
+      "weight": 5,
+      "weighted_contrast": 0.7747750000000002
+    },
+    "10": {
+      "treated": {
+        "games": 3,
+        "wins": 1,
+        "mean_probability": 0.21363333333333331,
+        "mean_residual": 0.11969999999999999,
+        "brier": 0.23677985
+      },
+      "controls": {
+        "games": 6,
+        "wins": 2,
+        "mean_probability": 0.4048666666666667,
+        "mean_residual": -0.07153333333333334,
+        "brier": 0.20665924999999996
+      },
+      "contrast": 0.1912333333333333,
+      "weight": 3,
+      "weighted_contrast": 0.5736999999999999
+    },
+    "11": {
+      "treated": {
+        "games": 3,
+        "wins": 0,
+        "mean_probability": 0.20086666666666667,
+        "mean_residual": -0.20086666666666667,
+        "brier": 0.042078113333333333
+      },
+      "controls": {
+        "games": 9,
+        "wins": 4,
+        "mean_probability": 0.39112222222222226,
+        "mean_residual": 0.053322222222222236,
+        "brier": 0.25784476111111115
+      },
+      "contrast": -0.2541888888888889,
+      "weight": 3,
+      "weighted_contrast": -0.7625666666666667
+    },
+    "12": {
+      "treated": {
+        "games": 5,
+        "wins": 0,
+        "mean_probability": 0.17692000000000002,
+        "mean_residual": -0.17692000000000002,
+        "brier": 0.03484346
+      },
+      "controls": {
+        "games": 6,
+        "wins": 3,
+        "mean_probability": 0.4173833333333333,
+        "mean_residual": 0.08261666666666667,
+        "brier": 0.247007605
+      },
+      "contrast": -0.2595366666666667,
+      "weight": 5,
+      "weighted_contrast": -1.2976833333333335
+    },
+    "13": {
+      "treated": {
+        "games": 4,
+        "wins": 2,
+        "mean_probability": 0.189725,
+        "mean_residual": 0.310275,
+        "brier": 0.32643719749999994
+      },
+      "controls": {
+        "games": 6,
+        "wins": 4,
+        "mean_probability": 0.38833333333333336,
+        "mean_residual": 0.2783333333333334,
+        "brier": 0.2871027466666667
+      },
+      "contrast": 0.031941666666666646,
+      "weight": 4,
+      "weighted_contrast": 0.12776666666666658
+    },
+    "14": {
+      "treated": {
+        "games": 3,
+        "wins": 1,
+        "mean_probability": 0.21676666666666666,
+        "mean_residual": 0.11656666666666664,
+        "brier": 0.2247458033333333
+      },
+      "controls": {
+        "games": 6,
+        "wins": 4,
+        "mean_probability": 0.40388333333333337,
+        "mean_residual": 0.2627833333333334,
+        "brier": 0.293321025
+      },
+      "contrast": -0.14621666666666677,
+      "weight": 3,
+      "weighted_contrast": -0.4386500000000003
+    },
+    "15": {
+      "treated": {
+        "games": 6,
+        "wins": 0,
+        "mean_probability": 0.16115,
+        "mean_residual": -0.16115,
+        "brier": 0.02736379833333334
+      },
+      "controls": {
+        "games": 6,
+        "wins": 3,
+        "mean_probability": 0.4261,
+        "mean_residual": 0.07390000000000001,
+        "brier": 0.23695758666666666
+      },
+      "contrast": -0.23504999999999998,
+      "weight": 6,
+      "weighted_contrast": -1.4102999999999999
+    },
+    "16": {
+      "treated": {
+        "games": 3,
+        "wins": 1,
+        "mean_probability": 0.17436666666666667,
+        "mean_residual": 0.15896666666666667,
+        "brier": 0.2104774433333333
+      },
+      "controls": {
+        "games": 11,
+        "wins": 5,
+        "mean_probability": 0.4098636363636363,
+        "mean_residual": 0.044681818181818184,
+        "brier": 0.2568636681818182
+      },
+      "contrast": 0.11428484848484849,
+      "weight": 3,
+      "weighted_contrast": 0.34285454545454547
+    },
+    "17": {
+      "treated": {
+        "games": 4,
+        "wins": 1,
+        "mean_probability": 0.1809,
+        "mean_residual": 0.0691,
+        "brier": 0.160369575
+      },
+      "controls": {
+        "games": 8,
+        "wins": 4,
+        "mean_probability": 0.40728749999999997,
+        "mean_residual": 0.0927125,
+        "brier": 0.25120942125
+      },
+      "contrast": -0.02361250000000001,
+      "weight": 4,
+      "weighted_contrast": -0.09445000000000003
+    },
+    "18": {
+      "treated": {
+        "games": 8,
+        "wins": 1,
+        "mean_probability": 0.15108749999999999,
+        "mean_residual": -0.02608749999999998,
+        "brier": 0.09645034625000003
+      },
+      "controls": {
+        "games": 7,
+        "wins": 4,
+        "mean_probability": 0.3867428571428571,
+        "mean_residual": 0.1846857142857143,
+        "brier": 0.28535012285714284
+      },
+      "contrast": -0.21077321428571427,
+      "weight": 8,
+      "weighted_contrast": -1.6861857142857142
+    }
+  },
+  "comparable_weeks": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18
+  ],
+  "comparable_treated": 68,
+  "comparable_controls": 142,
+  "primary_contrast": -0.01827453107758256,
+  "uncertainty": {
+    "attempts": 20000,
+    "seed": 20261107,
+    "valid_draws": 20000,
+    "skipped_zero_weight": 0,
+    "interval": [
+      -0.13950551933621935,
+      0.1261276212121212
+    ]
+  },
+  "inference": "Reused-season descriptive development only; no ROI/CLV/causality/pick promotion.",
+  "source_identity_audit": {
+    "regular_games": 272,
+    "teams": 32,
+    "games_per_team": 17,
+    "postseason_excluded": 13,
+    "band_counts": {
+      "treated": 69,
+      "controls": 142,
+      "gap": 58,
+      "even_probability": 3
+    }
+  },
+  "provenance": {
+    "publisher": "minmaxxxer",
+    "dataset": "nfl-closing-lines-ats-2025",
+    "revision": "1d90317a9258ed8ad7984ed13ee516834de763ba",
+    "source_bytes": 71573,
+    "source_sha256": "fdd15d1c67c59ff5440f5ea5de79067b5aaa1ebf5ab872014f9e1175204a89e3",
+    "license": "Publisher CC BY4.0 label;upstream rights uncertified. Existing private source;no raw rows redistributed.",
+    "registration_head": "5ac4784d61e7ee5fff5dd53b42772af5ff8c0efb",
+    "implementation_head": "68ef75ee790b484cfd9a6595cc69c308385448ca",
+    "implementation_ci_run": 42397648774,
+    "implementation_ci_job": 128478374709,
+    "pre_evaluation_recorded_at": "2026-11-07T18:37:55.525028+00:00",
+    "verified_at": "2026-11-07T18:38:37.249517+00:00",
+    "independent_exact_reconstruction_passed": true,
+    "development_season": true
+  },
+  "limitations": "Original aggregate diagnostic on an already inspected compiler season;closing consensus,not independent/executable odds. No ROI/CLV,causality,pick promotion or project-wide error-control claim."
+}
