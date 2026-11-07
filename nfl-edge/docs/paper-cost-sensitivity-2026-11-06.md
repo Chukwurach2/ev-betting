@@ -1,3 +1,5 @@
+> Historical87-grade accounting snapshot. The later complete112-grade cohort is negative at zero additional cost; see [November7 replay](paper-cost-sensitivity-2026-11-07.md). Preserve the figures below as their original snapshot.
+
 # Paper accounting sensitivity — November 6, 2026
 
 The latest complete preserved cohort is essentially flat before any additional cost. A fixed additional cost of0.01u per graded1u entry makes its hypothetical net negative. This is deterministic accounting sensitivity, not a fee estimate, statistical experiment or validated strategy result.
