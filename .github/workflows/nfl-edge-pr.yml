@@ -62,3 +62,6 @@ jobs:
 
       - name: Fixed NFL long-rest synthetic regressions before subgroup evaluation
         run: python -m unittest research.test_nfl_long_rest -v
+
+      - name: Fixed NFL longshot synthetic regressions before group evaluation
+        run: python -m unittest research.test_nfl_longshot -v
