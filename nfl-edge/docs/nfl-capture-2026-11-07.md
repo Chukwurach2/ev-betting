@@ -13,3 +13,8 @@ Full current-cohort replay:404earliest contract/book entries/69providerIDs,112gr
 No new statistical experiment,provider subscription,manual capture,deployment,model promotion or journal action. November7Eastern experiment slot remains consumed by the separate failed longshot diagnostic. Private owner-scoped phone display remains unverified without sign-in. NBA.com/EVSharps permission questions remain pending;neither blocked origin was retried.
 
 After21:41:46Z these captured watches are expired observations. Neither a successful collector nor this pre-expiry receipt establishes continuous quote coverage;hourly research is not real-time monitoring.
+
+
+## Expiry verification
+
+At2026-11-07T22:36:50.600Z,the offline recorder rejected both retained observations as expired (zero observations;the validation-only coverage object was not appended). Phone rendering at22:36UTC showed26NFLgames/0freshentries and the previously populated card at0/4. The original956-record/566-observation ledger remained byte-for-byte unchanged;expiry does not delete paper history or settle an outcome. Both watches expired at21:41:46Z,and no replacement quote is established by this check. Private immutable rejection receipt:runs/nfl-card-expiry-2026-11-07T2236.json. No provider request,new statistical experiment,manual capture or deployment.
