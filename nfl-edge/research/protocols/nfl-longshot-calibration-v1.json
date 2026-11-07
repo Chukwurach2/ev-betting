@@ -1,0 +1,69 @@
+{
+  "id": "nfl-longshot-calibration-v1",
+  "registered_at": "2026-11-07T16:34:06Z",
+  "status": "registered_before_group_evaluation",
+  "role": "descriptive_development_only",
+  "hypothesis": "Lower-probability NFL teams may win less often than publisher closing consensus probabilities imply, relative to moderate underdogs in the same week, if favorite-longshot distortion remains after consensus de-vigging.",
+  "distinction": "Probability-calibration diagnostic, not a schedule/rest mechanism, a reversal of failed rules, or a priced betting strategy. Related earlier market-only/calibration families remain disclosed.",
+  "source": {
+    "publisher": "minmaxxxer",
+    "dataset": "nfl-closing-lines-ats-2025",
+    "revision": "1d90317a9258ed8ad7984ed13ee516834de763ba",
+    "file": "nfl_2025_closing_lines_ats.csv",
+    "bytes": 71573,
+    "sha256": "fdd15d1c67c59ff5440f5ea5de79067b5aaa1ebf5ab872014f9e1175204a89e3",
+    "license": "Publisher CC BY4.0 label; upstream rights uncertified. Existing private authorized file only; no new download.",
+    "benchmark": "Consensus proportional de-vig closing home-win probability; not independent bookmaker validation, decision-time information or executable odds."
+  },
+  "prior_exposure": {
+    "season": "Entire 2025 NFL season already inspected in rematch and long-rest studies. This reused season is development evidence, never an untouched holdout. No new longshot-group count/outcome/contrast is computed in this registration.",
+    "evaluation_excluded_game_ids": [
+      "IL4EwN7l",
+      "fH8rHjXi"
+    ],
+    "reason": "Preserve previous search-exposed-row exclusions; exclusion does not erase season exposure."
+  },
+  "population": "2025 regular season only, weeks 1..18. Exclude postseason. Abort unexpected season/type or invalid required fields.",
+  "gates": {
+    "regular_games": 272,
+    "teams": 32,
+    "games_per_team": 17,
+    "unique_game_ids": true,
+    "unique_team_start": true,
+    "stable_id_name_bijection": true,
+    "timezone_and_local_date_valid": true,
+    "source_hash_match": true,
+    "abort_on_invalid_required_input": true
+  },
+  "feature": {
+    "selected_team": "Exactly one lower-probability team per game: home if p_home<1/2, away if p_home>1/2. Equal 1/2 excluded. p_selected=min(p_home,1-p_home).",
+    "treated": "0<p_selected<=1/4. This probability boundary corresponds to at least +300 zero-vig fair American odds, not an offered price.",
+    "controls": "1/3<=p_selected<1/2. Fair probability boundary corresponds to at most +200 zero-vig fair American odds, not offered prices.",
+    "gap": "Exclude 1/4<p_selected<1/3; no additional bands, clipping, weighting by odds, source re-estimation or tuned cutoffs.",
+    "classification": "Use exact decimal/rational comparisons for band boundaries; labels read schedule/identity/probability fields, never scores."
+  },
+  "outcomes": "Selected-team win indicator minus selected-team publisher closing probability. Validate scores/probabilities for every regular row before exclusions. Tied finals excluded because exact tie pricing/settlement is uncertified. Report nonexclusive search-exposed, tied, even-probability and gap exclusions separately.",
+  "primary": "For each week with treated and controls, mean treated residual minus mean control residual. Weight weeks by treated count. Sum(n_treated*contrast)/sum(n_treated). Report zero-weight weeks; never substitute another week or global controls.",
+  "minimums": {
+    "comparable_treated": 30,
+    "comparable_controls": 80,
+    "comparable_weeks": 8
+  },
+  "uncertainty": {
+    "method": "Circular 3-week blocks over full 1..18 grid; six blocks/draw, retain all game contributions per sampled week and recompute weighted primary.",
+    "attempts": 20000,
+    "seed": 20261107,
+    "minimum_valid_draws": 19000,
+    "interval": "99% two-sided percentile, linear interpolation at (n-1)*q; report zero-weight skipped draws."
+  },
+  "decision": "A descriptive calibration lead requires primary<=-0.03 AND upper99%<0. Otherwise not_supported. Gate/minimum failure aborted/insufficient_data. No reverse rule, cutoff rescue, home-away subgroup search or pick/model promotion.",
+  "multiplicity": "One fixed primary in this diagnostic, all prior 20 registry entries/failures retained. Group win rates/Brier summaries descriptive only. 99% interval does not certify project-wide familywise error control or independent discovery from reused outcomes. Any future confirmation must be separately registered on independent/prospective evidence.",
+  "outputs": [
+    "Outcome-blind-to-scores source/identity/band audit",
+    "All exclusion counts and comparable/zero-weight weeks",
+    "Fixed primary/99% interval/status",
+    "Original aggregate report; raw private"
+  ],
+  "limits": "Probability-band strength/home-away/calendar/source confounding remains. Week bootstrap does not eliminate team dependence. No executable ROI, CLV, causal effect, fees/limits/NY offers, earlier quote or acceptance claim. De-vigged consensus is not an independent fair-value oracle.",
+  "next": "Implement and test synthetic source/boundary/identity/score-blind labels,selected-team orientation,exclusions,week weighting and deterministic bootstrap; commit and pass hosted checks before actual group evaluation. Preserve protocol bytes unchanged."
+}

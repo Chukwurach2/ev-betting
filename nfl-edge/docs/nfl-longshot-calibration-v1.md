@@ -1,0 +1,13 @@
+# NFL longshot calibration — fixed registration
+
+Registered 2026-11-07T16:34:06Z before computing the new probability-band groups. The hypothesis is a residual favorite-longshot distortion after consensus de-vigging: longshots may win less often than their closing benchmark implies relative to moderate underdogs in the same week. This is a descriptive calibration diagnostic, not a betting rule or a rescue of failed schedule mechanisms. Related earlier market-only families and all prior failures remain disclosed.
+
+The selected team is the lower-probability team in each game. Treatment is p<=1/4; controls are1/3<=p<1/2; the intervening band and exactly-even probabilities are excluded. Boundaries use exact decimal/rational comparisons, not a floating-point approximation to1/3. These correspond to familiar zero-vig fair-price bands (+300 and +200); no offered odds are inferred. One team/game, selected from probability fields without scores.
+
+Within each regular-season week, compare treated and control win-minus-closing-probability residuals, then weight the contrast by treated count. Minimums are30comparable treated/80controls/8weeks. Preserve all18weeks and zero weights. Fixed circular3week bootstrap,20k attempts,seed20261107,19000valid floor,99%linear-interpolated percentile interval. A descriptive calibration lead requires contrast<=−3pp and upper99%<0;otherwise not_supported. No tuned cutoffs,reversed rule,home-away search or promotion.
+
+Protocol:research/protocols/nfl-longshot-calibration-v1.json. Use the existing pinned private2025NFLsource only, with its byte/hash/license and full272game/32team/17game coverage gates. Prior two search-exposed-row exclusions remain. No new source download or group count/performance inspection is part of registration. The entire season has already been inspected for rematch/long-rest studies and is development evidence,never untouched confirmation. A99%interval does not repair project-wide multiplicity or reuse.
+
+Closing consensus is not an independent fair-value oracle or an earlier executable quote. No ROI/CLV,causality,fees/limits,accepted-offer or current-book availability claim follows. Raw source stays private;only original methodology/code/aggregate evidence may be published. Preserve model,journal and ledger.
+
+Next implement/test synthetic boundary,source,identity,score-blind-label,orientation,exclusion,weighting and bootstrap cases;commit and pass hosted checks before grouped evaluation. This increment is registration only,not a new statistical experiment or daily-slot consumption. Browser NBA/EVSharps permission questions remain pending;no retry or workaround. No provider request,manual capture,deployment,purchase or wager.
