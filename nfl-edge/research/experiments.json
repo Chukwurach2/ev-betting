@@ -213,12 +213,13 @@
     {
       "id": "nba-prior-overtime-total-calibration-v1",
       "market_family": "nba_full_game_totals",
-      "status": "registered_before_group_evaluation",
+      "status": "registered_data_blocked",
       "registered_at": "2026-11-08T16:21:29Z",
       "hypothesis": "An overtime game creates extra workload that may reduce the next game's combined scoring relative to the publisher closing total benchmark, compared with games whose two teams last played without overtime.",
       "protocol": "research/protocols/nba-prior-overtime-total-calibration-v1.json",
       "report": null,
-      "reason": "Field semantics, synthetic implementation and hosted checks required before any new OT subgroup evaluation; season already development."
+      "reason": "Publisher README confirms no-vig, proportional-margin removal/brand-median and overtime-inclusive total grading. Inspected documentation does not explicitly define the overtime flag's CSV encoding. Platform-inferred boolean dtype does not satisfy frozen publisher-encoding gate. No group evaluation; retain protocol unchanged.",
+      "source_audit": "docs/nba-prior-overtime-source-semantics.md"
     }
   ]
 }
