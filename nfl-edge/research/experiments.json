@@ -209,6 +209,16 @@
       "next": "Retain unsupported diagnostic and consumed November7Eastern experiment slot. No rescue search or promotion;any confirmation requires separately registered independent/prospective evidence.",
       "outcome": "Fixed same-week treated-count-weighted residual contrast−1.827453pp;3week99%−13.950552to+12.612762pp.68treated(14wins),142controls(61wins),18comparable weeks.20kvalid draws/0skips. Not supported;no cutoff rescue,reverse rule or pick promotion.",
       "report": "docs/nfl-longshot-calibration-v1-results.md"
+    },
+    {
+      "id": "nba-prior-overtime-total-calibration-v1",
+      "market_family": "nba_full_game_totals",
+      "status": "registered_before_group_evaluation",
+      "registered_at": "2026-11-08T16:21:29Z",
+      "hypothesis": "An overtime game creates extra workload that may reduce the next game's combined scoring relative to the publisher closing total benchmark, compared with games whose two teams last played without overtime.",
+      "protocol": "research/protocols/nba-prior-overtime-total-calibration-v1.json",
+      "report": null,
+      "reason": "Field semantics, synthetic implementation and hosted checks required before any new OT subgroup evaluation; season already development."
     }
   ]
 }

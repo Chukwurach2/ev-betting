@@ -1,0 +1,50 @@
+{
+  "id": "nba-prior-overtime-total-calibration-v1",
+  "registered_at": "2026-11-08T16:21:29Z",
+  "status": "registered_before_group_evaluation",
+  "role": "descriptive_development_only",
+  "hypothesis": "An overtime game creates extra workload that may reduce the next game's combined scoring relative to the publisher closing total benchmark, compared with games whose two teams last played without overtime.",
+  "distinction": "Fixed lagged-overtime totals diagnostic from agenda item 7. Related fatigue mechanisms and failed NBA B2B spread replication remain disclosed; this is neither a reversal nor a cutoff rescue of that rule.",
+  "source": {
+    "publisher": "minmaxxxer",
+    "dataset": "nba-closing-lines-ats-2025-26",
+    "url": "https://huggingface.co/datasets/minmaxxxer/nba-closing-lines-ats-2025-26",
+    "bytes": 326818,
+    "sha256": "9ff4950cd96dc97da58dd64632444e5865d39f1e02a0673533a924f895d1ecae",
+    "license": "Existing private publisher-CC-BY4.0-labeled file only; upstream rights uncertified. No new download or redistribution.",
+    "benchmark": "close_total and close_over_prob. Closing consensus is neither independent fair value nor a decision-time executable price."
+  },
+  "prior_exposure": "Entire 2025-26 source season already inspected for B2B spreads and is development evidence. Only header/hash and existing implementation/protocol were read for this registration; no new overtime subgroup counts, labels, outcome contrasts or sample-size reconnaissance. 2024-25 remains excluded from this experiment.",
+  "population": "2025-26 regular season only, ET dates in [2025-07-01,2026-07-01). Postseason excluded and cannot supply a prior regular-season game.",
+  "gates": [
+    "Exact source bytes/hash match; unique nonempty game IDs, stable one-to-one team ID/name identities, distinct sides, unique team starts, timezone-aware UTC timestamps matching ET date.",
+    "Validate every regular row's integer nonnegative unequal scores, finite positive closing total and 0<close_over_prob<1 before population exclusions. Recompute total_margin and total_result and require publisher agreement using documented orientation.",
+    "Before opening rows for evaluation, retain publisher documentation establishing overtime field encoding and whether close_over_prob is a de-vigged full-game including-overtime probability. Do not infer encoding or probability meaning from observed outcomes. Missing/ambiguous documentation => data_blocked; no substitute metric or changed hypothesis.",
+    "Known omitted Cup games: exclude all December 2025 candidates. Retain prior regular source games in chronological history; for each January 2026 regular row require both teams' previous source games after 2025-12-16 or abort unresolved Cup coverage. Full independent schedule completeness is uncertified, even if this gate passes.",
+    "All histories strictly earlier than the current start; same-team equal starts abort. Prior means immediate previous source-listed regular game, never a selected qualifying prior. No score/margin/line of current game may affect workload labels."
+  ],
+  "feature": {
+    "elapsed": "Both teams must have immediate prior regular games with elapsed prior-start to current-start in [18,72] hours inclusive, exact timestamp comparison.",
+    "treated": "Exactly one team's immediate previous regular game has documented overtime=true; the other has overtime=false. Count each current game once.",
+    "controls": "Both teams' immediate previous regular games have documented overtime=false with the identical elapsed-hour window.",
+    "exclusions": "Missing prior, elapsed window unmet, both prior games overtime, December 2025 candidates, and current closing total not a positive exact half point are excluded; report nonexclusive exclusion flags plus one deterministic primary reason in this listed order. Never tune windows or split home/away/rest/underdog bands."
+  },
+  "outcomes": "For each included full-game half-point total, y_under=1 if final home+away score<close_total, else 0. No push possible; equality aborts inconsistent contract. Residual=y_under-(1-close_over_prob). Current overtime is included in final scores, never used as a selection feature.",
+  "primary": "ET Monday calendar week mean treated residual minus mean control residual; weight comparable weeks by treated game count. Sum(n_treated*weekly_contrast)/sum(n_treated). Weeks with either arm absent contribute zero weight. No global-control substitution. Predicted sign positive.",
+  "minimums": {
+    "comparable_treated": 30,
+    "comparable_controls": 80,
+    "comparable_weeks": 10
+  },
+  "uncertainty": {
+    "method": "Full contiguous Monday-ET week grid from first to last population-eligible regular game (including zero-weight weeks); circular 4-week blocks, ceil(number_of_weeks/4) blocks, truncate final draw to original week-grid length. Resample whole weeks and recompute treated-weighted primary.",
+    "attempts": 20000,
+    "seed": 20261108,
+    "minimum_valid_draws": 19000,
+    "interval": "99% two-sided percentile; sorted valid draws linear interpolation at (n-1)*q for q=.005,.995; report skipped zero-weight draws, never redraw to reach a target."
+  },
+  "decision": "Descriptive lead only if primary>=0.03 AND lower99%>0 AND all minimums/gates pass. Otherwise not_supported or insufficient_data; schema/meaning/coverage failure data_blocked/aborted. No reverse rule, extra seasons, alternative totals outcome, cutoff rescue, player props or pick/model promotion.",
+  "multiplicity": "One fixed primary; retain all 21 earlier registry entries and failures. This 99% interval is not project-wide familywise-error control or independent confirmation on reused outcomes. Future confirmation needs separately registered new/prospective evidence.",
+  "limits": "Prior overtime is endogenous to team strength, prior close contests and scheduling. No causal workload/rotation/minutes effect; other rest-window differences and team/week dependence remain. No actual priced ROI, CLV, liquidity, fees, limits, injury readiness, NY offer or earlier-information claim.",
+  "next": "Document field semantics first; implement offline labels/audits/statistic/bootstrap with synthetic tests, commit and pass hosted CI before actual group evaluation. Preserve this protocol unchanged; if semantics blocked stop without inspecting OT groups."
+}
