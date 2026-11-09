@@ -29,7 +29,7 @@ test('dash evidence sentinel preserves output and cost positions and exclusive p
 test('explicit evidence paths still grade while invalid costs cannot create a report',async t=>{
  const {dir,ledger}=await fixture(t),proof=join(dir,'proof.json'),output=join(dir,'graded.json');
  const result={...observation,status:'final',period:'full_game',includes_overtime:true,home_score:110,away_score:108,observed_at:'2026-10-20T23:00:00Z',source_url:'https://example.invalid/result'};
- await writeFile(proof,JSON.stringify({results:[result],contracts:[{observation_id:observation.id,rule_key:'full_game_including_overtime',source_url:'https://example.invalid/rules'}]}),{mode:0o600});
+ await writeFile(proof,JSON.stringify({results:[result],contracts:[{book_key:observation.book_key,observation_id:observation.id,rule_key:'full_game_including_overtime',source_url:'https://example.invalid/rules'}]}),{mode:0o600});
  await execute(process.execPath,[script,ledger,proof,output,'0']);
  const report=JSON.parse(await readFile(output,'utf8'));
  assert.equal(report.overall.resolved,1);assert.equal(report.overall.wins,1);assert.equal(report.overall.hypothetical_net_units,100/110);
