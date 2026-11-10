@@ -1,0 +1,80 @@
+{
+  "id": "nhl-immediate-rematch-prior-loser-calibration-v1",
+  "registered_at": "2026-11-10T18:52:23Z",
+  "status": "registered_pending_implementation",
+  "sport": "nhl",
+  "role": "descriptive_development_only",
+  "hypothesis": "A home team that lost its immediately preceding game to today's opponent may have a positive home-win-minus-closing-probability residual in an immediate rematch, relative to otherwise comparable prior-loss home teams, if the market overweights a single noisy result.",
+  "distinction": "A prior-result recency hypothesis,not a reversal or new cutoff for the failed homecoming or NFL repeat-pair favorite mechanisms. Preserve those failures unchanged.",
+  "source": {
+    "path_private": "runs/nhl-homecoming-2026-11-03/source.csv",
+    "bytes": 335103,
+    "sha256": "459588b31cf4dd543f745910b018d42aa6c7ac4cbf53c9b2068e549dcb62b345",
+    "publisher": "minmaxxxer",
+    "source_commit": "fa3ce3a5f3019aaa9f00626a01441a9e96529602",
+    "license_label": "CC BY4.0;publisher label not upstream-rights certification",
+    "prior_exposure": "Whole2025-26NHLseason inspected in homecoming development study;no untouched-holdout or independent-compiler claim. Header/hash rechecked Nov10;no immediate-rematch group counts/outcomes/contrasts inspected before registration.",
+    "metadata_receipt": "docs/nhl-homecoming-calibration-v1-results.md",
+    "new_metadata_attempt": "Pinned README read unavailable through web tool Nov10;no new rows downloaded."
+  },
+  "data_gates": {
+    "regular_season_games": 1312,
+    "teams": 32,
+    "games_per_team": 82,
+    "required_fields": [
+      "game_id",
+      "date_et",
+      "start_time_utc",
+      "season_type",
+      "home_team_id",
+      "away_team_id",
+      "home_score",
+      "away_score",
+      "close_home_win_prob"
+    ],
+    "reject": "Any missing/duplicate event,duplicate team-start,unstable team identity,invalid UTC/Eastern date,nonfinite probability outside(0,1),invalid/noninteger/negative/tied final,or schedule-count failure aborts evaluation;do not infer/fill/replace fixtures.",
+    "semantics": "Reuse only publisher compiled full-game home-win benchmark and score target scope established in prior source audit. If retained evidence cannot support target/benchmark equivalence,stop data-blocked before subgroup results;do not infer overtime flag encoding."
+  },
+  "unit": "One current regular-season game,home perspective only;never two opposing team appearances.",
+  "prior_history": "Sort by parsed start_time_utc then game_id. Derive both teams' immediately previous regular-season game strictly before current start. No tied team starts. Current outcome is never used in treatment.",
+  "eligible": "Both teams have a prior regular-season game;each prior-start gap is inclusive18to96hours;the current home team lost its own immediately preceding game by final-score comparison.",
+  "treatment": "Eligible game where both teams' immediately previous game_id is the same prior game_id,that prior game contains exactly today's two team IDs,and today's home team lost that game. Home/away reversal is allowed and recorded,not searched.",
+  "control": "All other eligible games,including a non-immediate earlier head-to-head. No other rest/opponent/price thresholds.",
+  "benchmark": "Current publisher close_home_win_prob;closing consensus is a descriptive contemporaneous benchmark,not an earlier executable price or independent estimate.",
+  "outcome": "1 if current home_score>away_score else0.",
+  "residual": "home_win_indicator minus current close_home_win_prob.",
+  "primary": "For each Monday-start Eastern calendar week with both groups,treated mean residual minus control mean residual. Overall weighted by that week's treated count. Report excluded/noncomparable weeks explicitly;no alternative overall estimator.",
+  "minimums": {
+    "comparable_treated": 30,
+    "comparable_controls": 80,
+    "comparable_weeks": 10
+  },
+  "uncertainty": {
+    "method": "Circular moving-block bootstrap of chronological weekly sufficient statistics;4consecutive calendar-week blocks sampled uniformly with replacement until original week count reached,truncate extra weeks;include empty and noncomparable weeks in calendar sequence;recompute weighted estimator each draw.",
+    "attempts": 200000,
+    "seed": 20261110,
+    "interval": 0.999,
+    "quantiles": "Sorted linear interpolation at0.0005and0.9995 using indexq*(n-1). Skip draws with zero comparable treated/control;report skipped count;require at least190000valid draws."
+  },
+  "screening_gate": "Only a development lead if every gate/minimum passes,primary contrast>=0.03,and registered99.9%lower bound>0;otherwise not_supported or insufficient_coverage. No pick/model promotion.",
+  "multiplicity": "Per-diagnostic alpha0.001 is a conservative Bonferroni allocation for a ceiling50registered research families;current registration becomes23. Do not call this retroactive correction of older intervals. No global validation claim;exceeding50requires a new prospective family policy,never selective retention.",
+  "implementation_gate": "Commit frozen protocol and registry before implementing. Commit synthetic tests and obtain explicit hosted success before running any new group evaluation on private rows.",
+  "required_tests": [
+    "prior-only treatment unaffected by current outcome",
+    "true shared prior fixture vs one-sided/older head-to-head",
+    "home/away reversal",
+    "18/96hour boundaries and rest-control eligibility",
+    "prior loss versus tie/invalid finals",
+    "duplicate/identity/date/probability/schedule failures",
+    "input-order invariance",
+    "weekly weighting and empty weeks",
+    "deterministic bootstrap/quantile/skip handling"
+  ],
+  "prohibitions": [
+    "No alternative rest windows,prior-loss margin cutoffs,home/away subsets,probability cutoffs or other seasons after results.",
+    "No reverse-the-rule rescue if contrast is negative.",
+    "No actual-price ROI,CLV,goalie-confirmation/travel mechanism,causal claim or independent validation.",
+    "No new data purchase,odds collection,live mode or app model change."
+  ],
+  "next": "Implement/test on synthetic fixtures and verify source-target semantics before one fixed evaluation. Preserve disappointing/underpowered result."
+}
