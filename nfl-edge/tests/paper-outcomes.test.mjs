@@ -14,3 +14,38 @@ test('NFL final ties are supported but never mapped across sports',()=>{assert.e
 
 test('same observation ID cannot transfer another book rule',()=>{assert.equal(check(o,r,{...c,book_key:'other-book'}).reason,'exact_contract_evidence_required');assert.equal(check().outcome,'win');});
 test('missing or blank book identity never certifies a contract',()=>{for(const book_key of [undefined,null,'',' ']){assert.equal(check(o,r,{...c,book_key}).reason,'exact_contract_evidence_required');assert.equal(check({...o,book_key},r,{...c,book_key}).reason,'exact_contract_evidence_required');}});
+
+const no={...o,sport:'nfl',game_id:'synthetic-nfl',home_team:'HOM',away_team:'AWY',selection:'Synthetic Away Club',line:10.5};
+const nr={...r,sport:'nfl',game_id:no.game_id,home_team:no.home_team,away_team:no.away_team,home_score:31,away_score:24};
+const nm={id:'synthetic-selection-review',review_status:'reviewed',sport:no.sport,game_id:no.game_id,observation_id:no.id,selection:no.selection,side:'away',team_key:no.away_team,reviewed_at:'2026-10-20T22:30:00Z',source_url:'https://example.invalid/synthetic-team-identity'};
+const nc={...c,selection_mapping:nm};
+test('NFL full display name needs explicit event-bound selection review',()=>{
+ assert.equal(check(no,nr,c).reason,'unsupported_selection');
+ const out=check(no,nr,nc);assert.equal(out.outcome,'win');assert.equal(out.selection_team_key,'AWY');assert.equal(out.selection_mapping_id,nm.id);assert.equal(out.selection_mapping_source,nm.source_url);assert.equal(out.stake,null);assert.equal(out.profit_loss,null);
+ assert.equal(check({...no,line:6.5},nr,nc).outcome,'loss');
+});
+test('reviewed home orientation and exact canonical selection stay distinct',()=>{
+ const home={...no,selection:'Synthetic Home Club',line:-10.5};
+ const hc={...nc,selection_mapping:{...nm,selection:home.selection,side:'home',team_key:'HOM'}};
+ assert.equal(check(home,nr,hc).outcome,'loss');
+ assert.equal(check({...home,line:-6.5},nr,hc).outcome,'win');
+ const direct=check({...no,selection:'AWY'},nr,c);assert.equal(direct.outcome,'win');assert.equal('selection_mapping_id' in direct,false);
+});
+test('selection evidence cannot cross event, sport, observation, text or side',()=>{
+ for(const patch of [{id:''},{review_status:'conditional'},{sport:'nba'},{game_id:'other'},{observation_id:'other'},{selection:'different'},{side:'home'},{team_key:'HOM'},{side:'draw'},{source_url:''},{source_url:'http://example.invalid'},{reviewed_at:'bad'},{reviewed_at:'2026-10-20T18:00:00Z'},{reviewed_at:'2026-10-21T00:00:00Z'}])
+  assert.equal(check(no,nr,{...nc,selection_mapping:{...nm,...patch}}).reason,'unsupported_selection',JSON.stringify(patch));
+});
+test('missing selection cannot be invented by a reviewed mapping',()=>{
+ for(const selection of [undefined,null,'',' '])assert.equal(check({...no,selection},nr,{...nc,selection_mapping:{...nm,selection}}).reason,'unsupported_selection');
+});
+test('selection review does not bypass exact-book or final/period gates',()=>{
+ assert.equal(check(no,nr,{...nc,book_key:'other'}).reason,'exact_contract_evidence_required');
+ assert.equal(check(no,{...nr,status:'live'},nc).reason,'final_result_required');
+ assert.equal(check(no,{...nr,includes_overtime:false},nc).reason,'result_period_mismatch');
+ const nba={...no,sport:'nba'},nbar={...nr,sport:'nba'};assert.equal(check(nba,nbar,{...nc,selection_mapping:{...nm,sport:'nba'}}).reason,'unsupported_selection');
+});
+test('total selection remains exact and does not use team mapping',()=>{
+ const total={...no,market:'FULL_GAME_TOTAL',selection:'Under',line:55.5};
+ const out=check(total,nr,nc);assert.equal(out.outcome,'win');assert.equal('selection_mapping_id' in out,false);
+ assert.equal(check({...total,selection:'Synthetic Away Club'},nr,nc).reason,'unsupported_selection');
+});

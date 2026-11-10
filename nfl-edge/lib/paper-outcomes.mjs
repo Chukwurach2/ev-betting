@@ -1,4 +1,11 @@
 import {reviewedEventMapping} from './paper-event-mapping.mjs';
+// Explicit retrospective selection evidence; never infer a team from display text.
+function reviewedNflSelection(o,m,url,now){
+ const at=Date.parse(m?.reviewed_at),quote=Date.parse(o.observed_at);
+ if(o.sport!=='nfl'||typeof o.selection!=='string'||!o.selection.trim()||!m||typeof m.id!=='string'||!m.id.trim()||m.review_status!=='reviewed'||m.sport!==o.sport||m.game_id!==o.game_id||m.observation_id!==o.id||m.selection!==o.selection||!url(m.source_url)||!Number.isFinite(at)||at<quote||at>now)return null;
+ if(!['home','away'].includes(m.side)||m.team_key!==o[m.side+'_team']||!m.team_key||o.home_team===o.away_team)return null;
+ return m.team_key;
+}
 // Offline outcome evaluation only. Never writes wagers or reports realized returns.
 export function evaluatePaperOutcome(observation,result,contract,{now=Date.now(),mapping}={}){
  const pending=reason=>({schema:'phone-paper-outcome-v1',observation_id:observation?.id||null,status:'unresolved',reason,stake:null,profit_loss:null});
@@ -15,13 +22,18 @@ export function evaluatePaperOutcome(observation,result,contract,{now=Date.now()
  if(result.period!=='full_game'||result.includes_overtime!==true)return pending('result_period_mismatch');
  const home=result.home_score,away=result.away_score;
  if(!Number.isSafeInteger(home)||!Number.isSafeInteger(away)||home<0||away<0||home>1000||away>1000||(o.sport==='nba'&&home===away))return pending('invalid_final_score');
- let margin;
+ let margin,selectionEvidence=null;
  if(o.market==='FULL_GAME_TOTAL'){
   if(!['Over','Under'].includes(o.selection))return pending('unsupported_selection');
   margin=(home+away-o.line)*(o.selection==='Over'?1:-1);
  }else{
-  if(![o.home_team,o.away_team].includes(o.selection))return pending('unsupported_selection');
-  margin=(o.selection===o.home_team?home-away:away-home)+o.line;
+  let selected=o.selection;
+  if(![o.home_team,o.away_team].includes(selected)){
+   selected=reviewedNflSelection(o,contract.selection_mapping,url,now);
+   if(!selected)return pending('unsupported_selection');
+   selectionEvidence={selection_mapping_id:contract.selection_mapping.id,selection_team_key:selected,selection_mapping_source:contract.selection_mapping.source_url};
+  }
+  margin=(selected===o.home_team?home-away:away-home)+o.line;
  }
- return {schema:'phone-paper-outcome-v1',observation_id:o.id,status:'outcome_evaluated',outcome:margin>0?'win':'loss',result_source:result.source_url,result_observed_at:result.observed_at,rule_source:contract.source_url,rule_key:contract.rule_key,mapping_id:start!==kickoff?mapping.id:null,official_kickoff:result.kickoff,observation_kickoff:o.kickoff,stake:null,profit_loss:null,limitations:'Paper contract outcome only. Exact result and rules require manual source verification; no accepted wager, fee reconciliation, ROI or CLV implied.'};
+ return {schema:'phone-paper-outcome-v1',observation_id:o.id,status:'outcome_evaluated',outcome:margin>0?'win':'loss',result_source:result.source_url,result_observed_at:result.observed_at,rule_source:contract.source_url,rule_key:contract.rule_key,...(selectionEvidence||{}),mapping_id:start!==kickoff?mapping.id:null,official_kickoff:result.kickoff,observation_kickoff:o.kickoff,stake:null,profit_loss:null,limitations:'Paper contract outcome only. Exact result and rules require manual source verification; no accepted wager, fee reconciliation, ROI or CLV implied.'};
 }
