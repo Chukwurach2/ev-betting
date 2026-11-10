@@ -6,3 +6,26 @@ test('unknown malformed or insufficient quota makes zero odds requests',async()=
 test('authentication and transport failure stop before odds without leaking URL',async()=>{for(const options of [{ok:false},{failure:true}]){const f=fake(options);await assert.rejects(fetchNbaSnapshot({...f,apiKey:'test',now}),e=>!e.message.includes('secret-key')&&e.message.includes('provider request failed'));assert.equal(f.calls.length,1);}});
 test('no upcoming NBA games spends no odds credits',async()=>{const f=fake({events:[]});const r=await fetchNbaSnapshot({...f,apiKey:'test',now});assert.equal(r.maximum_odds_requests,0);assert.equal(f.calls.length,1);});
 test('malformed events payload fails closed before odds',async()=>{const f=fake({events:{}});await assert.rejects(fetchNbaSnapshot({...f,apiKey:'test',now}),/schedule invalid/);assert.equal(f.calls.length,1);});
+
+test('NBA request stays in one US region, two markets and selected eligible operators',async()=>{
+ const requests=[];
+ const fetcher=async url=>{requests.push(new URL(url));return {ok:true,headers:new Headers({'x-requests-remaining':'52'}),json:async()=>[event]};};
+ await fetchNbaSnapshot({apiKey:'synthetic-only',fetcher,now});
+ assert.equal(requests.length,2);
+ const params=requests[1].searchParams;
+ assert.equal(params.get('regions'),'us');
+ assert.equal(params.get('markets'),'spreads,totals');
+ assert.equal(params.get('oddsFormat'),'american');
+ assert.deepEqual(new Set(params.get('bookmakers').split(',')),new Set(['draftkings','fanduel','betmgm','espnbet','williamhill_us','fanatics']));
+});
+test('unsafe integer, signed and whitespace quota headers cannot authorize an odds request',async()=>{
+ for(const remaining of ['9007199254740992','+52',' 52','52 ','5.2e1']){
+  const f=fake({remaining});await assert.rejects(fetchNbaSnapshot({...f,apiKey:'test',now}),/quota/);assert.equal(f.calls.length,1);
+ }
+});
+test('failed charged request is not retried and does not expose credential URL',async()=>{
+ let calls=0;
+ const fetcher=async()=>{calls++;if(calls===2)throw Error('synthetic-key-in-provider-url');return {ok:true,headers:new Headers({'x-requests-remaining':'52'}),json:async()=>[event]};};
+ await assert.rejects(fetchNbaSnapshot({apiKey:'synthetic-only',fetcher,now}),e=>e.message==='NBA provider request failed; no retry attempted'&&!e.message.includes('synthetic-key'));
+ assert.equal(calls,2);
+});

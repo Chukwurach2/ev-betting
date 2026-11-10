@@ -53,3 +53,5 @@ jobs:
         run: node --test tests/report-health.test.mjs
       - name: Sunday board fail-closed verdict
         run: node --test tests/sunday-board.test.mjs
+      - name: NBA free-quota and source-isolation regressions
+        run: node --test tests/nba-collection.test.mjs tests/nba-feed.test.mjs
