@@ -26,6 +26,15 @@ def identity(row):
     return home, away, start, day
 
 
+def population_fixtures(rows):
+    for row in rows:
+        if row['season_type'] != 'regular' or row['season'] != '2025-26':
+            continue
+        key = identity(row)
+        if FIRST <= key[3] <= LAST:
+            yield row, key
+
+
 def audit_fixtures(publisher_rows, schedule_crosswalk, cup_fixture_ids):
     """Return publisher ID to Cup membership from reviewed schedule inputs."""
     cup_ids = [identifier(value) for value in cup_fixture_ids]
@@ -35,12 +44,7 @@ def audit_fixtures(publisher_rows, schedule_crosswalk, cup_fixture_ids):
 
     publisher = {}
     team_starts = set()
-    for row in publisher_rows:
-        if row['season_type'] != 'regular' or row['season'] != '2025-26':
-            continue
-        home, away, start, day = identity(row)
-        if not FIRST <= day <= LAST:
-            continue
+    for row, (home, away, start, day) in population_fixtures(publisher_rows):
         game_id = identifier(row['game_id'])
         team_keys = {(home, start), (away, start)}
         if game_id in publisher or team_keys & team_starts:
