@@ -65,3 +65,8 @@ jobs:
 
       - name: Fixed NFL longshot synthetic regressions before group evaluation
         run: python -m unittest research.test_nfl_longshot -v
+
+      - name: NHL prior-only immediate-rematch assignment regressions
+        run: python -m unittest research.test_nhl_rematch_prior_loser -v
+      - name: NHL fixed weekly estimator and bootstrap regressions
+        run: python -m unittest research.test_nhl_rematch_weekly -v
