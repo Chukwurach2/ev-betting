@@ -1,0 +1,7 @@
+# NHL immediate-rematch weekly estimator
+
+The implementation applies the frozen November 10 protocol. Calendar weeks start on Monday in Eastern time and span the first through last regular-season game. The estimator retains empty weeks and weeks with only one eligible group. Only weeks with both groups contribute to the primary contrast or coverage minima. Each comparable week contributes in proportion to its treated count.
+
+The circular bootstrap samples four-week blocks with replacement using seed 20261110, wraps at the end of the calendar, and truncates each draw to the original week count. Zero-weight draws are excluded and counted. The 99.9% interval uses linear interpolation after sorting. The gates remain 30 treated games, 80 controls, ten comparable weeks, and 190,000 valid draws out of 200,000. The development screen requires a contrast of at least 3 percentage points and a strictly positive lower bound.
+
+Seven synthetic tests supplement the 11 prior assignment tests. They exercise Eastern week boundaries, empty weeks, weighting, coverage, bootstrap wrap and truncation, zero-weight draws, interpolation, reproducibility, and the source-review gate. The estimator is research-only. Evaluation on private rows still requires documented equivalence of the publisher's closing probability and full-game score target, plus successful hosted checks. No private rows were evaluated in this implementation increment.
