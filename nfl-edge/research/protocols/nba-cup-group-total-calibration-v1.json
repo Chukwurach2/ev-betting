@@ -1,0 +1,42 @@
+{
+  "id": "nba-cup-group-total-calibration-v1",
+  "registered_at": "2026-11-11T19:33:45Z",
+  "status": "registered_pending_schedule_and_implementation",
+  "sport": "nba",
+  "role": "descriptive_development_only",
+  "hypothesis": "Group-stage scoring and margin tiebreak incentives may sustain regulation scoring after a game is mostly decided. The fixed test asks whether closing full-game over probabilities understate overs in NBA Cup group games relative to non-Cup games in the same weeks.",
+  "source": {
+    "existing_private_csv": "runs/nba-fade-replication-2026-10-29/source.csv",
+    "bytes": 326818,
+    "sha256": "9ff4950cd96dc97da58dd64632444e5865d39f1e02a0673533a924f895d1ecae",
+    "publisher": "minmaxxxer",
+    "license": "Publisher-labeled CC BY 4.0. Upstream rights and independent odds provenance remain unverified.",
+    "exposure": "2025–26 NBA was already inspected for the rest study. This registration used the CSV header and hash only. No Cup group rows or outcomes were inspected."
+  },
+  "population": "2025–26 regular season, Eastern dates October 31 through November 28, 2025 inclusive. Treated games are the 60 officially designated group-stage fixtures. Controls are all other regular-season games in the interval. One row per game. December, knockout games and other seasons are excluded.",
+  "data_gates": [
+    "Before any outcome inspection, retain authoritative season-specific group rules and the 60-fixture group schedule. Confirm the scoring tiebreak mechanism from that source. Verify a one-to-one explicit crosswalk from the official fixture list to publisher event ID, sides and scheduled start. Reject missing, duplicate, ambiguous or conflicting matches. Do not infer Cup status from Fridays, scores, or ambiguous stage labels.",
+    "Audit the same-window regular schedule against an authorized schedule source, then enforce unique event and team-start IDs, distinct sides, and parseable UTC times matching Eastern dates. Source coverage failure blocks the comparison.",
+    "Retain the documented scope of close_over_prob as de-vigged full-game probability including overtime, alongside integer nonnegative unequal final scores. Test only positive half-point close_total with finite 0<close_over_prob<1. Report missing or unsupported benchmark exclusions separately. Reject contradictory final identities or grading. Do not use the overtime flag or the size of a win as a feature."
+  ],
+  "endpoint": "For each eligible game, indicator(final combined score exceeds close_total) minus close_over_prob. Closing consensus is a contemporaneous descriptive benchmark. Positive contrast is the registered direction.",
+  "primary": "Within each Monday-start Eastern week containing both groups, mean Cup residual minus mean non-Cup residual. Overall mean weighted by comparable Cup game counts. Include all contiguous calendar weeks in the interval, with noncomparable weeks contributing zero weight. No pooled alternative.",
+  "minimums": {
+    "comparable_cup_games": 40,
+    "comparable_non_cup_games": 50,
+    "comparable_weeks": 4
+  },
+  "uncertainty": {
+    "method": "Circular moving-block bootstrap over the chronological weekly summaries, two-week blocks, truncate to original week count. Zero-weight draws skipped. Sort valid draws and linearly interpolate at q*(n−1).",
+    "attempts": 200000,
+    "seed": 20261111,
+    "minimum_valid": 190000,
+    "quantiles": [
+      0.0005,
+      0.9995
+    ]
+  },
+  "screen": "Only a development lead if all gates pass, the contrast is at least +0.03 and the lower interval endpoint is positive. Otherwise insufficient coverage or not supported. The handful of calendar weeks, scheduling differences and repeated teams materially limit interpretation. No causal tiebreak inference, alternate cutoff, subgroup rescue, season substitution, ROI or pick/model promotion.",
+  "multiplicity": "One fixed primary. The 99.9% interval uses the 0.001 allocation for the project ceiling of 50 registered families. This is not retroactive correction or independent confirmation.",
+  "next": "Verify access to the official schedule and rules, freeze the outcome-blind crosswalk, implement synthetic tests, and confirm exact-head hosted checks before any real outcome evaluation."
+}
