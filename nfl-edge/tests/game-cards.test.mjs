@@ -14,3 +14,22 @@ test('costs can eliminate an apparent arb',()=>{assert.ok(twoLegPlan({oddsA:110,
 
 test('lean expiry follows oldest supporting reference, not latest offered quote',()=>{const qs=[quote('fanduel',110,.5),quote('draftkings',-110,.52,{observed_at:'2026-10-19T11:46:00Z'}),quote('pinnacle',-110,.54)];const p=buildGameCards([game],qs,{now,offeredBooks:['fanduel']})[0].picks[0];assert.equal(p.expires_at,'2026-10-19T12:01:00.000Z');assert.equal(p.reference_quotes.length,2);assert.ok(p.reference_quotes.every(r=>r.book_key!=='fanduel'));assert.deepEqual(p.reference_probability_range,{min:.52,max:.54});});
 test('expired supporting source cannot sustain a newly priced offer',()=>{const qs=[quote('fanduel',110,.5,{observed_at:'2026-10-19T12:00:00Z'}),quote('draftkings',-110,.52,{observed_at:'2026-10-19T11:46:00Z'}),quote('pinnacle',-110,.54)];assert.equal(buildGameCards([game],qs,{now:now+61000,offeredBooks:['fanduel']})[0].picks.length,0);});
+
+test('numeric and string lines cannot count one reference operator twice',()=>{
+ for(const sport of ['nfl','nba']){
+  const current={...game,sport};
+  const qs=[
+   quote('fanduel',110,.5,{sport}),
+   quote('espnbet',-110,.52,{sport,line:51.5}),
+   quote('thescorebet',-110,.54,{sport,line:'51.5',observed_at:'2026-10-19T11:59:10Z'}),
+  ];
+  const opts={now,offeredBooks:['fanduel']};
+  assert.equal(buildGameCards([current],qs,opts)[0].picks.length,0);
+  qs.push(quote('pinnacle',-110,.56,{sport}));
+  const [pick]=buildGameCards([current],qs,opts)[0].picks;
+  assert.equal(pick.reference_books,2);
+  const [score]=pick.reference_quotes.filter(r=>r.book_key==='thescorebet');
+  assert.equal(score.fair_probability,.54);
+  assert.equal(pick.fair_probability,.55);
+ }
+});

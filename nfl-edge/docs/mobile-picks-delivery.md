@@ -86,3 +86,8 @@ https://the-odds-api.com/liveapi/guides/v4/ (GET events, GET odds, basketball_nb
 NFL freshness diagnosis: latest stored quote was 2026-10-17T20:09:06Z at the
 2026-10-19 check; zero quotes met the existing 15-minute window. Checkpoint
 collection is not continuous phone coverage; do not widen freshness to mask it.
+
+The phone card builder uses numeric line identity and canonical operator IDs
+when selecting the latest stored quote. Equivalent numeric and string lines
+from the same operator cannot satisfy the two-reference requirement on their
+own. This applies to both NFL and NBA cards.

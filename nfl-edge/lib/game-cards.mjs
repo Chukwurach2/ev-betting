@@ -9,7 +9,7 @@ export function buildGameCards(games,quotes,{now=Date.now(),blocked=['betrivers'
  return games.filter(g=>Date.parse(g.kickoff)>now).map(g=>{
   const raw=quotes.filter(q=>(q.sport||'nfl')===(g.sport||'nfl')&&q.home_team===g.home_team&&q.away_team===g.away_team&&Date.parse(q.kickoff)===Date.parse(g.kickoff));
   const fresh=raw.filter(q=>{const age=now-Date.parse(q.observed_at);return Number.isFinite(age)&&age>=0&&age<=maxAge&&valid(q.american_odds)&&Number(q.fair_probability)>0&&Number(q.fair_probability)<1;});
-  const latest=new Map();for(const q of fresh){const k=JSON.stringify([q.market,q.selection,q.line,normalizeBook(q.book_key)]),old=latest.get(k);if(!old||Date.parse(q.observed_at)>Date.parse(old.observed_at))latest.set(k,q);}
+  const latest=new Map();for(const q of fresh){const k=JSON.stringify([q.market,q.selection,Number(q.line),normalizeBook(q.book_key)]),old=latest.get(k);if(!old||Date.parse(q.observed_at)>Date.parse(old.observed_at))latest.set(k,q);}
   const candidates=[];
   for(const q of latest.values()){
    // Only priced half-point spread/total contracts: avoid silently treating pushes as losses.
