@@ -5,6 +5,7 @@ from decimal import Decimal, InvalidOperation
 from math import fsum
 
 from .nba_cup_schedule import FIRST, LAST, audit_fixtures, population_fixtures
+from .nhl_rematch_weekly import bootstrap
 
 
 def score(raw):
@@ -75,3 +76,35 @@ def weekly_totals(rows, schedule_crosswalk, cup_fixture_ids, *, source_scope_ver
         weekly.append(dict(week=week.isoformat(), cup=len(cup), non_cup=len(non_cup),
                            contrast=contrast))
     return {'weeks': weekly, 'benchmark_exclusions': exclusions}
+
+
+def summarize_weeks(weeks):
+    comparable = [week for week in weeks if week['contrast'] is not None]
+    cup = sum(week['cup'] for week in comparable)
+    non_cup = sum(week['non_cup'] for week in comparable)
+    report = dict(comparable_weeks=len(comparable), comparable_cup_games=cup,
+                  comparable_non_cup_games=non_cup, contrast=None, bootstrap=None,
+                  status='insufficient_coverage')
+    if cup:
+        report['contrast'] = fsum((week['cup'] / cup) * week['contrast'] for week in comparable)
+    if cup < 40 or non_cup < 50 or len(comparable) < 4:
+        return report
+
+    weighted = [
+        (0, 0.0) if week['contrast'] is None else
+        (week['cup'], week['cup'] * week['contrast'])
+        for week in weeks
+    ]
+    result = bootstrap(weighted, attempts=200000, seed=20261111, block_size=2)
+    report['bootstrap'] = result
+    if result['valid'] >= 190000:
+        report['status'] = 'not_supported'
+        if report['contrast'] >= 0.03 and result['interval'][0] > 0:
+            report['status'] = 'development_lead'
+    return report
+
+
+def evaluate(rows, schedule_crosswalk, cup_fixture_ids, *, source_scope_verified):
+    report = weekly_totals(rows, schedule_crosswalk, cup_fixture_ids,
+                           source_scope_verified=source_scope_verified)
+    return {**report, **summarize_weeks(report['weeks'])}
