@@ -33,3 +33,22 @@ test('numeric and string lines cannot count one reference operator twice',()=>{
   assert.equal(pick.fair_probability,.55);
  }
 });
+
+test('positive estimates that fail a reference omission stay conditional',()=>{
+ for(const sport of ['nfl','nba']){
+  const qs=[
+   quote('fanduel',100,.53,{sport}),
+   quote('draftkings',-110,.5,{sport}),
+   quote('pinnacle',-110,.56,{sport}),
+  ];
+  const [pick]=buildGameCards([{...game,sport}],qs,{now,offeredBooks:['fanduel']})[0].picks;
+  assert.ok(pick.expected_value>0);
+  assert.equal(pick.status,'Reference-sensitive lean');
+  assert.equal(pick.reference_omission_ev_range.min,0);
+  assert.ok(pick.reference_omission_ev_range.max>0);
+  qs[1].fair_probability=.51;
+  const [robust]=buildGameCards([{...game,sport}],qs,{now,offeredBooks:['fanduel']})[0].picks;
+  assert.equal(robust.status,'Exploratory edge');
+  assert.ok(robust.reference_omission_ev_range.min>0);
+ }
+});
