@@ -52,3 +52,36 @@ test('positive estimates that fail a reference omission stay conditional',()=>{
   assert.ok(robust.reference_omission_ev_range.min>0);
  }
 });
+
+test('de-vig method comparison uses exact opposing references without exporting their prices',()=>{
+ for(const sport of ['nfl','nba']){
+  const g={...game,sport};
+  const a=120/220,b=100/210,p=a/(a+b);
+  const opts={now,offeredBooks:['fanduel']};
+  const offer=quote('fanduel',100,.5,{sport});
+  const paired=['draftkings','pinnacle'].flatMap(key=>[
+   quote(key,-120,p,{sport}),
+   quote(key,110,1-p,{sport,selection:'Under'}),
+  ]);
+  const [pick]=buildGameCards([g],[offer,...paired],opts)[0].picks;
+  assert.ok(pick.devig_method_sensitivity.power_fair_probability>p);
+  assert.ok(pick.devig_method_sensitivity.power_expected_value>pick.expected_value);
+  assert.equal(pick.reference_quotes[0].opposite_american_odds,undefined);
+  const wrongTime={...paired[1],observed_at:'2026-10-19T11:58:00Z'};
+  const [unpaired]=buildGameCards([g],[offer,paired[0],wrongTime,...paired.slice(2)],opts)[0].picks;
+  assert.equal(unpaired.devig_method_sensitivity,null);
+  assert.equal(unpaired.expected_value,pick.expected_value);
+  const wrongProbability={...paired[1],fair_probability:.45};
+  assert.equal(buildGameCards([g],[offer,paired[0],wrongProbability,...paired.slice(2)],opts)[0].picks[0].devig_method_sensitivity,null);
+ }
+});
+test('spread comparison requires the opposing team at the mirrored line',()=>{
+ const opts={now,offeredBooks:['fanduel']};
+ const spread=(key,selection,line)=>quote(key,-110,.5,{market:'FULL_GAME_SPREAD',selection,line});
+ const offered=spread('fanduel',game.home_team,-3.5);
+ const paired=['draftkings','pinnacle'].flatMap(key=>[spread(key,game.home_team,-3.5),spread(key,game.away_team,3.5)]);
+ const result=buildGameCards([game],[offered,...paired],opts)[0].picks[0];
+ assert.equal(result.devig_method_sensitivity.power_fair_probability,.5);
+ const wrongLine={...paired[1],line:4.5};
+ assert.equal(buildGameCards([game],[offered,paired[0],wrongLine,...paired.slice(2)],opts)[0].picks[0].devig_method_sensitivity,null);
+});
