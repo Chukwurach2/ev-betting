@@ -232,6 +232,14 @@
       "prior_exposure": "Whole2025-26NHLseason inspected in homecoming development study;no untouched-holdout or independent-compiler claim. Header/hash rechecked Nov10;no immediate-rematch group counts/outcomes/contrasts inspected before registration.",
       "next": "Implement/test on synthetic fixtures and verify source-target semantics before one fixed evaluation. Preserve disappointing/underpowered result.",
       "report": null
+    },
+    {
+      "id": "nba-cup-group-total-calibration-v1",
+      "market_family": "nba_full_game_totals",
+      "status": "registered_pending_schedule_and_implementation",
+      "registered_at": "2026-11-11T19:33:45Z",
+      "protocol": "research/protocols/nba-cup-group-total-calibration-v1.json",
+      "outcome": "Pending authoritative schedule/rule verification and tested implementation. No subgroup evaluation."
     }
   ]
 }

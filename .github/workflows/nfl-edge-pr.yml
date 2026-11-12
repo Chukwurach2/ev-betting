@@ -70,3 +70,9 @@ jobs:
         run: python -m unittest research.test_nhl_rematch_prior_loser -v
       - name: NHL fixed weekly estimator and bootstrap regressions
         run: python -m unittest research.test_nhl_rematch_weekly -v
+      - name: NBA Cup outcome-blind schedule regressions
+        run: python -m unittest research.test_nba_cup_schedule -v
+      - name: NBA Cup full-game over residual regressions
+        run: python -m unittest research.test_nba_cup_totals -v
+      - name: NBA Cup weighted contrast and two-week bootstrap regressions
+        run: python -m unittest research.test_nba_cup_estimator -v
