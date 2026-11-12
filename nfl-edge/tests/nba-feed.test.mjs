@@ -8,3 +8,15 @@ test('paired NBA probabilities preserve provider time and exact event',()=>{cons
 test('NBA rejects unsupported push lines and mismatched pairs',()=>{for(const outcomes of [[{name:'Over',price:-110,point:221},{name:'Under',price:-110,point:221}],[{name:'Over',price:-110,point:221.5},{name:'Under',price:-110,point:222.5}],[{name:'Over',price:-110,point:221.5}]])assert.equal(pairedNbaQuotes([{...event,bookmakers:[book('fanduel',{outcomes})]}]).length,0);});
 test('NBA spread requires both actual teams and opposite lines',()=>{const m={key:'spreads',outcomes:[{name:event.home_team,price:110,point:-3.5},{name:event.away_team,price:-120,point:3.5}]};assert.equal(pairedNbaQuotes([{...event,bookmakers:[book('fanduel',m)]}]).length,2);m.outcomes[1].name='Wrong team';assert.equal(pairedNbaQuotes([{...event,bookmakers:[book('fanduel',m)]}]).length,0);});
 test('NBA card uses NBA quotes and cannot reuse NFL reference prices',()=>{const g=nbaGames([event],now)[0],qs=pairedNbaQuotes([{...event,bookmakers:['fanduel','draftkings','betmgm'].map(k=>book(k))}]);assert.ok(buildGameCards([g],qs,{now})[0].picks.length>0);assert.equal(buildGameCards([g],qs.map(q=>({...q,sport:'nfl'})),{now})[0].picks.length,0);});
+
+test('NBA never uses a different or absent provider event ID for an offer or reference',()=>{
+ const [g]=nbaGames([event],now);
+ const quotes=pairedNbaQuotes([{...event,bookmakers:['fanduel','draftkings','betmgm'].map(k=>book(k))}]);
+ const opts={now,offeredBooks:['fanduel']};
+ assert.equal(buildGameCards([g],quotes,opts)[0].picks.length,2);
+ for(const [bookKey,id] of [['fanduel','stale-id'],['draftkings','stale-id'],['betmgm',undefined]]){
+  const mismatched=quotes.map(q=>q.book_key===bookKey?{...q,provider_event_id:id}:q);
+  assert.equal(buildGameCards([g],mismatched,opts)[0].picks.length,0);
+ }
+ assert.equal(buildGameCards([{...g,provider_event_id:undefined}],quotes,opts)[0].picks.length,0);
+});
