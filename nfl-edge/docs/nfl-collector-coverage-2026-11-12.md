@@ -37,3 +37,9 @@ A November 13 read-only replay used each checkpoint's recorded completion time a
 | T−3 | 16 | 4 | 0 | −4.496% to −0.980% |
 
 These are historical market estimates from a checkpoint-only replay. It does not establish what the phone displayed at that time, independently verified fair value, accepted size or settlement equivalence. The 01:01 UTC public read returned zero fresh entries for either sport. The archived contracts were already expired and were excluded from prospective results.
+
+### Sensitivity to de-vig method
+
+For each best baseline offer in the replay, a separate read-only audit matched each reference to the exact opposite selection at the same operator, source time and provider event ID. The spread lines had opposite signs. Totals required the same line. Each pair had to reproduce the stored proportional probability within 0.0000000001 before the power method was applied. The alternate estimate kept the same offer and used the median power-adjusted probability across its references.
+
+Neither T−24 entry had a complete set of verified pairs. Two of the four T−3 entries did. Both remained negative with power de-vig, at −4.65% and −2.33% estimated EV before additional fees. The other two T−3 entries have unknown method sensitivity. These are retrospective market estimates for expired offers. No final result, independent fair value, or historical phone display was established in this audit.
