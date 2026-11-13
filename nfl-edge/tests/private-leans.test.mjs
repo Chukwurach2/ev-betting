@@ -40,3 +40,23 @@ test('inherited object keys are not authorized offer venues',()=>{
   assert.throws(()=>validateLean({...fixture(),book_key}),/venue/);
  }
 });
+
+test('publication only accepts an exact retry after an ID conflict',async()=>{
+ const {insertPrivateLean}=await import('../ops/private-lean-insert.mjs');
+ const payload=fixture();
+ for(const [insertCount,matchCount] of [[1,0],[0,1],[0,0]]){
+  const calls=[];
+  const db={query:async(sql,params)=>{
+   calls.push({sql,params});
+   return {rowCount:calls.length===1?insertCount:matchCount};
+  }};
+  const publish=insertPrivateLean(db,'synthetic-owner',payload);
+  if(!insertCount&&!matchCount)await assert.rejects(publish,/already in use/);
+  else await publish;
+  assert.equal(calls.length,insertCount?1:2);
+  if(!insertCount){
+   assert.match(calls[1].sql,/id=\$1 AND user_id=\$2 AND payload=\$3::jsonb/);
+   assert.deepEqual(calls[1].params,[payload.id,'synthetic-owner',JSON.stringify(payload)]);
+  }
+ }
+});

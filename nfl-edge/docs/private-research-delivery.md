@@ -47,3 +47,7 @@ Regression cases cover withdrawals and newer expired observations across books.
 The phone requires literal boolean true for both offer and availability
 verification before a reviewed entry can display as observed. Other values
 leave it conditional. Offer venue lookup accepts only the defined book keys.
+
+The publisher treats an existing observation ID as an idempotent retry only
+when both the owner and stored JSON payload match. A conflicting ID aborts the
+batch and rolls back new inserts. Assign a new ID to each revision.
