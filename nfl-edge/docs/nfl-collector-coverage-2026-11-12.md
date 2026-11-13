@@ -26,3 +26,14 @@ The [23:13 scheduled run](https://github.com/Chukwurach2/ev-betting/actions/runs
 | T−3 | 23:14:48.865 | 16 | 23:14:34 |
 
 The T−3 collection ran within the 22:15–23:45 UTC window. With the phone’s 15-minute source-age limit, even its newest stored source was 39 minutes 55 seconds old at the 23:54:29 UTC phone read. No fresh card was verified during the usable interval. The read returned zero fresh NFL entries and zero NBA entries across 13 upcoming NBA games, four within 24 hours. The evidence verifies storage and later expiry. A card during the fresh interval would still have required matching references and eligible offers.
+
+## Retrospective contract coverage
+
+A November 13 read-only replay used each checkpoint's recorded completion time and only the materialized rows from that checkpoint. It matched the stored game, teams and kickoff, kept full-game half-point spreads and totals, and applied the 15-minute source-age cutoff. It counted each canonical operator once per exact selection and line. The calculation repriced each allowed offer against the median stored fair probability from at least two other operators. The EV range below uses the best eligible archived offer for each distinct contract and assumes zero additional fees.
+
+| Window | Fresh rows at completion | Distinct priced contracts | Positive estimates | Range of best estimated EV |
+| --- | ---: | ---: | ---: | --- |
+| T−24 | 16 | 2 | 0 | −4.336% to −3.704% |
+| T−3 | 16 | 4 | 0 | −4.496% to −0.980% |
+
+These are historical market estimates from a checkpoint-only replay. It does not establish what the phone displayed at that time, independently verified fair value, accepted size or settlement equivalence. The 01:01 UTC public read returned zero fresh entries for either sport. The archived contracts were already expired and were excluded from prospective results.
