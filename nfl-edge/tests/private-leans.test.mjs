@@ -22,7 +22,7 @@ test('book preference cannot resurrect a superseded quote',()=>{
  assert.deepEqual(visibleLeans([withdrawal,prior].map(payload=>({payload})),{sport:'nba',books:['draftkings'],now}),[]);
 });
 test('newer expired research cannot expose an older still-fresh quote',()=>{
- const prior=fixture(),latest={...prior,id:'expired',book_key:'fanduel',expires_at:'2026-10-20T13:59:00Z'};
+ const prior=fixture(),latest={...prior,id:'expired',book_key:'fanduel',observed_at:'2026-10-20T13:58:30Z',expires_at:'2026-10-20T13:59:00Z'};
  assert.deepEqual(visibleLeans([latest,prior].map(payload=>({payload})),{sport:'nba',books:['draftkings'],now}),[]);
 });
 
@@ -59,4 +59,13 @@ test('publication only accepts an exact retry after an ID conflict',async()=>{
    assert.deepEqual(calls[1].params,[payload.id,'synthetic-owner',JSON.stringify(payload)]);
   }
  }
+});
+
+test('expiry must leave an interval after both source observations',()=>{
+ const p=fixture();
+ assert.throws(()=>validateLean({...p,observed_at:'2026-10-20T14:13:00Z'}),/expiry/);
+ assert.throws(()=>validateLean({...p,observed_at:'2026-10-20T14:14:00Z'}),/expiry/);
+ assert.throws(()=>validateLean({...p,reference_at:'2026-10-20T14:13:00Z'}),/expiry/);
+ assert.throws(()=>validateLean({...p,reference_at:'2026-10-20T14:14:00Z'}),/expiry/);
+ assert.doesNotThrow(()=>validateLean({...p,reference_at:'2026-10-20T14:12:59Z'}));
 });

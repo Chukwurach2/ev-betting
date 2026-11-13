@@ -51,3 +51,8 @@ leave it conditional. Offer venue lookup accepts only the defined book keys.
 The publisher treats an existing observation ID as an idempotent retry only
 when both the owner and stored JSON payload match. A conflicting ID aborts the
 batch and rolls back new inserts. Assign a new ID to each revision.
+
+Expiry must also be strictly later than the newest known source timestamp.
+If the allowed freshness windows do not overlap, the publisher rejects the
+entry instead of accepting a card that can never be current. An unknown
+reference age remains conditional and uses the offered quote's clock.

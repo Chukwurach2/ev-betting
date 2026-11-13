@@ -8,8 +8,9 @@ export function validateLean(p){
  for(const k of ['kickoff','observed_at','expires_at'])if(!Number.isFinite(Date.parse(p[k])))throw Error('Missing timestamp '+k);
  if(p.reference_at!==null&&!Number.isFinite(Date.parse(p.reference_at)))throw Error('Invalid reference timestamp');
  if(p.reference_at===null&&!['conditional','invalidated'].includes(p.review_status))throw Error('Unknown reference age requires conditional review');
- const oldest=p.reference_at===null?Date.parse(p.observed_at):Math.min(Date.parse(p.observed_at),Date.parse(p.reference_at));
- if(Date.parse(p.expires_at)>oldest+15*60000||Date.parse(p.expires_at)<=oldest)throw Error('Invalid expiry');
+ const offer=Date.parse(p.observed_at),reference=p.reference_at===null?offer:Date.parse(p.reference_at);
+ const expiry=Date.parse(p.expires_at);
+ if(expiry>Math.min(offer,reference)+15*60000||expiry<=Math.max(offer,reference))throw Error('Invalid expiry');
  if(!Number.isInteger(p.american_odds)||Math.abs(p.american_odds)<100||!Number.isInteger(p.minimum_odds)||Math.abs(p.minimum_odds)<100)throw Error('Invalid odds');
  if(!(p.fair_probability>0&&p.fair_probability<1)||!['provider_derived','independent_estimate'].includes(p.fair_value_type))throw Error('Invalid fair value');
  if(!['conditional','observed','invalidated'].includes(p.review_status))throw Error('Invalid review status');
