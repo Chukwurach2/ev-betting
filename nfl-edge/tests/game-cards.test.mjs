@@ -85,3 +85,19 @@ test('spread comparison requires the opposing team at the mirrored line',()=>{
  const wrongLine={...paired[1],line:4.5};
  assert.equal(buildGameCards([game],[offered,paired[0],wrongLine,...paired.slice(2)],opts)[0].picks[0].devig_method_sensitivity,null);
 });
+
+test('NFL provider full names pair within the matched game only',()=>{
+ const g={...game,home_team:'NYG',away_team:'WAS'};
+ const spread=(book,selection,line)=>quote(book,-110,.5,{...g,market:'FULL_GAME_SPREAD',selection,line});
+ const offer=spread('fanduel','New York Giants',-3.5);
+ const paired=['draftkings','pinnacle'].flatMap(book=>[spread(book,'New York Giants',-3.5),spread(book,'Washington Commanders',3.5)]);
+ const opts={now,offeredBooks:['fanduel']};
+ const pick=rows=>buildGameCards([g],rows,opts)[0].picks[0];
+ const result=pick([offer,...paired]);
+ assert.equal(result.selection,'New York Giants');
+ assert.equal(result.devig_method_sensitivity.power_fair_probability,.5);
+ for(const replacement of [{selection:'Dallas Cowboys'},{kickoff:'2026-10-19T19:00:00Z'}]){
+  assert.equal(pick([offer,paired[0],{...paired[1],...replacement},...paired.slice(2)]).devig_method_sensitivity,null);
+ }
+ assert.equal(pick([offer,...paired,{...paired[1],selection:'WAS'}]).devig_method_sensitivity,null);
+});

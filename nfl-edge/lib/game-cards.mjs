@@ -1,4 +1,11 @@
 // Exploratory presentation layer. Does not change the frozen research engine.
+import nflTeamAliases from '../ops/nfl_team_aliases.json' with {type:'json'};
+
+function nflTeamCode(team){
+ const code=Object.hasOwn(nflTeamAliases,team)?nflTeamAliases[team]:team;
+ return code==='ARI'?'AZ':code==='LA'?'LAR':code;
+}
+
 export const NY_BOOKS = Object.freeze({fanduel:'FanDuel',draftkings:'DraftKings',betmgm:'BetMGM',williamhill_us:'Caesars',caesars:'Caesars',fanatics:'Fanatics',thescorebet:'theScore Bet',espnbet:'theScore Bet',ballybet:'Bally Bet'});
 export const normalizeBook = key => ({espnbet:'thescorebet',caesars:'williamhill_us'}[key] || key);
 const median=xs=>{const a=[...xs].sort((a,b)=>a-b),m=Math.floor(a.length/2);return a.length%2?a[m]:(a[m-1]+a[m])/2;};
@@ -21,15 +28,21 @@ function pairedMethodSensitivity(game,refs,latest,price){
  const values=[];
  for(const ref of refs){
   const line=Number(ref.line);
-  let selection,oppositeLine;
+  let other;
   if(['FULL_GAME_TOTAL','Q1_TOTAL'].includes(ref.market)&&['Over','Under'].includes(ref.selection)){
-   selection=ref.selection==='Over'?'Under':'Over';
-   oppositeLine=line;
-  }else if(ref.market==='FULL_GAME_SPREAD'&&[game.home_team,game.away_team].includes(ref.selection)){
-   selection=ref.selection===game.home_team?game.away_team:game.home_team;
-   oppositeLine=-line;
+   const selection=ref.selection==='Over'?'Under':'Over';
+   other=latest.get(quoteKey(ref.market,selection,line,normalizeBook(ref.book_key)));
+  }else if(ref.market==='FULL_GAME_SPREAD'){
+   const teamCode=game.sport==='nba'?team=>team:nflTeamCode;
+   const home=teamCode(game.home_team),away=teamCode(game.away_team),side=teamCode(ref.selection);
+   if(home===away||![home,away].includes(side))return null;
+   const opposite=side===home?away:home;
+   const matches=[...latest.values()].filter(q=>q.market===ref.market&&Number(q.line)===-line
+    &&q.book_key===ref.book_key&&Date.parse(q.observed_at)===Date.parse(ref.observed_at)
+    &&teamCode(q.selection)===opposite);
+   if(matches.length!==1)return null;
+   [other]=matches;
   }else return null;
-  const other=latest.get(quoteKey(ref.market,selection,oppositeLine,normalizeBook(ref.book_key)));
   if(!other||other.book_key!==ref.book_key||Date.parse(other.observed_at)!==Date.parse(ref.observed_at))return null;
   const a=1/dec(Number(ref.american_odds)),b=1/dec(Number(other.american_odds));
   const proportional=a/(a+b);
