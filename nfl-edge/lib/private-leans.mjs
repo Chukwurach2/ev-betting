@@ -2,7 +2,7 @@
 export const LEAN_BOOKS={fanduel:'FanDuel',draftkings:'DraftKings',betmgm:'BetMGM',williamhill_us:'Caesars',fanatics:'Fanatics',thescorebet:'theScore Bet',ballybet:'Bally Bet'};
 const text=(x)=>typeof x==='string'&&x.trim().length>0;
 export function validateLean(p){
- if(!p||!['nfl','nba'].includes(p.sport)||!LEAN_BOOKS[p.book_key])throw Error('Unsupported sport or offer venue');
+ if(!p||!['nfl','nba'].includes(p.sport)||!Object.hasOwn(LEAN_BOOKS,p.book_key))throw Error('Unsupported sport or offer venue');
  for(const k of ['id','game_id','away_team','home_team','selection','market','rules','source','method','rationale','conditions','correlation','fee_assumptions'])if(!text(p[k]))throw Error('Missing '+k);
  if(p.rights!=='private_original_analysis')throw Error('Private original analysis required');
  for(const k of ['kickoff','observed_at','expires_at'])if(!Number.isFinite(Date.parse(p[k])))throw Error('Missing timestamp '+k);
@@ -20,7 +20,7 @@ export function leanState(p,now=Date.now()){
  if(p.review_status==='invalidated')return 'invalidated';
  if(Date.parse(p.observed_at)>now||Date.parse(p.reference_at)>now)return 'unavailable';
  if(Date.parse(p.expires_at)<=now||Date.parse(p.kickoff)<=now)return 'expired';
- if(p.reference_at===null||p.review_status==='conditional'||!p.offer_verified||!p.availability_checked)return 'conditional';
+ if(p.reference_at===null||p.review_status==='conditional'||p.offer_verified!==true||p.availability_checked!==true)return 'conditional';
  return 'observed';
 }
 export function visibleLeans(rows,{sport,books,now=Date.now()}){

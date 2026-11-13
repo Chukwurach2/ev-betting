@@ -43,3 +43,7 @@ so a publisher can withdraw conditional research without fabricating timestamps.
 Newest-first supersession happens before applying sportsbook preferences. Hiding
 a newer observation at an unselected book must never resurrect an older quote.
 Regression cases cover withdrawals and newer expired observations across books.
+
+The phone requires literal boolean true for both offer and availability
+verification before a reviewed entry can display as observed. Other values
+leave it conditional. Offer venue lookup accepts only the defined book keys.

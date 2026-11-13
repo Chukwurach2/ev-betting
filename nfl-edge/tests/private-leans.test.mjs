@@ -25,3 +25,18 @@ test('newer expired research cannot expose an older still-fresh quote',()=>{
  const prior=fixture(),latest={...prior,id:'expired',book_key:'fanduel',expires_at:'2026-10-20T13:59:00Z'};
  assert.deepEqual(visibleLeans([latest,prior].map(payload=>({payload})),{sport:'nba',books:['draftkings'],now}),[]);
 });
+
+test('observed state requires explicit boolean verification of offer and availability',()=>{
+ const verified={...fixture(),review_status:'observed',offer_verified:true,availability_checked:true};
+ assert.equal(leanState(verified,now),'observed');
+ for(const field of ['offer_verified','availability_checked']){
+  for(const value of ['false',1,{},null]){
+   assert.equal(leanState({...verified,[field]:value},now),'conditional');
+  }
+ }
+});
+test('inherited object keys are not authorized offer venues',()=>{
+ for(const book_key of ['constructor','__proto__','toString']){
+  assert.throws(()=>validateLean({...fixture(),book_key}),/venue/);
+ }
+});
