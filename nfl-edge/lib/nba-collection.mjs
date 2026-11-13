@@ -13,15 +13,20 @@ export async function fetchNbaSnapshot({apiKey,fetcher=fetch,reserve=50,now=Date
  if(!Number.isSafeInteger(remaining)||remaining<reserve+2)throw Error('NBA quota unknown or below reserve; no odds request made');
  let schedule;try{schedule=nbaGames(await check.json(),now);}catch{throw Error('NBA schedule invalid; no odds request made');}
  if(!schedule.length)return {events:[],remaining_before:remaining,maximum_odds_requests:0,status:'no_upcoming_events'};
+ const scheduled=new Map();
+ const ambiguous=new Set();
+ for(const game of schedule){
+  const id=game.provider_event_id;
+  if(ambiguous.has(id))continue;
+  if(scheduled.has(id)){
+   scheduled.delete(id);
+   ambiguous.add(id);
+  }else scheduled.set(id,game);
+ }
+ if(!scheduled.size)return {events:[],remaining_before:remaining,maximum_odds_requests:0,status:'no_unique_upcoming_events'};
  // Fixed two markets and <=10 selected books: budget two credits per request.
  const response=await request(oddsUrl,{regions:'us',markets:'spreads,totals',oddsFormat:'american',bookmakers:'draftkings,fanduel,betmgm,espnbet,williamhill_us,fanatics'});
  let events;try{events=await response.json();if(!Array.isArray(events))throw Error();}catch{throw Error('NBA odds payload invalid; no prices published');}
- const scheduled=new Map();
- for(const game of schedule){
-  const id=game.provider_event_id;
-  if(scheduled.has(id))scheduled.set(id,null);
-  else scheduled.set(id,game);
- }
  const counts=new Map();
  for(const event of events){
   if(event?.sport_key==='basketball_nba')counts.set(event.id,(counts.get(event.id)||0)+1);

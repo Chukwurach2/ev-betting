@@ -52,3 +52,12 @@ test('NBA odds only retain unique exact preflight event identities',async()=>{
  assert.deepEqual(result.events,[equivalent]);
  assert.equal(calls.length,2);
 });
+
+test('an entirely ambiguous preflight slate uses no odds credit',async()=>{
+ const f=fake({events:[event,{...event,away_team:'C'},event]});
+ const result=await fetchNbaSnapshot({...f,apiKey:'test',now});
+ assert.equal(result.status,'no_unique_upcoming_events');
+ assert.equal(result.maximum_odds_requests,0);
+ assert.deepEqual(result.events,[]);
+ assert.equal(f.calls.length,1);
+});
