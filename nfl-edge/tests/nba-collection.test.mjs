@@ -34,3 +34,21 @@ test('standard Headers normalization yields a known integer rather than an unkno
  const f=fake({remaining:' 52 '});const r=await fetchNbaSnapshot({...f,apiKey:'test',now});
  assert.equal(r.remaining_before,52);assert.equal(f.calls.length,2);
 });
+
+test('NBA odds only retain unique exact preflight event identities',async()=>{
+ const equivalent={...event,commence_time:'2026-10-20T19:00:00-04:00'};
+ const next={...event,id:'next'};
+ const conflict={...event,id:'conflict'};
+ const duplicate={...event,id:'duplicate'};
+ const schedule=[event,next,conflict,{...conflict,away_team:'C'},duplicate];
+ const odds=[equivalent,{...next,home_team:'C'},{...event,id:'unknown'},conflict,duplicate,duplicate,null];
+ const calls=[];
+ const fetcher=async url=>{
+  calls.push(url.pathname);
+  return {ok:true,headers:new Headers({'x-requests-remaining':'52'}),
+   json:async()=>url.pathname.endsWith('/events')?schedule:odds};
+ };
+ const result=await fetchNbaSnapshot({fetcher,apiKey:'test',now});
+ assert.deepEqual(result.events,[equivalent]);
+ assert.equal(calls.length,2);
+});
