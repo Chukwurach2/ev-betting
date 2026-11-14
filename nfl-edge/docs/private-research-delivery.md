@@ -56,3 +56,8 @@ Expiry must also be strictly later than the newest known source timestamp.
 If the allowed freshness windows do not overlap, the publisher rejects the
 entry instead of accepting a card that can never be current. An unknown
 reference age remains conditional and uses the offered quote's clock.
+
+Use ISO 8601 timestamps with an explicit UTC `Z` or numeric offset for
+kickoff, offer observation, reference observation when known, and expiry.
+Zone-less times and date-only values cannot establish a source instant and
+are rejected. The publisher and phone therefore apply the same clock rules.
