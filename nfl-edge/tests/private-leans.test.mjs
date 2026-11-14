@@ -69,3 +69,14 @@ test('expiry must leave an interval after both source observations',()=>{
  assert.throws(()=>validateLean({...p,reference_at:'2026-10-20T14:14:00Z'}),/expiry/);
  assert.doesNotThrow(()=>validateLean({...p,reference_at:'2026-10-20T14:12:59Z'}));
 });
+
+test('source and kickoff times carry explicit timezone offsets',()=>{
+ const p=fixture();
+ for(const field of ['kickoff','observed_at','reference_at','expires_at']){
+  for(const value of [p[field].slice(0,-1),'2026-10-20',0]){
+   assert.throws(()=>validateLean({...p,[field]:value}),/timestamp/);
+  }
+ }
+ const withOffset={...p,observed_at:'2026-10-20T09:59:00-04:00'};
+ assert.equal(leanState(withOffset,now),'conditional');
+});
