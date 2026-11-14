@@ -1,0 +1,11 @@
+# Natural collector recovery: 2026-11-09
+
+A [scheduled run42672932807](https://github.com/Chukwurach2/ev-betting/actions/runs/42672932807), [job129349754164](https://github.com/Chukwurach2/ev-betting/actions/runs/42672932807/job/129349754164), executed main`3cf60a23081b2bd07a8de6fb52877f8e8e89103b` at18:18–20Z. All actual steps succeeded:1captured,0failed,1odds request,2credits budgeted,21duplicates,7deferred and0missed. This supersedes07:39Z as the latest inspected natural execution, and00:32Z as the latest inspected actual capture. It was not manually dispatched by the research agent.
+
+The [public health response](https://nfl-edge-v2-1.vercel.app/api/health), checked18:23:57.827Z, reported pipeline ok and core heartbeat ages4minutes at the exact same source commit. Thus core heartbeats recovered after the earlier DOWN alert. This is a timestamped observation, not a guarantee of continuing hourly execution or fresh game cards. The observed execution gap remained over10hours.
+
+A later read-only storage check at19:32:50.495Z found the latest captured checkpoint had16quotes and16normalized rows, with source times18:18:58–18:19:51Z. Even the latest source was older than15minutes by that check. The0later materialization-attempt counter and0unmaterialized backlog do not imply missing normalized rows. No current provider balance is inferred or published.
+
+Fresh phone delivery before expiry was not verified. A healthy pipeline badge, successful capture and actual normalized rows are separate from a supported current game card. No stale quote is reissued as a pick, no historical observation is backdated into a prospective trial, and no subscriber table or exact quote dataset is reproduced here. Raw/source metadata receipts remain private.
+
+Validation cross-checked the exact scheduled run/job and source commit, filtered collection summary, public health timestamp/components and independently read checkpoint/normalized row counts/source bounds. Earlier failed/stale observations and cadence audit receipts remain preserved. The research agent used no new odds-provider request, secret retrieval, manual dispatch, polling change, model/ledger/journal change, merge or deployment. The pending research-status write was not retried; the database check was read-only.
