@@ -61,3 +61,7 @@ Use ISO 8601 timestamps with an explicit UTC `Z` or numeric offset for
 kickoff, offer observation, reference observation when known, and expiry.
 Zone-less times and date-only values cannot establish a source instant and
 are rejected. The publisher and phone therefore apply the same clock rules.
+
+Calendar dates and clock times must be valid as written. The validator rejects
+values that JavaScript would carry into another day or month, such as
+November 31 or hour 24. Valid leap days and explicit offsets are accepted.

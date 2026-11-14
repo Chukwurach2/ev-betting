@@ -1,7 +1,14 @@
 // Curated research is separate from model predictions and personal wagers.
 export const LEAN_BOOKS={fanduel:'FanDuel',draftkings:'DraftKings',betmgm:'BetMGM',williamhill_us:'Caesars',fanatics:'Fanatics',thescorebet:'theScore Bet',ballybet:'Bally Bet'};
 const text=(x)=>typeof x==='string'&&x.trim().length>0;
-const sourceTime=(value)=>typeof value==='string'&&/T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:\d{2})$/.test(value)&&Number.isFinite(Date.parse(value));
+function sourceTime(value){
+ if(typeof value!=='string')return false;
+ const match=/^(\d{4}-\d{2}-\d{2})T(?:[01]\d|2[0-3]):\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:\d{2})$/.exec(value);
+ if(!match||!Number.isFinite(Date.parse(value)))return false;
+ // Date.parse can roll impossible dates into the following month.
+ const date=new Date(match[1]);
+ return Number.isFinite(date.getTime())&&date.toISOString().slice(0,10)===match[1];
+}
 export function validateLean(p){
  if(!p||!['nfl','nba'].includes(p.sport)||!Object.hasOwn(LEAN_BOOKS,p.book_key))throw Error('Unsupported sport or offer venue');
  for(const k of ['id','game_id','away_team','home_team','selection','market','rules','source','method','rationale','conditions','correlation','fee_assumptions'])if(!text(p[k]))throw Error('Missing '+k);

@@ -80,3 +80,14 @@ test('source and kickoff times carry explicit timezone offsets',()=>{
  const withOffset={...p,observed_at:'2026-10-20T09:59:00-04:00'};
  assert.equal(leanState(withOffset,now),'conditional');
 });
+
+test('invalid calendar dates cannot be normalized into valid source times',()=>{
+ const p=fixture();
+ assert.throws(()=>validateLean({...p,kickoff:'2026-11-31T19:00:00Z'}),/timestamp/);
+ assert.throws(()=>validateLean({...p,kickoff:'2026-10-20T24:00:00Z'}),/timestamp/);
+ const leap={...p,kickoff:'2028-02-29T20:00:00+02:00',observed_at:'2028-02-29T13:59:00Z',reference_at:'2028-02-29T13:58:00Z',expires_at:'2028-02-29T14:13:00Z'};
+ assert.doesNotThrow(()=>validateLean(leap));
+ for(const field of ['kickoff','observed_at','reference_at','expires_at']){
+  assert.throws(()=>validateLean({...leap,[field]:leap[field].replace('02-29','02-30')}),/timestamp/);
+ }
+});
