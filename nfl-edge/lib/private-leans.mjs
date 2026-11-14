@@ -1,12 +1,13 @@
 // Curated research is separate from model predictions and personal wagers.
 export const LEAN_BOOKS={fanduel:'FanDuel',draftkings:'DraftKings',betmgm:'BetMGM',williamhill_us:'Caesars',fanatics:'Fanatics',thescorebet:'theScore Bet',ballybet:'Bally Bet'};
 const text=(x)=>typeof x==='string'&&x.trim().length>0;
+const sourceTime=(value)=>typeof value==='string'&&/T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:\d{2})$/.test(value)&&Number.isFinite(Date.parse(value));
 export function validateLean(p){
  if(!p||!['nfl','nba'].includes(p.sport)||!Object.hasOwn(LEAN_BOOKS,p.book_key))throw Error('Unsupported sport or offer venue');
  for(const k of ['id','game_id','away_team','home_team','selection','market','rules','source','method','rationale','conditions','correlation','fee_assumptions'])if(!text(p[k]))throw Error('Missing '+k);
  if(p.rights!=='private_original_analysis')throw Error('Private original analysis required');
- for(const k of ['kickoff','observed_at','expires_at'])if(!Number.isFinite(Date.parse(p[k])))throw Error('Missing timestamp '+k);
- if(p.reference_at!==null&&!Number.isFinite(Date.parse(p.reference_at)))throw Error('Invalid reference timestamp');
+ for(const k of ['kickoff','observed_at','expires_at'])if(!sourceTime(p[k]))throw Error('Missing timestamp '+k);
+ if(p.reference_at!==null&&!sourceTime(p.reference_at))throw Error('Invalid reference timestamp');
  if(p.reference_at===null&&!['conditional','invalidated'].includes(p.review_status))throw Error('Unknown reference age requires conditional review');
  const offer=Date.parse(p.observed_at),reference=p.reference_at===null?offer:Date.parse(p.reference_at);
  const expiry=Date.parse(p.expires_at);
