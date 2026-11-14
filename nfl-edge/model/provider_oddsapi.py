@@ -90,11 +90,21 @@ def fetch_event_odds(event_id, markets, api_key=None, timeout=20,
     return _get(url, params, timeout)
 
 def fetch_odds(markets, api_key=None, timeout=20, bookmakers=None,
-               regions='us', sport='nfl'):
+               regions='us', sport='nfl', *, event_ids=None):
+    """Fetch sport odds, optionally restricted to explicit provider event IDs."""
+    if event_ids is not None:
+        if (not isinstance(event_ids, (list, tuple)) or not event_ids
+                or any(not isinstance(event_id, str) or not event_id
+                       or ',' in event_id or any(c.isspace() for c in event_id)
+                       for event_id in event_ids)
+                or len(set(event_ids)) != len(event_ids)):
+            raise ValueError('Expected a nonempty list of unique provider event IDs')
     url=f'{BASE}/sports/{_api_sport(sport)}/odds'
     params={'apiKey':_key(api_key),'dateFormat':'iso','oddsFormat':'american','markets':','.join(markets)}
     if bookmakers: params['bookmakers']=','.join(bookmakers)
     params['regions']=regions
+    if event_ids is not None:
+        params['eventIds'] = ','.join(event_ids)
     return _get(url, params, timeout)
 
 def fetch_scores(days_from=3, api_key=None, timeout=20, sport='nfl'):
