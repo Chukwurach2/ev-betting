@@ -29,3 +29,35 @@ class ProviderOddsEventFilterTests(unittest.TestCase):
         with patch.object(provider, '_get', return_value=([], {})) as request:
             provider.fetch_odds(['spreads'], api_key='synthetic-key')
         self.assertNotIn('eventIds', request.call_args.args[1])
+
+    def test_routes_unambiguous_events_and_excludes_unrequested_ids(self):
+        first = {'id': 'a', 'sport_key': provider.SPORT, 'home_team': 'Home',
+                 'away_team': 'Away', 'commence_time': '2026-11-15T18:00:00Z'}
+        second = {**first, 'id': 'b', 'home_team': 'Other'}
+        payload = {**first, 'commence_time': '2026-11-15T13:00:00-05:00',
+                   'bookmakers': []}
+        self.assertEqual(
+            provider.match_nfl_slate_odds([first, second], [payload, {**first, 'id': 'c'}]),
+            {'a': payload},
+        )
+
+    def test_withholds_conflicting_and_duplicate_events_independently(self):
+        first = {'id': 'a', 'sport_key': provider.SPORT, 'home_team': 'Home',
+                 'away_team': 'Away', 'commence_time': '2026-11-15T18:00:00Z'}
+        second = {**first, 'id': 'b', 'home_team': 'Other'}
+        for conflicting in (
+            [{**first, 'away_team': 'Other'}],
+            [{**first, 'sport_key': 'basketball_nba'}],
+            [{**first, 'commence_time': '2026-11-15T18:10:00Z'}],
+            [{**first, 'commence_time': '2026-11-15T18:00:00'}],
+            [first, first],
+        ):
+            with self.subTest(conflicting=conflicting):
+                self.assertEqual(
+                    provider.match_nfl_slate_odds([first, second], [*conflicting, second]),
+                    {'b': second},
+                )
+        self.assertEqual(provider.match_nfl_slate_odds([first, first, second], [first, second]),
+                         {'b': second})
+        with self.assertRaises(ValueError):
+            provider.match_nfl_slate_odds([first], {'id': 'a'})

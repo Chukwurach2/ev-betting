@@ -13,3 +13,10 @@ checkpoint. Record omissions and use the actual quota headers to verify the
 two-credit budget for the selected markets and bookmaker group. Batching can
 improve concurrent coverage when the runner reaches the collection window.
 The adapter tests use synthetic responses without provider calls.
+
+The offline response matcher requires a unique event ID in both inputs and
+a matching NFL sport key, home team, away team and timezone-aware kickoff
+instant. Unexpected IDs, omissions, identity conflicts and duplicate IDs are
+excluded individually. Equivalent timezone offsets are accepted. A caller
+must still map the expected provider events to due checkpoints, handle omitted
+games, and check source freshness and quota before persisting quotes.
