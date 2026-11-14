@@ -15,3 +15,9 @@ The five official matchups and tip times were cross-checked against the [NBA's u
 The [deployed NBA schedule adapter](https://github.com/Chukwurach2/ev-betting/blob/3cf60a23081b2bd07a8de6fb52877f8e8e89103b/nfl-edge/lib/nba-feed.mjs) consumes the provider schedule; its output alone cannot establish complete league coverage or why the three games were absent. The next bounded diagnostic should compare the free provider event response and the app feed after the five-minute cache window. When official games lack a verified provider mapping, expose them as schedule-only coverage gaps. Keep exact provider identity for all priced entries and preserve separate official and provider times.
 
 The NFL read at 04:57:40.297 UTC returned 14 upcoming games and zero fresh quotes or entries. [The NFL schedule](https://www.nfl.com/news/nfl-how-to-watch-week-10-nfl-games-schedule-munich-game-details-and-more) confirms the next game, New England at Detroit in Munich at 14:30 UTC November 15, was outside the 24-hour window. No new odds collection or paper observation was recorded for either sport.
+
+## Follow-up at 06:27 UTC
+
+The NBA phone API returned all five official matchups at 06:27:09.291 UTC. Dallas at Cleveland, Brooklyn at Memphis and Chicago at Minnesota had become visible since the 04:58 UTC read. All five provider starts were ten minutes after the official tips. The app still returned zero research entries. This resolves the missing-matchup observation for this read. It does not establish why the earlier feed was incomplete, that coverage stays complete, or that the time offset is suitable for an automatic join.
+
+The contemporaneous NFL read again had zero entries and no kickoff within 24 hours. The recheck used the public phone feeds, with no manual odds collection or ledger append.
