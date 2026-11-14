@@ -12,3 +12,8 @@ identity path. This pull request depends on the phone reference changes in
 PR51. Synthetic tests cover exact offers, wrong-ID offers and references,
 missing IDs and sport isolation. Production evidence of an affected card
 was unavailable, and the change has not been deployed.
+
+Repeated upcoming rows with the same provider event ID, teams and kickoff
+instant yield one card. If upcoming rows reuse an ID with different teams or
+kickoffs, that ID is withheld for the snapshot. A later clean response can
+restore it. This guard leaves the source kickoff on each retained fixture.

@@ -20,3 +20,12 @@ test('NBA never uses a different or absent provider event ID for an offer or ref
  }
  assert.equal(buildGameCards([{...g,provider_event_id:undefined}],quotes,opts)[0].picks.length,0);
 });
+
+test('NBA schedule collapses identical repeats and excludes conflicting event identities',()=>{
+ const repeat={...event,commence_time:'2026-10-20T20:00:00-04:00'};
+ const conflict={...event,commence_time:'2026-10-21T00:10:00Z'};
+ const separate={...event,id:'nba2',home_team:'Denver Nuggets'};
+ assert.equal(nbaGames([event,repeat],now).length,1);
+ assert.deepEqual(nbaGames([event,conflict,separate],now).map(g=>g.provider_event_id),['nba2']);
+ assert.deepEqual(nbaGames([conflict,event,repeat],now),[]);
+});

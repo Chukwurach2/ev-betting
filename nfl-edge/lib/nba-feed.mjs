@@ -2,7 +2,26 @@
 export const NBA_EVENTS_URL='https://api.the-odds-api.com/v4/sports/basketball_nba/events';
 export function nbaGames(events,now=Date.now()){
  if(!Array.isArray(events))throw Error('Invalid schedule');
- return events.filter(e=>e.sport_key==='basketball_nba'&&typeof e.id==='string'&&e.id&&typeof e.home_team==='string'&&typeof e.away_team==='string'&&Date.parse(e.commence_time)>now&&Date.parse(e.commence_time)<now+8*86400000).map(e=>({sport:'nba',game_id:'nba-'+e.id,provider_event_id:e.id,home_team:e.home_team,away_team:e.away_team,kickoff:e.commence_time})).sort((a,b)=>Date.parse(a.kickoff)-Date.parse(b.kickoff));
+ const games = new Map();
+ const ambiguous = new Set();
+ for (const event of events) {
+  const kickoff = Date.parse(event?.commence_time);
+  if (event?.sport_key !== 'basketball_nba' || typeof event.id !== 'string' || !event.id ||
+      typeof event.home_team !== 'string' || typeof event.away_team !== 'string' ||
+      !(kickoff > now && kickoff < now + 8 * 86400000)) continue;
+  const previous = games.get(event.id);
+  if (previous) {
+   if (previous.home_team !== event.home_team || previous.away_team !== event.away_team ||
+       Date.parse(previous.kickoff) !== kickoff) ambiguous.add(event.id);
+   continue;
+  }
+  games.set(event.id, {
+   sport:'nba', game_id:'nba-'+event.id, provider_event_id:event.id,
+   home_team:event.home_team, away_team:event.away_team, kickoff:event.commence_time
+  });
+ }
+ for (const id of ambiguous) games.delete(id);
+ return [...games.values()].sort((a,b)=>Date.parse(a.kickoff)-Date.parse(b.kickoff));
 }
 export function pairedNbaQuotes(events){
  const result=[],implied=p=>p>0?100/(100+p):-p/(100-p);
