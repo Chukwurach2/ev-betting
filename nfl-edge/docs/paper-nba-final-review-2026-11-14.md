@@ -1,0 +1,5 @@
+# November 14 NBA paper outcome review
+
+The [NBA final](https://www.nba.com/game/lal-vs-gsw-0022600023) confirms Golden State 112, Los Angeles Lakers 95 at Chase Center on October 30, with four scoring quarters. The [Warriors preview](https://www.nba.com/warriors/news/gameday-preview-20261030) and [Lakers schedule](https://www.nba.com/lakers/schedule?SeasonType=002) give a 7 p.m. PDT scheduled tip. The paper archive has a provider start ten minutes later. The review retained both dates and a game-specific retrospective mapping. It did not alter the quote timestamps or apply a general timing tolerance.
+
+At 12:38 UTC November 14 the complete 1,036-record ledger replay produced 414 earliest contract/book entries and 117 grades. All previous grades and hypothetical returns matched. The new final moves two entries from missing final to missing exact contract evidence. The unresolved counts are 229 exact contract, 16 conflicting event identities and 52 missing finals. The two entries remain ungraded because the operator-specific full-game totals rules were not verified for those observations. No new quotes or results were added to the observation ledger.
