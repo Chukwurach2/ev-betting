@@ -43,3 +43,25 @@ so a publisher can withdraw conditional research without fabricating timestamps.
 Newest-first supersession happens before applying sportsbook preferences. Hiding
 a newer observation at an unselected book must never resurrect an older quote.
 Regression cases cover withdrawals and newer expired observations across books.
+
+The phone requires literal boolean true for both offer and availability
+verification before a reviewed entry can display as observed. Other values
+leave it conditional. Offer venue lookup accepts only the defined book keys.
+
+The publisher treats an existing observation ID as an idempotent retry only
+when both the owner and stored JSON payload match. A conflicting ID aborts the
+batch and rolls back new inserts. Assign a new ID to each revision.
+
+Expiry must also be strictly later than the newest known source timestamp.
+If the allowed freshness windows do not overlap, the publisher rejects the
+entry instead of accepting a card that can never be current. An unknown
+reference age remains conditional and uses the offered quote's clock.
+
+Use ISO 8601 timestamps with an explicit UTC `Z` or numeric offset for
+kickoff, offer observation, reference observation when known, and expiry.
+Zone-less times and date-only values cannot establish a source instant and
+are rejected. The publisher and phone therefore apply the same clock rules.
+
+Calendar dates and clock times must be valid as written. The validator rejects
+values that JavaScript would carry into another day or month, such as
+November 31 or hour 24. Valid leap days and explicit offsets are accepted.

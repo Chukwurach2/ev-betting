@@ -22,6 +22,72 @@ test('book preference cannot resurrect a superseded quote',()=>{
  assert.deepEqual(visibleLeans([withdrawal,prior].map(payload=>({payload})),{sport:'nba',books:['draftkings'],now}),[]);
 });
 test('newer expired research cannot expose an older still-fresh quote',()=>{
- const prior=fixture(),latest={...prior,id:'expired',book_key:'fanduel',expires_at:'2026-10-20T13:59:00Z'};
+ const prior=fixture(),latest={...prior,id:'expired',book_key:'fanduel',observed_at:'2026-10-20T13:58:30Z',expires_at:'2026-10-20T13:59:00Z'};
  assert.deepEqual(visibleLeans([latest,prior].map(payload=>({payload})),{sport:'nba',books:['draftkings'],now}),[]);
+});
+
+test('observed state requires explicit boolean verification of offer and availability',()=>{
+ const verified={...fixture(),review_status:'observed',offer_verified:true,availability_checked:true};
+ assert.equal(leanState(verified,now),'observed');
+ for(const field of ['offer_verified','availability_checked']){
+  for(const value of ['false',1,{},null]){
+   assert.equal(leanState({...verified,[field]:value},now),'conditional');
+  }
+ }
+});
+test('inherited object keys are not authorized offer venues',()=>{
+ for(const book_key of ['constructor','__proto__','toString']){
+  assert.throws(()=>validateLean({...fixture(),book_key}),/venue/);
+ }
+});
+
+test('publication only accepts an exact retry after an ID conflict',async()=>{
+ const {insertPrivateLean}=await import('../ops/private-lean-insert.mjs');
+ const payload=fixture();
+ for(const [insertCount,matchCount] of [[1,0],[0,1],[0,0]]){
+  const calls=[];
+  const db={query:async(sql,params)=>{
+   calls.push({sql,params});
+   return {rowCount:calls.length===1?insertCount:matchCount};
+  }};
+  const publish=insertPrivateLean(db,'synthetic-owner',payload);
+  if(!insertCount&&!matchCount)await assert.rejects(publish,/already in use/);
+  else await publish;
+  assert.equal(calls.length,insertCount?1:2);
+  if(!insertCount){
+   assert.match(calls[1].sql,/id=\$1 AND user_id=\$2 AND payload=\$3::jsonb/);
+   assert.deepEqual(calls[1].params,[payload.id,'synthetic-owner',JSON.stringify(payload)]);
+  }
+ }
+});
+
+test('expiry must leave an interval after both source observations',()=>{
+ const p=fixture();
+ assert.throws(()=>validateLean({...p,observed_at:'2026-10-20T14:13:00Z'}),/expiry/);
+ assert.throws(()=>validateLean({...p,observed_at:'2026-10-20T14:14:00Z'}),/expiry/);
+ assert.throws(()=>validateLean({...p,reference_at:'2026-10-20T14:13:00Z'}),/expiry/);
+ assert.throws(()=>validateLean({...p,reference_at:'2026-10-20T14:14:00Z'}),/expiry/);
+ assert.doesNotThrow(()=>validateLean({...p,reference_at:'2026-10-20T14:12:59Z'}));
+});
+
+test('source and kickoff times carry explicit timezone offsets',()=>{
+ const p=fixture();
+ for(const field of ['kickoff','observed_at','reference_at','expires_at']){
+  for(const value of [p[field].slice(0,-1),'2026-10-20',0]){
+   assert.throws(()=>validateLean({...p,[field]:value}),/timestamp/);
+  }
+ }
+ const withOffset={...p,observed_at:'2026-10-20T09:59:00-04:00'};
+ assert.equal(leanState(withOffset,now),'conditional');
+});
+
+test('invalid calendar dates cannot be normalized into valid source times',()=>{
+ const p=fixture();
+ assert.throws(()=>validateLean({...p,kickoff:'2026-11-31T19:00:00Z'}),/timestamp/);
+ assert.throws(()=>validateLean({...p,kickoff:'2026-10-20T24:00:00Z'}),/timestamp/);
+ const leap={...p,kickoff:'2028-02-29T20:00:00+02:00',observed_at:'2028-02-29T13:59:00Z',reference_at:'2028-02-29T13:58:00Z',expires_at:'2028-02-29T14:13:00Z'};
+ assert.doesNotThrow(()=>validateLean(leap));
+ for(const field of ['kickoff','observed_at','reference_at','expires_at']){
+  assert.throws(()=>validateLean({...leap,[field]:leap[field].replace('02-29','02-30')}),/timestamp/);
+ }
 });
