@@ -35,3 +35,11 @@ late response cannot create a capture. Unknown quota or fewer than 52 credits
 defers due work. Runtime integration still needs to connect the adapter and
 verify actual billing headers. The scheduled collector does not call the
 batch worker.
+
+The draft provider callback makes one filtered spreads/totals request for
+an explicit New York bookmaker group. It checks the response's reported
+charge and remaining balance before returning matched, paired quotes to the
+worker. Missing or out-of-bounds quota headers fail the call. The retained
+source URL identifies the sport odds route and excludes credentials.
+The callback and worker are covered offline. The scheduled workflow still
+uses its existing collector and actual batch billing has yet to be observed.

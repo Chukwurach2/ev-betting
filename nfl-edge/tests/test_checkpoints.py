@@ -2,10 +2,11 @@ import datetime as dt
 import pathlib
 import sys
 import unittest
+from unittest.mock import patch
 sys.path.insert(0,str(pathlib.Path(__file__).parents[1]/'ops'))
 from checkpoints import plan,collect,collect_t24_batch,instant,safe_collection_error
 from collect_checkpoints import (pair_quotes, provider_event_keys, opener_eligible,
-                                 seconds_until_imminent_target)
+                                 seconds_until_imminent_target, fetch_nfl_t24_quotes)
 
 class MemoryStore:
     def __init__(self): self.rows={}
@@ -569,3 +570,28 @@ class BatchedT24Tests(unittest.TestCase):
         self.assertEqual(result['requests'], 1)
         self.assertEqual(result['failed'], 3)
         self.assertTrue(all(row['status'] == 'failed' for row in store.rows.values()))
+
+
+class BatchProviderAdapterTests(unittest.TestCase):
+    def test_reports_filtered_response_through_existing_quote_pairing(self):
+        event = {'id': 'a', 'sport_key': 'americanfootball_nfl', 'home_team': 'Home',
+                 'away_team': 'Away', 'commence_time': '2026-11-15T18:00:00Z'}
+        market = {'key': 'totals', 'last_update': '2026-11-14T18:00:00Z',
+                  'outcomes': [{'name': side, 'price': -110, 'point': 40.5}
+                               for side in ('Over', 'Under')]}
+        payload = {**event, 'bookmakers': [{'key': 'fanduel', 'markets': [market]}]}
+        with patch('collect_checkpoints.fetch_odds',
+                   return_value=([payload], {'X-Requests-Last': '2', 'X-Requests-Remaining': '50'})) as request:
+            result = fetch_nfl_t24_quotes({'a': event}, ('a',), ['fanduel'])
+        request.assert_called_once_with(['spreads', 'totals'], bookmakers=['fanduel'], event_ids=('a',))
+        self.assertEqual(len(result['a']), 2)
+        self.assertTrue(all(q['source_url'].endswith('/americanfootball_nfl/odds') for q in result['a']))
+
+    def test_unverified_billing_never_returns_quotes(self):
+        event = {'id': 'a', 'sport_key': 'americanfootball_nfl', 'home_team': 'Home',
+                 'away_team': 'Away', 'commence_time': '2026-11-15T18:00:00Z'}
+        for headers in ({}, {'x-requests-last': '3', 'x-requests-remaining': '60'},
+                        {'x-requests-last': '2', 'x-requests-remaining': '49'}):
+            with self.subTest(headers=headers), patch('collect_checkpoints.fetch_odds', return_value=([event], headers)):
+                with self.assertRaisesRegex(RuntimeError, 'quota response'):
+                    fetch_nfl_t24_quotes({'a': event}, ('a',), ['fanduel'])

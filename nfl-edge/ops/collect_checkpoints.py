@@ -14,8 +14,8 @@ from checkpoints import WINDOWS,plan,collect,instant
 from research.devig import devig_multiplicative  # tournament-selected de-vig
 from ops.sports import get as sport_config, checkpoints_table, odds_quotes_table
 from postgres_checkpoints import PostgresCheckpointStore
-from provider_oddsapi import (fetch_events,fetch_event_odds,normalize,quota,
-                               NY_BOOK_KEYS)
+from provider_oddsapi import (BASE, SPORT, NY_BOOK_KEYS, fetch_events, fetch_event_odds,
+                              fetch_odds, match_nfl_slate_odds, normalize, quota)
 
 # Quote universe for the price-discovery engine. Widening the book list is
 # quota-NEUTRAL on The Odds API: cost is markets x regions (<=10 bookmakers
@@ -244,6 +244,32 @@ def pair_quotes(payload,allowed_books=None,sport='nfl'):
                 'settlement_rules':settlement(market,line),
                 'ny_licensed':q.sportsbook_key in NY_BOOK_KEYS})
     return result
+
+def fetch_nfl_t24_quotes(expected_by_id, event_ids, books):
+    """Fetch one filtered slate and validate cost before returning any quotes."""
+    expected = [expected_by_id[event_id] for event_id in event_ids]
+    if not books or len(books) > 10 or any(
+        book not in NY_BOOK_KEYS or book == 'betrivers' for book in books
+    ):
+        raise ValueError('Unexpected NFL batch bookmaker group')
+    payload, headers = fetch_odds(
+        ['spreads', 'totals'], bookmakers=books, event_ids=event_ids,
+    )
+    matched = match_nfl_slate_odds(expected, payload)
+    charged = quota({key.lower(): value for key, value in headers.items()})
+    if (charged['remaining'] is None or charged['remaining'] < 50
+            or charged['last'] not in ((1, 2) if payload else (0, 1, 2))):
+        raise RuntimeError('NFL batch quota response outside bounds')
+
+    return {
+        event_id: [
+            {**row, 'source_url': f'{BASE}/sports/{SPORT}/odds'}
+            for row in pair_quotes(event, allowed_books=books)
+            if row['market'] in ('FULL_GAME_SPREAD', 'FULL_GAME_TOTAL')
+        ]
+        for event_id, event in matched.items()
+    }
+
 
 def materialize_quotes(connection,sport='nfl'):
     """Fan captured checkpoint quotes out into the sport's odds-quotes table.

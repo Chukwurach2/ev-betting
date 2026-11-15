@@ -76,6 +76,7 @@ def plan(games,now):
 
 SAFE_COLLECTION_ERRORS = {
     'Odds provider request failed',
+    'NFL batch quota response outside bounds',
     'Provider event did not match exact matchup and kickoff',
     'Provider response event changed',
 }
