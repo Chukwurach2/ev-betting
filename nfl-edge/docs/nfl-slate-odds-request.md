@@ -60,3 +60,16 @@ provide a separate example of runner timing limiting coverage.
 
 - [00:46 UTC collection job](https://github.com/Chukwurach2/ev-betting/actions/runs/43659750947/job/132646174575)
 - [07:34 UTC collection job](https://github.com/Chukwurach2/ev-betting/actions/runs/43690464830/job/132739834360)
+
+The draft collector can now run a single explicit NFL T−24 trial using
+`--nfl-t24-batch`. It requires one US region and an explicit configuration
+that resolves to a unique eligible bookmaker group. It retains the existing
+free-events preflight, advisory lock and two-credit cap, and emits the
+provider-reported charge and remaining balance separately from the budget.
+An unmatched target stays unclaimed for future eligible runs. The trial has
+no event-request fallback, including after an empty response or failure.
+
+No workflow passes the switch. The next controlled verification needs an
+actually due slate, verified preflight reserve, the response quota receipt
+and normalized source times before any quote is counted as a usable capture.
+The current public feed remains the source for phone freshness checks.

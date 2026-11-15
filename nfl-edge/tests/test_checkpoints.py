@@ -8,7 +8,8 @@ sys.path.insert(0,str(pathlib.Path(__file__).parents[1]/'ops'))
 from checkpoints import plan,collect,collect_t24_batch,instant,safe_collection_error
 from collect_checkpoints import (pair_quotes, provider_event_keys, opener_eligible,
                                  seconds_until_imminent_target, fetch_nfl_t24_quotes,
-                                 resolve_nfl_t24_batch)
+                                 resolve_nfl_t24_batch, run_nfl_t24_batch,
+                                 validate_nfl_batch_config, parse_args)
 
 class MemoryStore:
     def __init__(self): self.rows={}
@@ -645,3 +646,42 @@ class BatchTargetResolutionTests(unittest.TestCase):
     def test_excludes_checkpoint_for_superseded_local_kickoff(self):
         changed = {**self.game, 'kickoff': self.checkpoint.kickoff + dt.timedelta(minutes=5)}
         self.assertEqual(self.resolve([self.event], games={'g': changed}), ([], {}))
+
+    def test_trial_calls_adapter_once_and_reports_billing(self):
+        store = MemoryStore()
+        market = {'key': 'totals', 'last_update': self.now.isoformat(),
+                  'outcomes': [{'name': side, 'price': -110, 'point': 40.5}
+                               for side in ('Over', 'Under')]}
+        response = {**self.event, 'bookmakers': [{'key': 'fanduel', 'markets': [market]}]}
+        with patch('collect_checkpoints.fetch_odds', return_value=(
+            [response], {'x-requests-last': '2', 'x-requests-remaining': '50'},
+        )) as request:
+            counts = run_nfl_t24_batch([self.checkpoint], {'g': self.game}, [self.event],
+                                       ['fanduel'], store, lambda: self.now, 52)
+        request.assert_called_once_with(['spreads', 'totals'], bookmakers=['fanduel'],
+                                        event_ids=('exact',))
+        self.assertEqual((counts['captured'], counts['requests']), (1, 1))
+        self.assertEqual(counts['odds_response_quota'], {'remaining': 50, 'last': 2})
+
+    def test_unmatched_trial_leaves_checkpoint_unclaimed_and_makes_no_request(self):
+        store = MemoryStore()
+        with patch('collect_checkpoints.fetch_odds') as request:
+            counts = run_nfl_t24_batch([self.checkpoint], {'g': self.game}, [],
+                                       ['fanduel'], store, lambda: self.now, 52)
+        request.assert_not_called()
+        self.assertFalse(store.rows)
+        self.assertEqual((counts['due_t24'], counts['unmatched_t24']), (1, 1))
+        self.assertEqual(counts['requests'], 0)
+
+    def test_trial_rejects_other_regions_and_ineligible_books(self):
+        validate_nfl_batch_config(['fanduel'], 'us')
+        for books, regions in ((['fanduel'], 'us,eu'), (['betrivers'], 'us'),
+                               (['fanduel', 'fanduel'], 'us'), ([], 'us')):
+            with self.subTest(books=books, regions=regions), self.assertRaises(ValueError):
+                validate_nfl_batch_config(books, regions)
+
+    def test_trial_is_disabled_by_default_and_rejects_college(self):
+        self.assertFalse(parse_args([]).nfl_t24_batch)
+        self.assertTrue(parse_args(['--nfl-t24-batch']).nfl_t24_batch)
+        with patch('sys.stderr'), self.assertRaises(SystemExit):
+            parse_args(['--sport', 'ncaaf', '--nfl-t24-batch'])
