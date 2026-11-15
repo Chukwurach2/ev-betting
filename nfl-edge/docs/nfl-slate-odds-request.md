@@ -26,3 +26,12 @@ checkpoint deadlines and source-time checks. A future batch can apply that
 classifier independently to each due game using the actual completion time of
 the shared request. The extraction preserves opener semantics and the fixed
 checkpoint freshness gates. The request path still fetches one event at a time.
+
+The T−24 batch worker now accepts checkpoints paired with reviewed provider
+IDs and an injected quote adapter. It claims eligible checkpoints before
+one budgeted request and applies the shared response rules to each claim.
+An omitted event is unavailable, mismatched quotes fail that event, and a
+late response cannot create a capture. Unknown quota or fewer than 52 credits
+defers due work. Runtime integration still needs to connect the adapter and
+verify actual billing headers. The scheduled collector does not call the
+batch worker.

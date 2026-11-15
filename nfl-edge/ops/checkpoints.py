@@ -173,3 +173,70 @@ def collect(checkpoints,store,fetch_quotes,clock,remaining,max_requests=2,reserv
     counts['requests']=used
     counts['credits_budgeted']=used*cost_per_request
     return counts
+
+
+def collect_t24_batch(targets, store, fetch_quotes, clock, remaining):
+    """Collect one NFL T−24 batch through a caller-supplied quote adapter.
+
+    Targets pair immutable checkpoints with reviewed provider event IDs.
+    The adapter returns a mapping from event ID to normalized quote rows.
+    """
+    targets = list(targets)
+    event_ids = [event_id for _, event_id in targets]
+    if (any(checkpoint.name != 'T-24' for checkpoint, _ in targets)
+            or any(not isinstance(event_id, str) or not event_id for event_id in event_ids)
+            or len(set(event_ids)) != len(targets)
+            or len({checkpoint.key for checkpoint, _ in targets}) != len(targets)):
+        raise ValueError('Batch requires unique T-24 checkpoints and provider event IDs')
+
+    counts = dict.fromkeys(
+        ('captured', 'missed', 'unavailable', 'duplicate', 'deferred',
+         'failed', 'requests', 'credits_budgeted'), 0
+    )
+    can_request = type(remaining) is int and remaining >= 52
+    claimed = {}
+    for checkpoint, event_id in targets:
+        now = instant(clock())
+        missed = checkpoint.state == 'missed' or now >= checkpoint.deadline
+        if not missed and (now < checkpoint.target or not can_request):
+            counts['deferred'] += 1
+        elif not store.claim(checkpoint, now):
+            counts['duplicate'] += 1
+        elif missed:
+            store.finish(checkpoint, now, 'missed', [], 'Checkpoint elapsed; no historical quote invented')
+            counts['missed'] += 1
+        else:
+            claimed[event_id] = checkpoint
+
+    started = instant(clock())
+    for event_id, checkpoint in list(claimed.items()):
+        if started >= checkpoint.deadline:
+            store.finish(checkpoint, started, 'missed', [], 'Deadline elapsed before request')
+            counts['missed'] += 1
+            del claimed[event_id]
+
+    if not claimed:
+        return counts
+    counts['requests'] = 1
+    counts['credits_budgeted'] = 2
+    try:
+        quotes_by_event = fetch_quotes(tuple(claimed))
+    except Exception as error:
+        ended = instant(clock())
+        for checkpoint in claimed.values():
+            store.finish(checkpoint, ended, 'failed', [], safe_collection_error(error))
+            counts['failed'] += 1
+        return counts
+
+    ended = instant(clock())
+    for event_id, checkpoint in claimed.items():
+        try:
+            quotes = quotes_by_event.get(event_id, [])
+            if not isinstance(quotes, list) or any(quote['provider_event_id'] != event_id for quote in quotes):
+                raise ValueError('Provider response event changed')
+            status, valid, note = classify_checkpoint_response(checkpoint, quotes, ended)
+        except (AttributeError, KeyError, TypeError, ValueError) as error:
+            status, valid, note = 'failed', [], safe_collection_error(error)
+        store.finish(checkpoint, ended, status, valid, note)
+        counts[status] += 1
+    return counts

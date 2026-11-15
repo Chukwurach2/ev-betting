@@ -3,7 +3,7 @@ import pathlib
 import sys
 import unittest
 sys.path.insert(0,str(pathlib.Path(__file__).parents[1]/'ops'))
-from checkpoints import plan,collect,instant,safe_collection_error
+from checkpoints import plan,collect,collect_t24_batch,instant,safe_collection_error
 from collect_checkpoints import (pair_quotes, provider_event_keys, opener_eligible,
                                  seconds_until_imminent_target)
 
@@ -512,3 +512,60 @@ class UnavailableDiagnosticsTests(unittest.TestCase):
         self.assertNotIn('SportsbookX',row['error'])
         self.assertNotIn('5000',row['error'].replace('stale_age_s_max=5000',''))
         self.assertNotIn('-110',row['error'])
+
+
+class BatchedT24Tests(unittest.TestCase):
+    def setUp(self):
+        kickoff = instant('2026-11-15T18:00:00Z')
+        self.now = kickoff - dt.timedelta(hours=23)
+        games = [{'game_id': i, 'kickoff': kickoff} for i in ('a', 'b', 'c')]
+        self.targets = [(c, c.game_id) for c in plan(games, self.now)]
+
+    def test_one_request_preserves_separate_checkpoint_decisions(self):
+        store = MemoryStore()
+        calls = []
+
+        def fetch(ids):
+            calls.append(ids)
+            return {'a': [{'provider_event_id': 'a', 'observed_at': self.now}],
+                    'b': [{'provider_event_id': 'c', 'observed_at': self.now}]}
+
+        result = collect_t24_batch(self.targets, store, fetch, lambda: self.now, 52)
+        self.assertEqual(calls, [('a', 'b', 'c')])
+        self.assertEqual([result[k] for k in ('requests', 'credits_budgeted', 'captured',
+                                              'unavailable', 'failed')], [1, 2, 1, 1, 1])
+        second = collect_t24_batch(self.targets, store, fetch, lambda: self.now, 52)
+        self.assertEqual(second['duplicate'], 3)
+        self.assertEqual(len(calls), 1)
+
+    def test_unknown_or_low_quota_makes_no_claims(self):
+        for remaining in (None, 51):
+            store = MemoryStore()
+            result = collect_t24_batch(self.targets, store, self.fail, lambda: self.now, remaining)
+            self.assertEqual(result['deferred'], 3)
+            self.assertFalse(store.rows)
+
+    def test_late_batch_preserves_deadlines(self):
+        store = MemoryStore()
+        clock_at = self.now
+
+        def fetch(ids):
+            nonlocal clock_at
+            clock_at = self.now + dt.timedelta(minutes=30)
+            return {i: [{'provider_event_id': i, 'observed_at': self.now}] for i in ids}
+
+        result = collect_t24_batch(self.targets, store, fetch, lambda: clock_at, 52)
+        self.assertEqual(result['missed'], 3)
+        self.assertEqual(result['captured'], 0)
+        self.assertTrue(all(not row['quotes'] for row in store.rows.values()))
+
+    def test_transport_failure_finishes_all_claims_without_retry(self):
+        store = MemoryStore()
+
+        def fetch(ids):
+            raise RuntimeError('Odds provider request failed')
+
+        result = collect_t24_batch(self.targets, store, fetch, lambda: self.now, 52)
+        self.assertEqual(result['requests'], 1)
+        self.assertEqual(result['failed'], 3)
+        self.assertTrue(all(row['status'] == 'failed' for row in store.rows.values()))
