@@ -20,3 +20,9 @@ instant. Unexpected IDs, omissions, identity conflicts and duplicate IDs are
 excluded individually. Equivalent timezone offsets are accepted. A caller
 must still map the expected provider events to due checkpoints, handle omitted
 games, and check source freshness and quota before persisting quotes.
+
+The single-event collector now uses one reusable response classifier for
+checkpoint deadlines and source-time checks. A future batch can apply that
+classifier independently to each due game using the actual completion time of
+the shared request. The extraction preserves opener semantics and the fixed
+checkpoint freshness gates. The request path still fetches one event at a time.
