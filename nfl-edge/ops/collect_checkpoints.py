@@ -6,6 +6,7 @@ import os
 import pathlib
 import sys
 import time
+from collections import Counter
 from dataclasses import asdict
 from urllib.parse import urlsplit
 sys.path.insert(0,str(pathlib.Path(__file__).parents[1]/'model'))
@@ -100,6 +101,46 @@ def find_provider_event(game,events,kickoff,sport):
     return [e for e in events
             if e.get('home_team')==want[0] and e.get('away_team')==want[1]
             and instant(e['commence_time'])==kickoff]
+
+def resolve_nfl_t24_batch(checkpoints, games_by_id, events, now):
+    """Return due checkpoint/ID pairs and their exact pregame identities."""
+    now = instant(now)
+    identified = []
+    for event in events:
+        if not isinstance(event, dict):
+            continue
+        try:
+            commence = instant(event['commence_time'])
+        except (KeyError, TypeError, ValueError):
+            continue
+        if event.get('sport_key') == SPORT and commence > now:
+            identified.append(event)
+    unique_events = match_nfl_slate_odds(events, events)
+
+    candidates = []
+    for checkpoint in checkpoints:
+        if (checkpoint.name != 'T-24' or checkpoint.state != 'due'
+                or not checkpoint.target <= now < checkpoint.deadline):
+            continue
+        game = games_by_id.get(checkpoint.game_id)
+        if (game is None or game.get('status') != 'scheduled'
+                or instant(game['kickoff']) != checkpoint.kickoff):
+            continue
+        matches = find_provider_event(game, identified, checkpoint.kickoff, 'nfl')
+        if len(matches) != 1:
+            continue
+        event_id = matches[0].get('id')
+        if (not isinstance(event_id, str) or event_id not in unique_events
+                or ',' in event_id or any(c.isspace() for c in event_id)):
+            continue
+        candidates.append((checkpoint, event_id))
+
+    key_counts = Counter(checkpoint.key for checkpoint, _ in candidates)
+    id_counts = Counter(event_id for _, event_id in candidates)
+    targets = [(checkpoint, event_id) for checkpoint, event_id in candidates
+               if key_counts[checkpoint.key] == id_counts[event_id] == 1]
+    return targets, {event_id: unique_events[event_id] for _, event_id in targets}
+
 
 def provider_event_keys(events):
     """Signatures of provider events, for the opener gate (pure)."""

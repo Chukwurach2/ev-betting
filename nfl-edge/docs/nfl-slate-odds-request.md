@@ -43,3 +43,20 @@ worker. Missing or out-of-bounds quota headers fail the call. The retained
 source URL identifies the sport odds route and excludes credentials.
 The callback and worker are covered offline. The scheduled workflow still
 uses its existing collector and actual batch billing has yet to be observed.
+
+The draft target resolver pairs only due NFL T−24 checkpoints with a unique
+scheduled game and an exact provider matchup and kickoff. Ambiguous matches,
+reused IDs, duplicate checkpoint keys and malformed filter values are
+excluded. The resolver returns both the input for the batch worker and the
+reviewed identities for the response adapter. It uses the existing free
+events response in offline tests. Collector selection and scheduling still
+need integration before a controlled batch verification.
+
+On November 15, the 00:46 and 07:34 UTC NFL workers reported four missed
+checkpoints in aggregate, zero captures and zero odds requests. At 14:42:55–56 UTC
+the public feeds returned no current NFL or NBA entries. The batch draft
+addresses same-window capacity after a runner starts, so these receipts
+provide a separate example of runner timing limiting coverage.
+
+- [00:46 UTC collection job](https://github.com/Chukwurach2/ev-betting/actions/runs/43659750947/job/132646174575)
+- [07:34 UTC collection job](https://github.com/Chukwurach2/ev-betting/actions/runs/43690464830/job/132739834360)

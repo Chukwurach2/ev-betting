@@ -3,10 +3,12 @@ import pathlib
 import sys
 import unittest
 from unittest.mock import patch
+from dataclasses import replace
 sys.path.insert(0,str(pathlib.Path(__file__).parents[1]/'ops'))
 from checkpoints import plan,collect,collect_t24_batch,instant,safe_collection_error
 from collect_checkpoints import (pair_quotes, provider_event_keys, opener_eligible,
-                                 seconds_until_imminent_target, fetch_nfl_t24_quotes)
+                                 seconds_until_imminent_target, fetch_nfl_t24_quotes,
+                                 resolve_nfl_t24_batch)
 
 class MemoryStore:
     def __init__(self): self.rows={}
@@ -595,3 +597,51 @@ class BatchProviderAdapterTests(unittest.TestCase):
             with self.subTest(headers=headers), patch('collect_checkpoints.fetch_odds', return_value=([event], headers)):
                 with self.assertRaisesRegex(RuntimeError, 'quota response'):
                     fetch_nfl_t24_quotes({'a': event}, ('a',), ['fanduel'])
+
+class BatchTargetResolutionTests(unittest.TestCase):
+    def setUp(self):
+        self.now = instant('2026-11-14T18:05:00Z')
+        kickoff = instant('2026-11-15T18:00:00Z')
+        self.game = {'game_id': 'g', 'home_team': 'ARI', 'away_team': 'LA',
+                     'status': 'scheduled', 'kickoff': kickoff}
+        self.checkpoint, = plan([self.game], self.now)
+        self.event = {'id': 'exact', 'sport_key': 'americanfootball_nfl',
+                      'home_team': 'Arizona Cardinals', 'away_team': 'Los Angeles Rams',
+                      'commence_time': '2026-11-15T13:00:00-05:00'}
+
+    def resolve(self, events, checkpoints=None, games=None, now=None):
+        return resolve_nfl_t24_batch(
+            checkpoints if checkpoints is not None else [self.checkpoint],
+            games if games is not None else {'g': self.game}, events, now or self.now,
+        )
+
+    def test_exact_match_uses_canonical_teams_and_aware_time(self):
+        self.assertEqual(self.resolve([self.event, None, {}]),
+                         ([(self.checkpoint, 'exact')], {'exact': self.event}))
+
+    def test_rejects_ambiguous_event_or_duplicate_id(self):
+        for other in ({**self.event, 'id': 'alternative'},
+                      {**self.event, 'sport_key': 'basketball_nba'},
+                      self.event):
+            with self.subTest(other=other):
+                self.assertEqual(self.resolve([self.event, other]), ([], {}))
+
+    def test_rejects_swapped_teams_wrong_kickoff_and_filter_delimiter(self):
+        for change in ({'home_team': 'Los Angeles Rams', 'away_team': 'Arizona Cardinals'},
+                       {'commence_time': '2026-11-15T18:05:00Z'},
+                       {'commence_time': '2026-11-15T18:00:00'},
+                       {'id': 'bad,filter'}):
+            with self.subTest(change=change):
+                self.assertEqual(self.resolve([{**self.event, **change}]), ([], {}))
+
+    def test_excludes_deadline_and_duplicate_checkpoint_claims(self):
+        self.assertEqual(self.resolve([self.event], now=self.checkpoint.deadline), ([], {}))
+        self.assertEqual(self.resolve([self.event], [self.checkpoint, self.checkpoint]), ([], {}))
+        alternate = replace(self.checkpoint, key='other', game_id='alias')
+        self.assertEqual(self.resolve([self.event], [self.checkpoint, alternate],
+                                      {'g': self.game, 'alias': self.game}), ([], {}))
+
+
+    def test_excludes_checkpoint_for_superseded_local_kickoff(self):
+        changed = {**self.game, 'kickoff': self.checkpoint.kickoff + dt.timedelta(minutes=5)}
+        self.assertEqual(self.resolve([self.event], games={'g': changed}), ([], {}))
