@@ -1,0 +1,28 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {auditNbaSchedule} from '../ops/audit-nba-schedule.mjs';
+
+const start='2026-11-17T00:00:00Z';
+const official={home_team:'Cleveland Cavaliers',away_team:'Chicago Bulls',kickoff:start};
+const feed=(games,sport='nba')=>({sport,games,generated_at:'2026-11-15T23:46:24Z'});
+
+test('keeps the official tip separate when the provider time differs',()=>{
+ const quote={...official,kickoff:'2026-11-17T00:10:00Z'};
+ const r=auditNbaSchedule([official],feed([quote]));
+ assert.equal(r.counts.shifted,1);
+ assert.equal(r.games[0].provider_tip,quote.kickoff);
+ assert.equal(r.games[0].official_tip,start);
+});
+
+test('rejects reversed, distant and duplicate candidates',()=>{
+ const reversed={...official,home_team:official.away_team,away_team:official.home_team};
+ const late={...official,kickoff:'2026-11-17T00:16:00Z'};
+ assert.equal(auditNbaSchedule([official],feed([reversed,late])).counts.missing,1);
+ assert.equal(auditNbaSchedule([official],feed([official,official])).counts.ambiguous,1);
+ assert.equal(auditNbaSchedule([official],feed([official])).counts.matched,1);
+});
+
+test('rejects timezone-free tips and snapshots for another sport',()=>{
+ assert.throws(()=>auditNbaSchedule([official],feed([official],'nfl')),/NBA phone snapshot/);
+ assert.throws(()=>auditNbaSchedule([{...official,kickoff:start.slice(0,-1)}],feed([])),/reviewed schedule/);
+});
