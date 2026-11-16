@@ -27,3 +27,20 @@ the actual snapshot time. No quote collection was requested.
 
 - [Official November 16 NBA schedule](https://www.nba.com/games?date=2026-11-16)
 - [NBA public phone feed](https://nfl-edge-v2-1.vercel.app/api/game-cards?sport=nba)
+
+## Follow-up after the 24-hour boundary
+
+At 01:04:53 UTC on November 16, seven Monday games were within 24 hours.
+The phone returned Portland at Minnesota with a provider time ten minutes
+later than its official tip. Six of the seven were absent from the feed.
+
+At 02:10:29 UTC, all eight official Monday games were within 24 hours.
+The phone returned three of them, each with a provider time ten minutes
+later than the official tip. Five were absent. The phone returned zero
+fresh NBA entries and the contemporaneous NFL feed returned zero. The
+exact cause of the partial schedule response remains unverified.
+
+Both receipts were retained privately. The audit CLI now resolves a
+symlinked entry path before checking whether it was run directly. A
+fourth offline regression covers that invocation, which had returned
+without a report when called through the macOS temporary directory alias.

@@ -1,3 +1,4 @@
+import {realpathSync} from 'node:fs';
 import {readFile} from 'node:fs/promises';
 import {pathToFileURL} from 'node:url';
 
@@ -32,7 +33,7 @@ export function auditNbaSchedule(official, feed){
  return {checked_at:feed.generated_at,counts,games};
 }
 
-if(process.argv[1] && import.meta.url===pathToFileURL(process.argv[1]).href){
+if(process.argv[1] && import.meta.url===pathToFileURL(realpathSync(process.argv[1])).href){
  const [officialFile,feedFile]=process.argv.slice(2);
  if(!officialFile||!feedFile)throw Error('Usage: node ops/audit-nba-schedule.mjs OFFICIAL_JSON NBA_PHONE_JSON');
  const load=async file=>JSON.parse(await readFile(file,'utf8'));

@@ -1,5 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {execFileSync} from 'node:child_process';
+import {mkdtempSync,rmSync,symlinkSync,writeFileSync} from 'node:fs';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
+import {fileURLToPath} from 'node:url';
 import {auditNbaSchedule} from '../ops/audit-nba-schedule.mjs';
 
 const start='2026-11-17T00:00:00Z';
@@ -25,4 +30,15 @@ test('rejects reversed, distant and duplicate candidates',()=>{
 test('rejects timezone-free tips and snapshots for another sport',()=>{
  assert.throws(()=>auditNbaSchedule([official],feed([official],'nfl')),/NBA phone snapshot/);
  assert.throws(()=>auditNbaSchedule([{...official,kickoff:start.slice(0,-1)}],feed([])),/reviewed schedule/);
+});
+
+test('CLI runs when invoked through a symlink',t=>{
+ const root=mkdtempSync(join(tmpdir(),'nba-audit-test-'));
+ t.after(()=>rmSync(root,{recursive:true,force:true}));
+ const link=join(root,'audit.mjs'), schedule=join(root,'schedule.json'), snapshot=join(root,'snapshot.json');
+ symlinkSync(fileURLToPath(new URL('../ops/audit-nba-schedule.mjs',import.meta.url)),link);
+ writeFileSync(schedule,JSON.stringify([official]));
+ writeFileSync(snapshot,JSON.stringify(feed([])));
+ const result=JSON.parse(execFileSync(process.execPath,[link,schedule,snapshot],{encoding:'utf8'}));
+ assert.equal(result.counts.missing,1);
 });
