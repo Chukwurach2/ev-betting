@@ -44,3 +44,17 @@ Both receipts were retained privately. The audit CLI now resolves a
 symlinked entry path before checking whether it was run directly. A
 fourth offline regression covers that invocation, which had returned
 without a report when called through the macOS temporary directory alias.
+
+## All eight matchups visible at 03:43 UTC
+
+The public NBA feed at 03:43:13 UTC on November 16 returned all eight
+official Monday matchups and zero research entries. The offline comparator
+found eight unique matches, each with a provider start exactly ten minutes
+after the official tip, and zero missing or ambiguous matches. The public
+NFL feed at the same time also returned zero entries.
+
+The five games missing at 02:10 UTC appeared by this read. This brackets
+the observed recovery to the interval between the two snapshots. It
+does not establish why the schedules differed, nor whether future slates
+will be complete at the same lead time. The actual phone snapshot and
+verification output were retained privately. The audit made no odds request.
