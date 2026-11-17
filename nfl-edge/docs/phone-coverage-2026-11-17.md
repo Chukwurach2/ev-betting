@@ -39,3 +39,29 @@ All four focused tests passed. Retain official event IDs and scheduled
 tips separately from provider IDs and source times. Both the coverage
 comparison and the NFL checkpoint audit are retrospective. No new
 prices or paper entries were recorded.
+
+## Scheduled run at 01:40 UTC
+
+The next [scheduled run](https://github.com/Chukwurach2/ev-betting/actions/runs/43997392036)
+recorded the three previously absent Chargers–Ravens windows as missed
+at 01:41 UTC, after the 01:15 kickoff. It reported one request, one
+capture and a two-credit budget. The capture was the Arizona–Kansas
+City opener for November 22, with 16 committed rows at 01:41:35 UTC
+and source times from 01:40:58 through 01:41:18 UTC. The run summary
+does not establish a current remaining quota.
+
+A retrospective replay of the normalized checkpoint through the exact
+production card code produced two opposing full-game total watches,
+two entries short of the four-entry target. The estimated returns at
+the archived offers were −3.61% and −3.91% with proportional de-vig,
+and −3.34% and −4.18% with power de-vig on the exact reference pairs.
+Both watches expired at 01:55:58 UTC. The estimates assume no
+additional fees and use overlapping market references. Accepted price,
+available size and live phone display were unverified. The two watches
+are correlated alternatives. The replay did not enter the prospective
+paper ledger.
+
+The 03:11 UTC check returned 13 upcoming NFL listings and four NBA
+listings with zero fresh entries in either sport. Portland–Minnesota
+on November 17 was still absent at that check. No manual collector
+request was made.
