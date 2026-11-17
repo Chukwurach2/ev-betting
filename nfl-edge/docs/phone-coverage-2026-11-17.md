@@ -65,3 +65,28 @@ The 03:11 UTC check returned 13 upcoming NFL listings and four NBA
 listings with zero fresh entries in either sport. Portland–Minnesota
 on November 17 was still absent at that check. No manual collector
 request was made.
+
+## Later scheduled openers
+
+The [10:11 UTC run](https://github.com/Chukwurach2/ev-betting/actions/runs/44062565926)
+committed 16 Baltimore–Carolina opener rows at 10:12:52 UTC, with source
+times from 10:12:17 to 10:12:48. The [19:37 UTC run](https://github.com/Chukwurach2/ev-betting/actions/runs/44160500389)
+committed 16 Miami–Buffalo opener rows at 19:38:01 UTC, with source
+times from 19:36:57 to 19:37:48. Each scheduled run reported one odds
+request and a two-credit budget. Remaining quota was unverified.
+
+At checkpoint completion, the production card replay yielded two opposing
+spread watches for Baltimore–Carolina and four watches across spread and
+total for Miami–Buffalo. The first card had a two-entry shortfall. All
+six estimates were negative under both proportional and power de-vig on
+matched reference pairs. The proportional estimates ranged from −4.13%
+to −2.38%, and the power estimates from −4.10% to −2.38%. These are
+market-based estimates before additional fee adjustments. Opposing sides
+and multiple selections within a game share exposure. Executable prices
+and sizes were unverified.
+
+The watches expired at 10:27:17 and 19:51:57 UTC respectively. The
+21:24 UTC public response showed 13 NFL and five NBA listings, with
+zero fresh entries. This was a retrospective check of stored data.
+Fresh phone rendering was unverified and the replay stayed outside the
+prospective paper ledger.
