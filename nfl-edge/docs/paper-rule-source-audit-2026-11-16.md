@@ -36,3 +36,30 @@ identity conflicts. No prices, final scores or contract records changed.
 - [DraftKings New York terms](https://sportsbook.draftkings.com/legal/ny-terms-of-use)
 - [New York commission application binder](https://gaming.ny.gov/draftkings-sub-binder-2-part-6)
 - [FanDuel New York rules landing page](https://www.fanduel.com/fanduel-sportsbook-house-rules-ny)
+
+## November 17 UTC replay and event identity review
+
+Pin the 70-final replay to [the selection-mapping evaluator at
+bc82760](https://github.com/Chukwurach2/ev-betting/commit/bc82760e9c1813a531ec9568078b696798f2221f)
+from PR #47. Its 30 focused tests passed and the replay matched the retained
+report field for field, apart from the generation timestamp. The same inputs
+on the PR #38 review branch at a548b11 return 122 grades because its evaluator
+does not apply the four verified NFL spread selection mappings. Use the pinned
+evaluator with those mappings to reproduce the 126-grade baseline.
+
+Archived phone snapshots show two NBA event IDs each carried an earlier and
+later start for the same oriented matchup on October 20. The recorded start
+moved by ten minutes for one ID and nine minutes for the other. Both variants
+were observed before the earlier start. The NBA's [Boston–Detroit
+final](https://www.nba.com/game/bos-vs-det-0022600001) and
+[Philadelphia–New York final](https://www.nba.com/game/phi-vs-nyk-0022600002)
+confirm the games. An official game page alone cannot establish which
+archived quote and operator contract remained in effect through a change in
+the provider's start field. Both groups remain quarantined, with 16 entries
+unresolved. Preserve the two original starts and receipt times and require an
+explicit reviewed association for each affected observation before grading.
+
+The 70-final cohort still has 414 earliest entries, with 126 grades and 288
+unresolved entries. Of the unresolved entries, 272 lack exact-contract
+evidence and 16 are held for conflicting event identities. The review
+added no settlements and used the unchanged ledger and evidence.
