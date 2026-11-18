@@ -137,6 +137,19 @@ def classify_checkpoint_response(checkpoint, quotes, ended):
     return ('captured' if valid else 'unavailable'), valid, note
 
 
+def capture_receipt(checkpoint, ended, accepted_quotes):
+    """Summarize committed checkpoint metadata without exposing any quotes."""
+    source_times = [instant(quote['observed_at']) for quote in accepted_quotes]
+    return {
+        'game_id': checkpoint.game_id,
+        'window': checkpoint.name,
+        'captured_at': ended.isoformat(),
+        'checkpoint_rows': len(accepted_quotes),
+        'earliest_source_at': min(source_times).isoformat(),
+        'latest_source_at': max(source_times).isoformat(),
+    }
+
+
 def collect(checkpoints,store,fetch_quotes,clock,remaining,max_requests=2,reserve=10,cost_per_request=1):
     """Collect bounded quotes after an immutable claim.
 
@@ -148,6 +161,7 @@ def collect(checkpoints,store,fetch_quotes,clock,remaining,max_requests=2,reserv
     if not isinstance(cost_per_request,int) or isinstance(cost_per_request,bool) or not 1<=cost_per_request<=16:
         raise ValueError('Invalid request cost')
     used=0; counts={'captured':0,'missed':0,'unavailable':0,'duplicate':0,'deferred':0,'failed':0,'requests':0,'credits_budgeted':0}
+    counts['capture_receipts'] = []
     for checkpoint in checkpoints:
         now=instant(clock())
         missed=checkpoint.state=='missed' or now>=checkpoint.deadline
@@ -168,6 +182,8 @@ def collect(checkpoints,store,fetch_quotes,clock,remaining,max_requests=2,reserv
             status, valid, note = classify_checkpoint_response(checkpoint, quotes, ended)
             store.finish(checkpoint, ended, status, valid, note)
             counts[status] += 1
+            if status == 'captured':
+                counts['capture_receipts'].append(capture_receipt(checkpoint, ended, valid))
         except Exception as error:
             store.finish(checkpoint,instant(clock()),'failed',[],safe_collection_error(error))
             counts['failed']+=1
@@ -194,6 +210,7 @@ def collect_t24_batch(targets, store, fetch_quotes, clock, remaining):
         ('captured', 'missed', 'unavailable', 'duplicate', 'deferred',
          'failed', 'requests', 'credits_budgeted'), 0
     )
+    counts['capture_receipts'] = []
     can_request = type(remaining) is int and remaining >= 52
     claimed = {}
     for checkpoint, event_id in targets:
@@ -240,4 +257,6 @@ def collect_t24_batch(targets, store, fetch_quotes, clock, remaining):
             status, valid, note = 'failed', [], safe_collection_error(error)
         store.finish(checkpoint, ended, status, valid, note)
         counts[status] += 1
+        if status == 'captured':
+            counts['capture_receipts'].append(capture_receipt(checkpoint, ended, valid))
     return counts

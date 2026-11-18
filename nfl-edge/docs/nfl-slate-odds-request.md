@@ -73,3 +73,14 @@ No workflow passes the switch. The next controlled verification needs an
 actually due slate, verified preflight reserve, the response quota receipt
 and normalized source times before any quote is counted as a usable capture.
 The current public feed remains the source for phone freshness checks.
+
+## Checkpoint capture metadata
+
+The collector summary includes one receipt per successfully committed
+checkpoint. The receipt contains the app game ID, window, capture time,
+accepted checkpoint row count, and earliest and latest source timestamps.
+It omits offered lines, prices, provider payload identifiers, and credentials.
+Duplicate, missed, and unavailable checkpoints contribute no capture receipt.
+The count refers to the checkpoint rows. Normalized-table availability and
+phone display require separate verification. No extra provider or database
+requests are needed to emit this metadata.

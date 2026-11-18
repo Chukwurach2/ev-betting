@@ -46,6 +46,44 @@ class CheckpointTests(unittest.TestCase):
             self.assertEqual(len(calls),expected)
             self.assertEqual(result['requests'],expected)
 
+    def test_capture_receipts_include_only_committed_metadata(self):
+        checkpoint = next(c for c in plan([self.game], self.now) if c.state == 'due')
+        ended = self.now + dt.timedelta(seconds=5)
+        latest = self.now + dt.timedelta(seconds=2)
+        quotes = [
+            {'observed_at': latest.isoformat(), 'american_odds': 110},
+            {'observed_at': self.now.isoformat(), 'provider_event_id': 'private-reference'},
+            {'observed_at': (self.now-dt.timedelta(seconds=1)).isoformat()},
+        ]
+        expected = {
+            'game_id': 'g1', 'window': 'T-3',
+            'captured_at': ended.isoformat(), 'checkpoint_rows': 2,
+            'earliest_source_at': self.now.isoformat(),
+            'latest_source_at': latest.isoformat(),
+        }
+        clock = iter([self.now, self.now, ended])
+        store = MemoryStore()
+        result = collect([checkpoint], store, lambda _: quotes, lambda: next(clock), 100)
+        self.assertEqual(result['capture_receipts'], [expected])
+        replay = collect([checkpoint], store, lambda _: self.fail('duplicate fetch'),
+                         lambda: ended, 100)
+        self.assertEqual(replay['capture_receipts'], [])
+        empty = collect([checkpoint], MemoryStore(), lambda _: [], lambda: self.now, 100)
+        self.assertEqual(empty['capture_receipts'], [])
+
+    def test_batch_capture_receipt_uses_same_metadata_contract(self):
+        now = self.kickoff - dt.timedelta(hours=24)
+        checkpoint = next(c for c in plan([self.game], now) if c.name == 'T-24')
+        result = collect_t24_batch([(checkpoint, 'provider')], MemoryStore(),
+                                   lambda ids: {'provider': [{'provider_event_id': 'provider',
+                                                             'observed_at': now.isoformat()}]},
+                                   lambda: now, 52)
+        self.assertEqual(result['capture_receipts'], [{
+            'game_id': 'g1', 'window': 'T-24', 'captured_at': now.isoformat(),
+            'checkpoint_rows': 1, 'earliest_source_at': now.isoformat(),
+            'latest_source_at': now.isoformat(),
+        }])
+
     def test_deadlines_and_missed_checkpoints(self):
         checkpoints=plan([self.game],self.now)
         self.assertEqual([(c.name,c.state) for c in checkpoints],[('T-24','missed'),('T-3','due')])
