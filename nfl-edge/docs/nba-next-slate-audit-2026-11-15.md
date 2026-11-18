@@ -69,3 +69,17 @@ remain outside the future-slate coverage denominator. The comparison
 uses the scheduled tip. It cannot establish the actual tip, market
 status, or accepted prices. Keep the phone source and reviewed official
 times separate, and never reuse this schedule match to join prices.
+
+## Same-day listings outside the comparison tolerance
+
+The audit includes `same_day_start_conflicts` when an official matchup
+has no time-compatible phone row but the same oriented teams appear
+elsewhere on the same Eastern calendar date. It records the candidate
+provider times and signed differences in minutes. Coverage counts still
+require the original 15-minute tolerance. These diagnostic candidates
+provide no authority to join quote or settlement records.
+
+Replaying the November 18 slate flags the two documented disagreements
+of +100 minutes and −20 minutes while preserving the existing count of
+ten time-compatible listings and two without a time-compatible row.
+See [the reviewed November 18 schedule](nba-schedule-2026-11-18.md).

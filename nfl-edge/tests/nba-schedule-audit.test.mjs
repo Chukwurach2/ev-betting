@@ -41,6 +41,24 @@ test('flags listings between the official start and the later provider time',()=
  assert.deepEqual(auditNbaSchedule([official],{...snapshot,generated_at:provider.kickoff}).listed_past_official_tip,[]);
 });
 
+test('reports large same-day start disagreements without accepting another day or matchup',()=>{
+ const late={...official,kickoff:'2026-11-17T01:40:00Z'};
+ const early={...official,kickoff:'2026-11-16T23:40:00Z'};
+ const rematch={...official,kickoff:'2026-11-18T00:05:00Z'};
+ const reversed={...late,home_team:late.away_team,away_team:late.home_team};
+ const report=auditNbaSchedule([official],feed([late,early,rematch,reversed]));
+ assert.equal(report.counts.missing,1);
+ assert.equal(report.games[0].provider_tip,null);
+ assert.deepEqual(report.same_day_start_conflicts,[{
+  home_team:official.home_team,away_team:official.away_team,official_tip:start,
+  provider_listings:[
+   {provider_tip:late.kickoff,delta_minutes:100},
+   {provider_tip:early.kickoff,delta_minutes:-20}
+  ]
+ }]);
+ assert.deepEqual(auditNbaSchedule([official],feed([official,late])).same_day_start_conflicts,[]);
+});
+
 test('rejects timezone-free tips and snapshots for another sport',()=>{
  assert.throws(()=>auditNbaSchedule([official],feed([official],'nfl')),/NBA phone snapshot/);
  assert.throws(()=>auditNbaSchedule([{...official,kickoff:start.slice(0,-1)}],feed([])),/reviewed schedule/);

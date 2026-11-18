@@ -3,6 +3,9 @@ import {readFile} from 'node:fs/promises';
 import {pathToFileURL} from 'node:url';
 
 const toleranceMs = 15 * 60_000;
+const easternDay = new Intl.DateTimeFormat('en-US', {
+ timeZone:'America/New_York', year:'numeric', month:'2-digit', day:'2-digit'
+});
 const awareTime = value =>
  typeof value === 'string' && /(?:Z|[+-]\d{2}:\d{2})$/.test(value) ? Date.parse(value) : NaN;
 
@@ -19,11 +22,24 @@ export function auditNbaSchedule(official, feed){
 
  const asOf=awareTime(feed.generated_at);
  const counts={matched:0,shifted:0,missing:0,ambiguous:0};
- const games=[], listedPastOfficialTip=[];
+ const games=[], listedPastOfficialTip=[], sameDayStartConflicts=[];
  for(const game of official){
   const officialTip=awareTime(game.kickoff);
-  const matches=feed.games.filter(row=>row.home_team===game.home_team &&
-    row.away_team===game.away_team && Math.abs(awareTime(row.kickoff)-officialTip)<=toleranceMs);
+  const sameMatchup=feed.games.filter(row=>row.home_team===game.home_team &&
+    row.away_team===game.away_team);
+  const matches=sameMatchup.filter(row=>Math.abs(awareTime(row.kickoff)-officialTip)<=toleranceMs);
+  if(!matches.length){
+   const officialDay=easternDay.format(officialTip);
+   const candidates=sameMatchup.filter(row=>easternDay.format(awareTime(row.kickoff))===officialDay);
+   if(candidates.length){
+    sameDayStartConflicts.push({
+     home_team:game.home_team, away_team:game.away_team, official_tip:game.kickoff,
+     provider_listings:candidates.map(row=>({
+      provider_tip:row.kickoff, delta_minutes:(awareTime(row.kickoff)-officialTip)/60_000
+     }))
+    });
+   }
+  }
   if(officialTip<=asOf){
    for(const row of matches){
     if(awareTime(row.kickoff)>asOf){
@@ -41,7 +57,9 @@ export function auditNbaSchedule(official, feed){
   games.push({home_team:game.home_team,away_team:game.away_team,official_tip:game.kickoff,
    status,provider_tip:matches.length===1?matches[0].kickoff:null});
  }
- return {checked_at:feed.generated_at,counts,games,listed_past_official_tip:listedPastOfficialTip};
+ return {checked_at:feed.generated_at,counts,games,
+  listed_past_official_tip:listedPastOfficialTip,
+  same_day_start_conflicts:sameDayStartConflicts};
 }
 
 if(process.argv[1] && import.meta.url===pathToFileURL(realpathSync(process.argv[1])).href){
