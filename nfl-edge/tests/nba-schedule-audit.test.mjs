@@ -27,6 +27,20 @@ test('rejects reversed, distant and duplicate candidates',()=>{
  assert.equal(auditNbaSchedule([official],feed([official])).counts.matched,1);
 });
 
+test('flags listings between the official start and the later provider time',()=>{
+ const provider={...official,kickoff:'2026-11-17T00:10:00Z',picks:[]};
+ const nextGame={...official,kickoff:'2026-11-18T00:00:00Z'};
+ const snapshot={...feed([provider,nextGame]),generated_at:start};
+ const report=auditNbaSchedule([official,nextGame],snapshot);
+ assert.equal(report.counts.matched,1);
+ assert.equal(report.games.length,1);
+ assert.deepEqual(report.listed_past_official_tip,[{
+  home_team:official.home_team,away_team:official.away_team,
+  official_tip:start,provider_tip:provider.kickoff,listed_entries:0
+ }]);
+ assert.deepEqual(auditNbaSchedule([official],{...snapshot,generated_at:provider.kickoff}).listed_past_official_tip,[]);
+});
+
 test('rejects timezone-free tips and snapshots for another sport',()=>{
  assert.throws(()=>auditNbaSchedule([official],feed([official],'nfl')),/NBA phone snapshot/);
  assert.throws(()=>auditNbaSchedule([{...official,kickoff:start.slice(0,-1)}],feed([])),/reviewed schedule/);

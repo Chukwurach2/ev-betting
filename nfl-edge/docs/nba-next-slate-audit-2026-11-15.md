@@ -58,3 +58,14 @@ the observed recovery to the interval between the two snapshots. It
 does not establish why the schedules differed, nor whether future slates
 will be complete at the same lead time. The actual phone snapshot and
 verification output were retained privately. The audit made no odds request.
+
+## Listings after the official scheduled tip
+
+The offline report also flags a scheduled-time discrepancy when the
+official tip is at or before the phone snapshot and the corresponding
+provider tip is still in the future. Each flag includes the number of
+listed entries when the snapshot supplied its picks array. Those rows
+remain outside the future-slate coverage denominator. The comparison
+uses the scheduled tip. It cannot establish the actual tip, market
+status, or accepted prices. Keep the phone source and reviewed official
+times separate, and never reuse this schedule match to join prices.

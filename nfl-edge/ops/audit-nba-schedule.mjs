@@ -19,18 +19,29 @@ export function auditNbaSchedule(official, feed){
 
  const asOf=awareTime(feed.generated_at);
  const counts={matched:0,shifted:0,missing:0,ambiguous:0};
- const games=official.filter(game=>awareTime(game.kickoff)>asOf).map(game=>{
+ const games=[], listedPastOfficialTip=[];
+ for(const game of official){
   const officialTip=awareTime(game.kickoff);
   const matches=feed.games.filter(row=>row.home_team===game.home_team &&
     row.away_team===game.away_team && Math.abs(awareTime(row.kickoff)-officialTip)<=toleranceMs);
+  if(officialTip<=asOf){
+   for(const row of matches){
+    if(awareTime(row.kickoff)>asOf){
+     listedPastOfficialTip.push({home_team:game.home_team,away_team:game.away_team,
+      official_tip:game.kickoff,provider_tip:row.kickoff,
+      listed_entries:Array.isArray(row.picks)?row.picks.length:null});
+    }
+   }
+   continue;
+  }
   let status='missing';
   if(matches.length>1)status='ambiguous';
   if(matches.length===1)status=awareTime(matches[0].kickoff)===officialTip?'matched':'shifted';
   counts[status]++;
-  return {home_team:game.home_team,away_team:game.away_team,official_tip:game.kickoff,
-   status,provider_tip:matches.length===1?matches[0].kickoff:null};
- });
- return {checked_at:feed.generated_at,counts,games};
+  games.push({home_team:game.home_team,away_team:game.away_team,official_tip:game.kickoff,
+   status,provider_tip:matches.length===1?matches[0].kickoff:null});
+ }
+ return {checked_at:feed.generated_at,counts,games,listed_past_official_tip:listedPastOfficialTip};
 }
 
 if(process.argv[1] && import.meta.url===pathToFileURL(realpathSync(process.argv[1])).href){
