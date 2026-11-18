@@ -1,5 +1,11 @@
 # Prior-only NHL rematch assignment implementation
 
+Current status was reconciled November 18. The fixed evaluation completed on
+November 10 Eastern with insufficient coverage. See the [retained result](nhl-immediate-rematch-results.md)
+for 10 treated games and 218 controls in nine comparable weeks. The coverage
+gate stopped the bootstrap. The implementation account below records its
+earlier stage. The rule remains unpromoted.
+
 The frozen registration remains unchanged. Implement only schedule validation and prior-game assignment before any new private subgroup evaluation. There is no estimator,bootstrap,private-data runner,downloader,model or pick publisher in this increment.
 
 The classifier audits1312regular fixtures/32stable teams/82games each,UTC/Eastern identity/probability consistency and valid final scores. It chooses each team's latest strictly earlier game in sorted time/ID order. Both rest gaps and the home team's prior loss determine eligibility;the exact shared previous fixture determines treatment. Current scores are not read during assignment. History updates only afterward,so a result can influence later games but cannot determine its own treatment.
