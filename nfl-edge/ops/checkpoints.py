@@ -76,6 +76,7 @@ def plan(games,now):
 
 SAFE_COLLECTION_ERRORS = {
     'Odds provider request failed',
+    'NFL batch quota response outside bounds',
     'Provider event did not match exact matchup and kickoff',
     'Provider response event changed',
 }
@@ -91,6 +92,64 @@ def safe_collection_error(error):
         return message
     return 'Collection failed; inspect private runtime health'
 
+def classify_checkpoint_response(checkpoint, quotes, ended):
+    """Classify one response using its actual completion time and quote clocks."""
+    if ended >= checkpoint.deadline:
+        return 'missed', [], 'Response arrived after checkpoint deadline'
+    valid=[]
+    # Rejection accounting for 'unavailable' rows. Pure instrumentation:
+    # it only feeds the row's error field so T-24/T-3 staleness can be
+    # diagnosed (provider odds genuinely stale vs filter semantics).
+    # The acceptance rule below is byte-for-byte the old one; no
+    # window, deadline, quota, or freshness change.
+    stale_ages=[]   # provider update older than the 900s freshness bound
+    pre_target=0    # provider update older than the checkpoint target
+    post_fetch=0    # provider update timestamped after our fetch
+    for q in quotes:
+        observed=instant(q['observed_at'])
+        if observed>ended:
+            post_fetch+=1
+        elif checkpoint.name=='Opener':
+            # First-seen capture: the provider's last_update IS the
+            # record, however long ago the line was posted. Applying
+            # the window freshness filter here would reject exactly
+            # what opener capture exists to record (nothing would
+            # ever count as "first seen").
+            valid.append(q)
+        elif observed<checkpoint.target:
+            pre_target+=1
+        elif (ended-observed).total_seconds()>900:
+            stale_ages.append(int((ended-observed).total_seconds()))
+        else:
+            valid.append(q)
+    note=None
+    if not valid:
+        # Counts and age summaries only; no quote content or provider
+        # payload is ever written into the note (safe for the DB and
+        # for the run logs that echo row errors).
+        note=('no fresh quotes: fetched=%d stale_over_900s=%d '
+              'stale_age_s_min=%d stale_age_s_max=%d before_target=%d '
+              'after_fetch=%d' % (
+                  len(quotes), len(stale_ages),
+                  min(stale_ages) if stale_ages else 0,
+                  max(stale_ages) if stale_ages else 0,
+                  pre_target, post_fetch))
+    return ('captured' if valid else 'unavailable'), valid, note
+
+
+def capture_receipt(checkpoint, ended, accepted_quotes):
+    """Summarize committed checkpoint metadata without exposing any quotes."""
+    source_times = [instant(quote['observed_at']) for quote in accepted_quotes]
+    return {
+        'game_id': checkpoint.game_id,
+        'window': checkpoint.name,
+        'captured_at': ended.isoformat(),
+        'checkpoint_rows': len(accepted_quotes),
+        'earliest_source_at': min(source_times).isoformat(),
+        'latest_source_at': max(source_times).isoformat(),
+    }
+
+
 def collect(checkpoints,store,fetch_quotes,clock,remaining,max_requests=2,reserve=10,cost_per_request=1):
     """Collect bounded quotes after an immutable claim.
 
@@ -102,6 +161,7 @@ def collect(checkpoints,store,fetch_quotes,clock,remaining,max_requests=2,reserv
     if not isinstance(cost_per_request,int) or isinstance(cost_per_request,bool) or not 1<=cost_per_request<=16:
         raise ValueError('Invalid request cost')
     used=0; counts={'captured':0,'missed':0,'unavailable':0,'duplicate':0,'deferred':0,'failed':0,'requests':0,'credits_budgeted':0}
+    counts['capture_receipts'] = []
     for checkpoint in checkpoints:
         now=instant(clock())
         missed=checkpoint.state=='missed' or now>=checkpoint.deadline
@@ -119,52 +179,84 @@ def collect(checkpoints,store,fetch_quotes,clock,remaining,max_requests=2,reserv
             used+=1
             quotes=fetch_quotes(checkpoint)
             ended=instant(clock())
-            if ended>=checkpoint.deadline:
-                store.finish(checkpoint,ended,'missed',[],'Response arrived after checkpoint deadline')
-                counts['missed']+=1; continue
-            valid=[]
-            # Rejection accounting for 'unavailable' rows. Pure instrumentation:
-            # it only feeds the row's error field so T-24/T-3 staleness can be
-            # diagnosed (provider odds genuinely stale vs filter semantics).
-            # The acceptance rule below is byte-for-byte the old one; no
-            # window, deadline, quota, or freshness change.
-            stale_ages=[]   # provider update older than the 900s freshness bound
-            pre_target=0    # provider update older than the checkpoint target
-            post_fetch=0    # provider update timestamped after our fetch
-            for q in quotes:
-                observed=instant(q['observed_at'])
-                if observed>ended:
-                    post_fetch+=1
-                elif checkpoint.name=='Opener':
-                    # First-seen capture: the provider's last_update IS the
-                    # record, however long ago the line was posted. Applying
-                    # the window freshness filter here would reject exactly
-                    # what opener capture exists to record (nothing would
-                    # ever count as "first seen").
-                    valid.append(q)
-                elif observed<checkpoint.target:
-                    pre_target+=1
-                elif (ended-observed).total_seconds()>900:
-                    stale_ages.append(int((ended-observed).total_seconds()))
-                else:
-                    valid.append(q)
-            note=None
-            if not valid:
-                # Counts and age summaries only; no quote content or provider
-                # payload is ever written into the note (safe for the DB and
-                # for the run logs that echo row errors).
-                note=('no fresh quotes: fetched=%d stale_over_900s=%d '
-                      'stale_age_s_min=%d stale_age_s_max=%d before_target=%d '
-                      'after_fetch=%d' % (
-                          len(quotes), len(stale_ages),
-                          min(stale_ages) if stale_ages else 0,
-                          max(stale_ages) if stale_ages else 0,
-                          pre_target, post_fetch))
-            store.finish(checkpoint,ended,'captured' if valid else 'unavailable',valid,note)
-            counts['captured' if valid else 'unavailable']+=1
+            status, valid, note = classify_checkpoint_response(checkpoint, quotes, ended)
+            store.finish(checkpoint, ended, status, valid, note)
+            counts[status] += 1
+            if status == 'captured':
+                counts['capture_receipts'].append(capture_receipt(checkpoint, ended, valid))
         except Exception as error:
             store.finish(checkpoint,instant(clock()),'failed',[],safe_collection_error(error))
             counts['failed']+=1
     counts['requests']=used
     counts['credits_budgeted']=used*cost_per_request
+    return counts
+
+
+def collect_t24_batch(targets, store, fetch_quotes, clock, remaining):
+    """Collect one NFL T−24 batch through a caller-supplied quote adapter.
+
+    Targets pair immutable checkpoints with reviewed provider event IDs.
+    The adapter returns a mapping from event ID to normalized quote rows.
+    """
+    targets = list(targets)
+    event_ids = [event_id for _, event_id in targets]
+    if (any(checkpoint.name != 'T-24' for checkpoint, _ in targets)
+            or any(not isinstance(event_id, str) or not event_id for event_id in event_ids)
+            or len(set(event_ids)) != len(targets)
+            or len({checkpoint.key for checkpoint, _ in targets}) != len(targets)):
+        raise ValueError('Batch requires unique T-24 checkpoints and provider event IDs')
+
+    counts = dict.fromkeys(
+        ('captured', 'missed', 'unavailable', 'duplicate', 'deferred',
+         'failed', 'requests', 'credits_budgeted'), 0
+    )
+    counts['capture_receipts'] = []
+    can_request = type(remaining) is int and remaining >= 52
+    claimed = {}
+    for checkpoint, event_id in targets:
+        now = instant(clock())
+        missed = checkpoint.state == 'missed' or now >= checkpoint.deadline
+        if not missed and (now < checkpoint.target or not can_request):
+            counts['deferred'] += 1
+        elif not store.claim(checkpoint, now):
+            counts['duplicate'] += 1
+        elif missed:
+            store.finish(checkpoint, now, 'missed', [], 'Checkpoint elapsed; no historical quote invented')
+            counts['missed'] += 1
+        else:
+            claimed[event_id] = checkpoint
+
+    started = instant(clock())
+    for event_id, checkpoint in list(claimed.items()):
+        if started >= checkpoint.deadline:
+            store.finish(checkpoint, started, 'missed', [], 'Deadline elapsed before request')
+            counts['missed'] += 1
+            del claimed[event_id]
+
+    if not claimed:
+        return counts
+    counts['requests'] = 1
+    counts['credits_budgeted'] = 2
+    try:
+        quotes_by_event = fetch_quotes(tuple(claimed))
+    except Exception as error:
+        ended = instant(clock())
+        for checkpoint in claimed.values():
+            store.finish(checkpoint, ended, 'failed', [], safe_collection_error(error))
+            counts['failed'] += 1
+        return counts
+
+    ended = instant(clock())
+    for event_id, checkpoint in claimed.items():
+        try:
+            quotes = quotes_by_event.get(event_id, [])
+            if not isinstance(quotes, list) or any(quote['provider_event_id'] != event_id for quote in quotes):
+                raise ValueError('Provider response event changed')
+            status, valid, note = classify_checkpoint_response(checkpoint, quotes, ended)
+        except (AttributeError, KeyError, TypeError, ValueError) as error:
+            status, valid, note = 'failed', [], safe_collection_error(error)
+        store.finish(checkpoint, ended, status, valid, note)
+        counts[status] += 1
+        if status == 'captured':
+            counts['capture_receipts'].append(capture_receipt(checkpoint, ended, valid))
     return counts

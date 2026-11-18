@@ -2,10 +2,14 @@ import datetime as dt
 import pathlib
 import sys
 import unittest
+from unittest.mock import patch
+from dataclasses import replace
 sys.path.insert(0,str(pathlib.Path(__file__).parents[1]/'ops'))
-from checkpoints import plan,collect,instant,safe_collection_error
+from checkpoints import plan,collect,collect_t24_batch,instant,safe_collection_error
 from collect_checkpoints import (pair_quotes, provider_event_keys, opener_eligible,
-                                 seconds_until_imminent_target)
+                                 seconds_until_imminent_target, fetch_nfl_t24_quotes,
+                                 resolve_nfl_t24_batch, run_nfl_t24_batch,
+                                 validate_nfl_batch_config, parse_args)
 
 class MemoryStore:
     def __init__(self): self.rows={}
@@ -41,6 +45,44 @@ class CheckpointTests(unittest.TestCase):
                            reserve=50,cost_per_request=cost)
             self.assertEqual(len(calls),expected)
             self.assertEqual(result['requests'],expected)
+
+    def test_capture_receipts_include_only_committed_metadata(self):
+        checkpoint = next(c for c in plan([self.game], self.now) if c.state == 'due')
+        ended = self.now + dt.timedelta(seconds=5)
+        latest = self.now + dt.timedelta(seconds=2)
+        quotes = [
+            {'observed_at': latest.isoformat(), 'american_odds': 110},
+            {'observed_at': self.now.isoformat(), 'provider_event_id': 'private-reference'},
+            {'observed_at': (self.now-dt.timedelta(seconds=1)).isoformat()},
+        ]
+        expected = {
+            'game_id': 'g1', 'window': 'T-3',
+            'captured_at': ended.isoformat(), 'checkpoint_rows': 2,
+            'earliest_source_at': self.now.isoformat(),
+            'latest_source_at': latest.isoformat(),
+        }
+        clock = iter([self.now, self.now, ended])
+        store = MemoryStore()
+        result = collect([checkpoint], store, lambda _: quotes, lambda: next(clock), 100)
+        self.assertEqual(result['capture_receipts'], [expected])
+        replay = collect([checkpoint], store, lambda _: self.fail('duplicate fetch'),
+                         lambda: ended, 100)
+        self.assertEqual(replay['capture_receipts'], [])
+        empty = collect([checkpoint], MemoryStore(), lambda _: [], lambda: self.now, 100)
+        self.assertEqual(empty['capture_receipts'], [])
+
+    def test_batch_capture_receipt_uses_same_metadata_contract(self):
+        now = self.kickoff - dt.timedelta(hours=24)
+        checkpoint = next(c for c in plan([self.game], now) if c.name == 'T-24')
+        result = collect_t24_batch([(checkpoint, 'provider')], MemoryStore(),
+                                   lambda ids: {'provider': [{'provider_event_id': 'provider',
+                                                             'observed_at': now.isoformat()}]},
+                                   lambda: now, 52)
+        self.assertEqual(result['capture_receipts'], [{
+            'game_id': 'g1', 'window': 'T-24', 'captured_at': now.isoformat(),
+            'checkpoint_rows': 1, 'earliest_source_at': now.isoformat(),
+            'latest_source_at': now.isoformat(),
+        }])
 
     def test_deadlines_and_missed_checkpoints(self):
         checkpoints=plan([self.game],self.now)
@@ -512,3 +554,172 @@ class UnavailableDiagnosticsTests(unittest.TestCase):
         self.assertNotIn('SportsbookX',row['error'])
         self.assertNotIn('5000',row['error'].replace('stale_age_s_max=5000',''))
         self.assertNotIn('-110',row['error'])
+
+
+class BatchedT24Tests(unittest.TestCase):
+    def setUp(self):
+        kickoff = instant('2026-11-15T18:00:00Z')
+        self.now = kickoff - dt.timedelta(hours=23)
+        games = [{'game_id': i, 'kickoff': kickoff} for i in ('a', 'b', 'c')]
+        self.targets = [(c, c.game_id) for c in plan(games, self.now)]
+
+    def test_one_request_preserves_separate_checkpoint_decisions(self):
+        store = MemoryStore()
+        calls = []
+
+        def fetch(ids):
+            calls.append(ids)
+            return {'a': [{'provider_event_id': 'a', 'observed_at': self.now}],
+                    'b': [{'provider_event_id': 'c', 'observed_at': self.now}]}
+
+        result = collect_t24_batch(self.targets, store, fetch, lambda: self.now, 52)
+        self.assertEqual(calls, [('a', 'b', 'c')])
+        self.assertEqual([result[k] for k in ('requests', 'credits_budgeted', 'captured',
+                                              'unavailable', 'failed')], [1, 2, 1, 1, 1])
+        second = collect_t24_batch(self.targets, store, fetch, lambda: self.now, 52)
+        self.assertEqual(second['duplicate'], 3)
+        self.assertEqual(len(calls), 1)
+
+    def test_unknown_or_low_quota_makes_no_claims(self):
+        for remaining in (None, 51):
+            store = MemoryStore()
+            result = collect_t24_batch(self.targets, store, self.fail, lambda: self.now, remaining)
+            self.assertEqual(result['deferred'], 3)
+            self.assertFalse(store.rows)
+
+    def test_late_batch_preserves_deadlines(self):
+        store = MemoryStore()
+        clock_at = self.now
+
+        def fetch(ids):
+            nonlocal clock_at
+            clock_at = self.now + dt.timedelta(minutes=30)
+            return {i: [{'provider_event_id': i, 'observed_at': self.now}] for i in ids}
+
+        result = collect_t24_batch(self.targets, store, fetch, lambda: clock_at, 52)
+        self.assertEqual(result['missed'], 3)
+        self.assertEqual(result['captured'], 0)
+        self.assertTrue(all(not row['quotes'] for row in store.rows.values()))
+
+    def test_transport_failure_finishes_all_claims_without_retry(self):
+        store = MemoryStore()
+
+        def fetch(ids):
+            raise RuntimeError('Odds provider request failed')
+
+        result = collect_t24_batch(self.targets, store, fetch, lambda: self.now, 52)
+        self.assertEqual(result['requests'], 1)
+        self.assertEqual(result['failed'], 3)
+        self.assertTrue(all(row['status'] == 'failed' for row in store.rows.values()))
+
+
+class BatchProviderAdapterTests(unittest.TestCase):
+    def test_reports_filtered_response_through_existing_quote_pairing(self):
+        event = {'id': 'a', 'sport_key': 'americanfootball_nfl', 'home_team': 'Home',
+                 'away_team': 'Away', 'commence_time': '2026-11-15T18:00:00Z'}
+        market = {'key': 'totals', 'last_update': '2026-11-14T18:00:00Z',
+                  'outcomes': [{'name': side, 'price': -110, 'point': 40.5}
+                               for side in ('Over', 'Under')]}
+        payload = {**event, 'bookmakers': [{'key': 'fanduel', 'markets': [market]}]}
+        with patch('collect_checkpoints.fetch_odds',
+                   return_value=([payload], {'X-Requests-Last': '2', 'X-Requests-Remaining': '50'})) as request:
+            result = fetch_nfl_t24_quotes({'a': event}, ('a',), ['fanduel'])
+        request.assert_called_once_with(['spreads', 'totals'], bookmakers=['fanduel'], event_ids=('a',))
+        self.assertEqual(len(result['a']), 2)
+        self.assertTrue(all(q['source_url'].endswith('/americanfootball_nfl/odds') for q in result['a']))
+
+    def test_unverified_billing_never_returns_quotes(self):
+        event = {'id': 'a', 'sport_key': 'americanfootball_nfl', 'home_team': 'Home',
+                 'away_team': 'Away', 'commence_time': '2026-11-15T18:00:00Z'}
+        for headers in ({}, {'x-requests-last': '3', 'x-requests-remaining': '60'},
+                        {'x-requests-last': '2', 'x-requests-remaining': '49'}):
+            with self.subTest(headers=headers), patch('collect_checkpoints.fetch_odds', return_value=([event], headers)):
+                with self.assertRaisesRegex(RuntimeError, 'quota response'):
+                    fetch_nfl_t24_quotes({'a': event}, ('a',), ['fanduel'])
+
+class BatchTargetResolutionTests(unittest.TestCase):
+    def setUp(self):
+        self.now = instant('2026-11-14T18:05:00Z')
+        kickoff = instant('2026-11-15T18:00:00Z')
+        self.game = {'game_id': 'g', 'home_team': 'ARI', 'away_team': 'LA',
+                     'status': 'scheduled', 'kickoff': kickoff}
+        self.checkpoint, = plan([self.game], self.now)
+        self.event = {'id': 'exact', 'sport_key': 'americanfootball_nfl',
+                      'home_team': 'Arizona Cardinals', 'away_team': 'Los Angeles Rams',
+                      'commence_time': '2026-11-15T13:00:00-05:00'}
+
+    def resolve(self, events, checkpoints=None, games=None, now=None):
+        return resolve_nfl_t24_batch(
+            checkpoints if checkpoints is not None else [self.checkpoint],
+            games if games is not None else {'g': self.game}, events, now or self.now,
+        )
+
+    def test_exact_match_uses_canonical_teams_and_aware_time(self):
+        self.assertEqual(self.resolve([self.event, None, {}]),
+                         ([(self.checkpoint, 'exact')], {'exact': self.event}))
+
+    def test_rejects_ambiguous_event_or_duplicate_id(self):
+        for other in ({**self.event, 'id': 'alternative'},
+                      {**self.event, 'sport_key': 'basketball_nba'},
+                      self.event):
+            with self.subTest(other=other):
+                self.assertEqual(self.resolve([self.event, other]), ([], {}))
+
+    def test_rejects_swapped_teams_wrong_kickoff_and_filter_delimiter(self):
+        for change in ({'home_team': 'Los Angeles Rams', 'away_team': 'Arizona Cardinals'},
+                       {'commence_time': '2026-11-15T18:05:00Z'},
+                       {'commence_time': '2026-11-15T18:00:00'},
+                       {'id': 'bad,filter'}):
+            with self.subTest(change=change):
+                self.assertEqual(self.resolve([{**self.event, **change}]), ([], {}))
+
+    def test_excludes_deadline_and_duplicate_checkpoint_claims(self):
+        self.assertEqual(self.resolve([self.event], now=self.checkpoint.deadline), ([], {}))
+        self.assertEqual(self.resolve([self.event], [self.checkpoint, self.checkpoint]), ([], {}))
+        alternate = replace(self.checkpoint, key='other', game_id='alias')
+        self.assertEqual(self.resolve([self.event], [self.checkpoint, alternate],
+                                      {'g': self.game, 'alias': self.game}), ([], {}))
+
+
+    def test_excludes_checkpoint_for_superseded_local_kickoff(self):
+        changed = {**self.game, 'kickoff': self.checkpoint.kickoff + dt.timedelta(minutes=5)}
+        self.assertEqual(self.resolve([self.event], games={'g': changed}), ([], {}))
+
+    def test_trial_calls_adapter_once_and_reports_billing(self):
+        store = MemoryStore()
+        market = {'key': 'totals', 'last_update': self.now.isoformat(),
+                  'outcomes': [{'name': side, 'price': -110, 'point': 40.5}
+                               for side in ('Over', 'Under')]}
+        response = {**self.event, 'bookmakers': [{'key': 'fanduel', 'markets': [market]}]}
+        with patch('collect_checkpoints.fetch_odds', return_value=(
+            [response], {'x-requests-last': '2', 'x-requests-remaining': '50'},
+        )) as request:
+            counts = run_nfl_t24_batch([self.checkpoint], {'g': self.game}, [self.event],
+                                       ['fanduel'], store, lambda: self.now, 52)
+        request.assert_called_once_with(['spreads', 'totals'], bookmakers=['fanduel'],
+                                        event_ids=('exact',))
+        self.assertEqual((counts['captured'], counts['requests']), (1, 1))
+        self.assertEqual(counts['odds_response_quota'], {'remaining': 50, 'last': 2})
+
+    def test_unmatched_trial_leaves_checkpoint_unclaimed_and_makes_no_request(self):
+        store = MemoryStore()
+        with patch('collect_checkpoints.fetch_odds') as request:
+            counts = run_nfl_t24_batch([self.checkpoint], {'g': self.game}, [],
+                                       ['fanduel'], store, lambda: self.now, 52)
+        request.assert_not_called()
+        self.assertFalse(store.rows)
+        self.assertEqual((counts['due_t24'], counts['unmatched_t24']), (1, 1))
+        self.assertEqual(counts['requests'], 0)
+
+    def test_trial_rejects_other_regions_and_ineligible_books(self):
+        validate_nfl_batch_config(['fanduel'], 'us')
+        for books, regions in ((['fanduel'], 'us,eu'), (['betrivers'], 'us'),
+                               (['fanduel', 'fanduel'], 'us'), ([], 'us')):
+            with self.subTest(books=books, regions=regions), self.assertRaises(ValueError):
+                validate_nfl_batch_config(books, regions)
+
+    def test_trial_is_disabled_by_default_and_rejects_college(self):
+        self.assertFalse(parse_args([]).nfl_t24_batch)
+        self.assertTrue(parse_args(['--nfl-t24-batch']).nfl_t24_batch)
+        with patch('sys.stderr'), self.assertRaises(SystemExit):
+            parse_args(['--sport', 'ncaaf', '--nfl-t24-batch'])

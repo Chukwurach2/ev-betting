@@ -6,16 +6,17 @@ import os
 import pathlib
 import sys
 import time
+from collections import Counter
 from dataclasses import asdict
 from urllib.parse import urlsplit
 sys.path.insert(0,str(pathlib.Path(__file__).parents[1]/'model'))
 sys.path.insert(0,str(pathlib.Path(__file__).parents[1]))  # research.devig, ops.sports
-from checkpoints import WINDOWS,plan,collect,instant
+from checkpoints import WINDOWS,plan,collect,collect_t24_batch,instant
 from research.devig import devig_multiplicative  # tournament-selected de-vig
 from ops.sports import get as sport_config, checkpoints_table, odds_quotes_table
 from postgres_checkpoints import PostgresCheckpointStore
-from provider_oddsapi import (fetch_events,fetch_event_odds,normalize,quota,
-                               NY_BOOK_KEYS)
+from provider_oddsapi import (BASE, SPORT, NY_BOOK_KEYS, fetch_events, fetch_event_odds,
+                              fetch_odds, match_nfl_slate_odds, normalize, quota)
 
 # Quote universe for the price-discovery engine. Widening the book list is
 # quota-NEUTRAL on The Odds API: cost is markets x regions (<=10 bookmakers
@@ -100,6 +101,46 @@ def find_provider_event(game,events,kickoff,sport):
     return [e for e in events
             if e.get('home_team')==want[0] and e.get('away_team')==want[1]
             and instant(e['commence_time'])==kickoff]
+
+def resolve_nfl_t24_batch(checkpoints, games_by_id, events, now):
+    """Return due checkpoint/ID pairs and their exact pregame identities."""
+    now = instant(now)
+    identified = []
+    for event in events:
+        if not isinstance(event, dict):
+            continue
+        try:
+            commence = instant(event['commence_time'])
+        except (KeyError, TypeError, ValueError):
+            continue
+        if event.get('sport_key') == SPORT and commence > now:
+            identified.append(event)
+    unique_events = match_nfl_slate_odds(events, events)
+
+    candidates = []
+    for checkpoint in checkpoints:
+        if (checkpoint.name != 'T-24' or checkpoint.state != 'due'
+                or not checkpoint.target <= now < checkpoint.deadline):
+            continue
+        game = games_by_id.get(checkpoint.game_id)
+        if (game is None or game.get('status') != 'scheduled'
+                or instant(game['kickoff']) != checkpoint.kickoff):
+            continue
+        matches = find_provider_event(game, identified, checkpoint.kickoff, 'nfl')
+        if len(matches) != 1:
+            continue
+        event_id = matches[0].get('id')
+        if (not isinstance(event_id, str) or event_id not in unique_events
+                or ',' in event_id or any(c.isspace() for c in event_id)):
+            continue
+        candidates.append((checkpoint, event_id))
+
+    key_counts = Counter(checkpoint.key for checkpoint, _ in candidates)
+    id_counts = Counter(event_id for _, event_id in candidates)
+    targets = [(checkpoint, event_id) for checkpoint, event_id in candidates
+               if key_counts[checkpoint.key] == id_counts[event_id] == 1]
+    return targets, {event_id: unique_events[event_id] for _, event_id in targets}
+
 
 def provider_event_keys(events):
     """Signatures of provider events, for the opener gate (pure)."""
@@ -245,6 +286,55 @@ def pair_quotes(payload,allowed_books=None,sport='nfl'):
                 'ny_licensed':q.sportsbook_key in NY_BOOK_KEYS})
     return result
 
+def validate_nfl_batch_config(books, regions):
+    if regions != 'us' or not 1 <= len(books) <= 10 or len(set(books)) != len(books) or any(
+        book not in NY_BOOK_KEYS or book == 'betrivers' for book in books
+    ):
+        raise ValueError('Expected one US region and a unique eligible NFL batch bookmaker group')
+
+
+def fetch_nfl_t24_quotes(expected_by_id, event_ids, books, quota_receipt=None):
+    """Fetch one filtered slate and validate cost before returning any quotes."""
+    expected = [expected_by_id[event_id] for event_id in event_ids]
+    validate_nfl_batch_config(books, 'us')
+    payload, headers = fetch_odds(
+        ['spreads', 'totals'], bookmakers=books, event_ids=event_ids,
+    )
+    charged = quota({key.lower(): value for key, value in headers.items()})
+    if quota_receipt is not None:
+        quota_receipt.update(remaining=charged['remaining'], last=charged['last'])
+    matched = match_nfl_slate_odds(expected, payload)
+    if (charged['remaining'] is None or charged['remaining'] < 50
+            or charged['last'] not in ((1, 2) if payload else (0, 1, 2))):
+        raise RuntimeError('NFL batch quota response outside bounds')
+
+    return {
+        event_id: [
+            {**row, 'source_url': f'{BASE}/sports/{SPORT}/odds'}
+            for row in pair_quotes(event, allowed_books=books)
+            if row['market'] in ('FULL_GAME_SPREAD', 'FULL_GAME_TOTAL')
+        ]
+        for event_id, event in matched.items()
+    }
+
+
+def run_nfl_t24_batch(checkpoints, games_by_id, events, books, store, clock, remaining):
+    """Run one explicit T−24 trial and return aggregate operational evidence."""
+    now = clock()
+    targets, expected = resolve_nfl_t24_batch(checkpoints, games_by_id, events, now)
+    due = sum(c.name == 'T-24' and c.state == 'due' and c.target <= now < c.deadline
+              for c in checkpoints)
+    receipt = {}
+    counts = collect_t24_batch(
+        targets, store,
+        lambda ids: fetch_nfl_t24_quotes(expected, ids, books, quota_receipt=receipt),
+        clock, remaining,
+    )
+    return {**counts, 'collector_mode': 'nfl_t24_batch',
+            'due_t24': due, 'unmatched_t24': due - len(targets),
+            'preflight_remaining': remaining, 'odds_response_quota': receipt or None}
+
+
 def materialize_quotes(connection,sport='nfl'):
     """Fan captured checkpoint quotes out into the sport's odds-quotes table.
 
@@ -309,15 +399,23 @@ def parse_args(argv=None):
     ap.add_argument('--sport',default='nfl',choices=('nfl','ncaaf'),
                     help="sport key from the ops.sports registry "
                          "(default 'nfl': existing behavior unchanged)")
-    return ap.parse_args(argv)
+    ap.add_argument('--nfl-t24-batch', action='store_true',
+                    help='explicit one-request NFL T-24 collection trial')
+    args = ap.parse_args(argv)
+    if args.nfl_t24_batch and args.sport != 'nfl':
+        ap.error('--nfl-t24-batch requires --sport nfl')
+    return args
 
 def main(argv=None):
     import psycopg
     from psycopg.rows import dict_row
-    sport=parse_args(argv).sport
+    args = parse_args(argv)
+    sport = args.sport
     # Validates against the registry; raises ValueError on unknown sport.
     sport_config(sport)
     books,regions,n_regions=collector_env(sport)
+    if args.nfl_t24_batch:
+        validate_nfl_batch_config(books, regions)
     database=os.environ.get('NFL_EDGE_DATABASE_URL')
     if not database or not os.environ.get('THE_ODDS_API_KEY'):
         raise ValueError('NFL_EDGE_DATABASE_URL and THE_ODDS_API_KEY are required')
@@ -394,11 +492,16 @@ def main(argv=None):
             # check_event_identity) while rejecting a swapped event id.
             check_event_identity(payload,event_id,checkpoint.kickoff)
             return pair_quotes(payload,allowed_books=books,sport=sport)
-        _summary = collect(checkpoints,store,fetch,clock,
-                         remaining=quota(headers)['remaining'],
-                         max_requests=1 if sport=='nfl' else 8,
-                         reserve=50 if sport=='nfl' else 10,
-                         cost_per_request=2*n_regions)
+        remaining = quota(headers)['remaining']
+        if args.nfl_t24_batch:
+            _summary = run_nfl_t24_batch(checkpoints, by_id, events, books,
+                                         store, clock, remaining)
+        else:
+            _summary = collect(checkpoints,store,fetch,clock,
+                             remaining=remaining,
+                             max_requests=1 if sport=='nfl' else 8,
+                             reserve=50 if sport=='nfl' else 10,
+                             cost_per_request=2*n_regions)
         try:
             # Fan captured checkpoints out to the normalized quotes table the
             # picks engine and settlement read. Backfills old checkpoints too.
@@ -406,11 +509,13 @@ def main(argv=None):
         except Exception as e:  # noqa: BLE001 - best effort; next run retries
             _summary['materialize'] = {'failed': str(e)[:120]}
         print(json.dumps({'status':'shadow_collection_only','sport':sport,**_summary}))
+        if args.nfl_t24_batch and _summary['requests']:
+            remaining = (_summary['odds_response_quota'] or {}).get('remaining')
         try:
             # Best-effort pipeline heartbeat; must never break collection.
             from heartbeat import record_heartbeat
             record_heartbeat(connection, HEARTBEAT_COMPONENTS[sport], {
-                'credits_remaining': quota(headers).get('remaining'),
+                'credits_remaining': remaining,
                 'checkpoints': {k: _summary.get(k) for k in
                                 ('captured', 'missed', 'unavailable', 'duplicate',
                                  'deferred', 'failed', 'requests',

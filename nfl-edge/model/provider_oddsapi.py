@@ -1,5 +1,6 @@
 from __future__ import annotations
 import os, math, datetime as dt
+from collections import Counter
 from dataclasses import dataclass
 
 BASE='https://api.the-odds-api.com/v4'
@@ -90,12 +91,51 @@ def fetch_event_odds(event_id, markets, api_key=None, timeout=20,
     return _get(url, params, timeout)
 
 def fetch_odds(markets, api_key=None, timeout=20, bookmakers=None,
-               regions='us', sport='nfl'):
+               regions='us', sport='nfl', *, event_ids=None):
+    """Fetch sport odds, optionally restricted to explicit provider event IDs."""
+    if event_ids is not None:
+        if (not isinstance(event_ids, (list, tuple)) or not event_ids
+                or any(not isinstance(event_id, str) or not event_id
+                       or ',' in event_id or any(c.isspace() for c in event_id)
+                       for event_id in event_ids)
+                or len(set(event_ids)) != len(event_ids)):
+            raise ValueError('Expected a nonempty list of unique provider event IDs')
     url=f'{BASE}/sports/{_api_sport(sport)}/odds'
     params={'apiKey':_key(api_key),'dateFormat':'iso','oddsFormat':'american','markets':','.join(markets)}
     if bookmakers: params['bookmakers']=','.join(bookmakers)
     params['regions']=regions
+    if event_ids is not None:
+        params['eventIds'] = ','.join(event_ids)
     return _get(url, params, timeout)
+
+def _nfl_event_identity(event):
+    home, away = event.get('home_team'), event.get('away_team')
+    kickoff = _iso(event.get('commence_time'))
+    if (event.get('sport_key') != SPORT or not kickoff or home == away
+            or not all(isinstance(team, str) and team.strip() for team in (home, away))):
+        return None
+    return home, away, kickoff
+
+
+def match_nfl_slate_odds(expected_events, response):
+    """Return only unique response payloads matching reviewed pregame events."""
+    if not isinstance(response, list):
+        raise ValueError('Expected a sport odds response list')
+
+    def keyed(events):
+        return [(event['id'], event) for event in events if isinstance(event, dict)
+                and isinstance(event.get('id'), str) and event['id']]
+
+    expected = keyed(expected_events)
+    received = keyed(response)
+    expected_counts = Counter(event_id for event_id, _ in expected)
+    received_counts = Counter(event_id for event_id, _ in received)
+    identities = {event_id: _nfl_event_identity(event) for event_id, event in expected
+                  if expected_counts[event_id] == 1}
+    return {event_id: event for event_id, event in received
+            if received_counts[event_id] == 1 and identities.get(event_id) is not None
+            and identities[event_id] == _nfl_event_identity(event)}
+
 
 def fetch_scores(days_from=3, api_key=None, timeout=20, sport='nfl'):
     url=f'{BASE}/sports/{_api_sport(sport)}/scores'
