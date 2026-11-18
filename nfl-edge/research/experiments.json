@@ -220,6 +220,18 @@
       "report": null,
       "reason": "Publisher README confirms no-vig, proportional-margin removal/brand-median and overtime-inclusive total grading. Inspected documentation does not explicitly define the overtime flag's CSV encoding. Platform-inferred boolean dtype does not satisfy frozen publisher-encoding gate. No group evaluation; retain protocol unchanged.",
       "source_audit": "docs/nba-prior-overtime-source-semantics.md"
+    },
+    {
+      "id": "nhl-immediate-rematch-prior-loser-calibration-v1",
+      "market_family": "nhl_full_game_moneyline_immediate_rematch_prior_result",
+      "status": "registered_pending_implementation",
+      "registered_at": "2026-11-10T18:52:23Z",
+      "role": "descriptive_development_only",
+      "hypothesis": "A home team that lost its immediately preceding game to today's opponent may have a positive home-win-minus-closing-probability residual in an immediate rematch, relative to otherwise comparable prior-loss home teams, if the market overweights a single noisy result.",
+      "protocol": "research/protocols/nhl-immediate-rematch-prior-loser-calibration-v1.json",
+      "prior_exposure": "Whole2025-26NHLseason inspected in homecoming development study;no untouched-holdout or independent-compiler claim. Header/hash rechecked Nov10;no immediate-rematch group counts/outcomes/contrasts inspected before registration.",
+      "next": "Implement/test on synthetic fixtures and verify source-target semantics before one fixed evaluation. Preserve disappointing/underpowered result.",
+      "report": null
     }
   ]
 }
