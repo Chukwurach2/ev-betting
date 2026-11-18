@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {validateLean,leanState,visibleLeans} from '../lib/private-leans.mjs';
+import {validateLean,validateLeanBatch,leanState,visibleLeans} from '../lib/private-leans.mjs';
 const now=Date.parse('2026-10-20T14:00:00Z');
 const fixture=()=>({id:'synthetic',game_id:'synthetic-nba',sport:'nba',away_team:'A',home_team:'B',kickoff:'2026-10-20T19:00:00Z',selection:'Over',market:'FULL_GAME_TOTAL',line:210.5,book_key:'draftkings',american_odds:-110,minimum_odds:-105,fair_probability:.53,fair_value_type:'provider_derived',observed_at:'2026-10-20T13:59:00Z',reference_at:'2026-10-20T13:58:00Z',expires_at:'2026-10-20T14:13:00Z',rights:'private_original_analysis',review_status:'conditional',source:'Synthetic fixture',method:'Synthetic estimate',rationale:'Test only',conditions:'Availability unknown',correlation:'Same game',fee_assumptions:'Zero direct fee; tax excluded',rules:'Full game including OT'});
 test('conditional remains conditional without independent checks',()=>{assert.equal(leanState(fixture(),now),'conditional');assert.equal(leanState({...fixture(),review_status:'observed'},now),'conditional');});
@@ -90,4 +90,25 @@ test('invalid calendar dates cannot be normalized into valid source times',()=>{
  for(const field of ['kickoff','observed_at','reference_at','expires_at']){
   assert.throws(()=>validateLean({...leap,[field]:leap[field].replace('02-29','02-30')}),/timestamp/);
  }
+});
+
+test('one batch cannot publish two versions of the same selection',()=>{
+ const prior=fixture();
+ const withdrawal={...prior,id:'withdrawn',book_key:'fanduel',
+  line:String(prior.line),review_status:'invalidated'};
+ for(const rows of [[prior,withdrawal],[withdrawal,prior]]){
+  assert.throws(()=>validateLeanBatch(rows),/separate batches/);
+ }
+ assert.doesNotThrow(()=>validateLeanBatch([prior,prior]));
+ assert.doesNotThrow(()=>validateLeanBatch([prior,{...withdrawal,line:211.5}]));
+});
+
+test('selection identity cannot collide at a field delimiter',()=>{
+ const first={...fixture(),market:'PLAYER|POINTS',selection:'Over'};
+ const second={...fixture(),id:'other',market:'PLAYER',selection:'POINTS|Over'};
+ assert.doesNotThrow(()=>validateLeanBatch([first,second]));
+ const visible=visibleLeans([first,second].map(payload=>({payload})),{
+  sport:'nba',books:['draftkings'],now,
+ });
+ assert.equal(visible.length,2);
 });

@@ -65,3 +65,12 @@ are rejected. The publisher and phone therefore apply the same clock rules.
 Calendar dates and clock times must be valid as written. The validator rejects
 values that JavaScript would carry into another day or month, such as
 November 31 or hour 24. Valid leap days and explicit offsets are accepted.
+
+Publisher batches use one transaction. The schema's transaction timestamp
+can tie the publication times of two revisions in that batch, making
+newest-first withdrawal order ambiguous. The publisher rejects different
+observation IDs for the same sport, event, market, selection and line
+within one batch, before it connects to the database. Send the revisions
+in separate batches. Same-ID retries still require the existing exact
+owner and payload check. Selection identity uses structured fields for
+validation and display, including when a field contains a separator.

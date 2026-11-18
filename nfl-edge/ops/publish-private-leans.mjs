@@ -1,12 +1,11 @@
 // Run only against the user's private database with a privileged backend role.
 import {readFile} from 'node:fs/promises';
-import {validateLean} from '../lib/private-leans.mjs';
+import {validateLeanBatch} from '../lib/private-leans.mjs';
 import {insertPrivateLean} from './private-lean-insert.mjs';
 const file=process.argv[2],owner=process.env.RESEARCH_OWNER_ID;
 if(!file||!owner||!process.env.NFL_EDGE_DATABASE_URL)throw Error('Private file, owner ID and backend database configuration required');
 const payloads=JSON.parse(await readFile(file,'utf8'));
-if(!Array.isArray(payloads)||payloads.length>100)throw Error('Expected at most 100 original research entries');
-for(const p of payloads)validateLean(p);
+validateLeanBatch(payloads);
 const {default:pg}=await import('pg');
 const db=new pg.Client({connectionString:process.env.NFL_EDGE_DATABASE_URL});
 try{

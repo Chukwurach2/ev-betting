@@ -24,6 +24,23 @@ export function validateLean(p){
  if(!['conditional','observed','invalidated'].includes(p.review_status))throw Error('Invalid review status');
  return p;
 }
+function leanSelectionKey(p){
+ return JSON.stringify([p.sport,p.game_id,p.market,p.selection,String(p.line??'')]);
+}
+
+export function validateLeanBatch(payloads){
+ if(!Array.isArray(payloads)||payloads.length>100)throw Error('Expected at most 100 original research entries');
+ const versions=new Map();
+ for(const p of payloads){
+  validateLean(p);
+  const key=leanSelectionKey(p);
+  if(versions.has(key)&&versions.get(key)!==p.id){
+   throw Error('Publish revisions of one selection in separate batches');
+  }
+  versions.set(key,p.id);
+ }
+}
+
 export function leanState(p,now=Date.now()){
  try{validateLean(p);}catch{return 'unavailable';}
  if(p.review_status==='invalidated')return 'invalidated';
@@ -36,6 +53,6 @@ export function visibleLeans(rows,{sport,books,now=Date.now()}){
  const seen=new Set();
  return rows.map(r=>r.payload).filter(p=>{
   const state=leanState(p,now);if(state==='unavailable'||p.sport!==sport)return false;
-  const key=[p.sport,p.game_id,p.market,p.selection,p.line??''].join('|');if(seen.has(key))return false;seen.add(key);return books.includes(p.book_key);
+  const key=leanSelectionKey(p);if(seen.has(key))return false;seen.add(key);return books.includes(p.book_key);
  }).map(p=>({...p,state:leanState(p,now)}));
 }
