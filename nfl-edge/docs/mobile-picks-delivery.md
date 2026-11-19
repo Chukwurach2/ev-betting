@@ -73,7 +73,8 @@ nba_edge_odds_quotes storage, never the NFL table or NFL model. Missing prices
 produce explicit pending cards. NBA begins with full-game half-point spreads
 and totals; player props and integer-line pushes remain unsupported.
 
-Apply migrations/020_nba_phone_quotes.sql before the NBA route is released.
+The NBA route and separate quote storage are already deployed (PR27).
+For a new environment, apply migrations/020_nba_phone_quotes.sql before enabling it.
 ops/collect-nba.mjs --confirm-quota-use performs one bounded provider odds
 request (normally two existing provider credits for spreads/totals) and stores
 only fresh paired quotes. It needs existing server-side THE_ODDS_API_KEY and
@@ -108,8 +109,11 @@ zero paid work. The hourly trigger and15-minute phone lifetime therefore leave
 coverage gaps by design. Do not delete checkpoints, widen quote age or relabel
 an old capture to manufacture a current card. A separate authorized bounded
 phone snapshot would need an explicit quota preflight, exact event mapping,
-source timestamps and private paper capture. The NFL free-plan guard in PR39
-is still unmerged and does not itself supply that delivery path.
+source timestamps and private paper capture. At this October 22 receipt the NFL free-plan guard in PR39 was unmerged.
+That status is historical: PR39 merged on November 2 as
+[3cf60a2](https://github.com/Chukwurach2/ev-betting/commit/3cf60a23081b2bd07a8de6fb52877f8e8e89103b).
+Its deployed quota guard does not itself provide continuous phone freshness
+or a shared NFL/NBA monthly allocator.
 
 Independent public phone reads this iteration returned15 NFL games/0 entries and
 14 NBA games/0 entries after earlier snapshot expiry.29 coverage records were
@@ -118,3 +122,26 @@ NFL and two NBA events were checked against official schedules. No ready or
 positive-edge shortlist is established. EVSharps Recommendations still displays
 the previously documented sign-in gate; owner-signed-in phone visibility also
 remains separate. Public methodology only is recorded here.
+
+## Next-slate coverage receipt — November 19, 03:02 UTC
+
+The dated [NBA schedule](https://www.nba.com/games?date=2026-11-19)
+listed four Thursday games, all within 24 hours at this review. The
+03:02:18.019 UTC public response contained one of those matchups, with
+a ten-minute provider-time shift; three were absent. The unchanged
+offline schedule audit reproduced one shifted, three missing and zero
+ambiguous matches. Schedule matching does not authorize quote association.
+
+The 03:02:17.330 UTC NFL response included the next Colts–Texans game
+inside 24 hours, consistent with the
+[official team schedule](https://www.nfl.com/schedules/2026/by-team/houston-texans).
+Both responses contained zero fresh research entries. Exact offered prices,
+lines and independent paired references are unavailable in these responses;
+no supported card can be formed or repriced from them. Full-game half-point
+spreads and totals remain the markets to review when fresh paired quotes
+appear. Neither no-edge nor four supported alternatives is established.
+
+The saved responses, reviewed schedule and replay report were retained
+privately. Recommendations again rendered a membership sign-in gate in
+the in-app browser. No manual provider odds request was dispatched.
+These are timestamped coverage observations, not continuous monitoring.
