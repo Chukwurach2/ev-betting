@@ -44,7 +44,7 @@ Newest-first supersession happens before applying sportsbook preferences. Hiding
 a newer observation at an unselected book must never resurrect an older quote.
 Regression cases cover withdrawals and newer expired observations across books.
 
-The phone requires literal boolean true for both offer and availability
+The phone requires literal boolean true for offer, availability and exact-rule
 verification before a reviewed entry can display as observed. Other values
 leave it conditional. Offer venue lookup accepts only the defined book keys.
 
@@ -74,3 +74,12 @@ within one batch, before it connects to the database. Send the revisions
 in separate batches. Same-ID retries still require the existing exact
 owner and payload check. Selection identity uses structured fields for
 validation and display, including when a field contains a separator.
+
+Rule verification is a separate required attestation for observed status. Set
+`rules_verified: true` only after reviewing the exact offered operator and
+contract's period, overtime, push, void and eligibility conditions, and
+retain that evidence privately. A populated `rules` description alone does
+not establish that review. Missing, false or non-boolean values leave an
+otherwise reviewed observation conditional, including older payloads. This
+flag does not independently verify source permissions or book rules. Expired
+and invalidated observations retain their existing history states.

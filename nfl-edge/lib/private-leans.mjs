@@ -46,7 +46,7 @@ export function leanState(p,now=Date.now()){
  if(p.review_status==='invalidated')return 'invalidated';
  if(Date.parse(p.observed_at)>now||Date.parse(p.reference_at)>now)return 'unavailable';
  if(Date.parse(p.expires_at)<=now||Date.parse(p.kickoff)<=now)return 'expired';
- if(p.reference_at===null||p.review_status==='conditional'||p.offer_verified!==true||p.availability_checked!==true)return 'conditional';
+ if(p.reference_at===null||p.review_status==='conditional'||p.offer_verified!==true||p.availability_checked!==true||p.rules_verified!==true)return 'conditional';
  return 'observed';
 }
 export function visibleLeans(rows,{sport,books,now=Date.now()}){

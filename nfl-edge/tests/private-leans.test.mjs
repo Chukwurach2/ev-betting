@@ -26,11 +26,11 @@ test('newer expired research cannot expose an older still-fresh quote',()=>{
  assert.deepEqual(visibleLeans([latest,prior].map(payload=>({payload})),{sport:'nba',books:['draftkings'],now}),[]);
 });
 
-test('observed state requires explicit boolean verification of offer and availability',()=>{
- const verified={...fixture(),review_status:'observed',offer_verified:true,availability_checked:true};
+test('observed state requires explicit boolean verification of offer, availability and rules',()=>{
+ const verified={...fixture(),review_status:'observed',offer_verified:true,availability_checked:true,rules_verified:true};
  assert.equal(leanState(verified,now),'observed');
- for(const field of ['offer_verified','availability_checked']){
-  for(const value of ['false',1,{},null]){
+ for(const field of ['offer_verified','availability_checked','rules_verified']){
+  for(const value of [undefined,false,'true','false',1,{},null]){
    assert.equal(leanState({...verified,[field]:value},now),'conditional');
   }
  }
@@ -111,4 +111,12 @@ test('selection identity cannot collide at a field delimiter',()=>{
   sport:'nba',books:['draftkings'],now,
  });
  assert.equal(visible.length,2);
+});
+
+test('missing rule attestation keeps older reviewed payloads conditional',()=>{
+ const legacy={...fixture(),review_status:'observed',offer_verified:true,availability_checked:true};
+ assert.equal(leanState(legacy,now),'conditional');
+ assert.equal(leanState({...legacy,rules_verified:true},now),'observed');
+ assert.equal(leanState({...legacy,review_status:'invalidated'},now),'invalidated');
+ assert.equal(leanState({...legacy,expires_at:'2026-10-20T13:59:30Z'},now),'expired');
 });
