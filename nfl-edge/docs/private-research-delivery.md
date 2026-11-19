@@ -83,3 +83,12 @@ not establish that review. Missing, false or non-boolean values leave an
 otherwise reviewed observation conditional, including older payloads. This
 flag does not independently verify source permissions or book rules. Expired
 and invalidated observations retain their existing history states.
+
+Full-game spread and total observations require an explicit finite contract
+line. Missing/null/empty, nonnumeric and nonfinite values are unavailable
+and rejected before publication, even with all review flags set. Numeric
+lines and ordinary decimal strings are accepted; equivalent decimal
+spellings share one selection identity for batching and supersession. A
+zero spread remains a specified line, distinct from a missing line. This
+check identifies the contract; it does not verify settlement rules or
+expand supported market families.

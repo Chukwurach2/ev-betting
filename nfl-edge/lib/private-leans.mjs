@@ -12,6 +12,10 @@ function sourceTime(value){
 export function validateLean(p){
  if(!p||!['nfl','nba'].includes(p.sport)||!Object.hasOwn(LEAN_BOOKS,p.book_key))throw Error('Unsupported sport or offer venue');
  for(const k of ['id','game_id','away_team','home_team','selection','market','rules','source','method','rationale','conditions','correlation','fee_assumptions'])if(!text(p[k]))throw Error('Missing '+k);
+ if(['FULL_GAME_SPREAD','FULL_GAME_TOTAL'].includes(p.market)){
+  const line=p.line;
+  if(!((typeof line==='number'||typeof line==='string'&&/^-?\d+(?:\.\d+)?$/.test(line))&&Number.isFinite(Number(line))))throw Error('Missing or invalid contract line');
+ }
  if(p.rights!=='private_original_analysis')throw Error('Private original analysis required');
  for(const k of ['kickoff','observed_at','expires_at'])if(!sourceTime(p[k]))throw Error('Missing timestamp '+k);
  if(p.reference_at!==null&&!sourceTime(p.reference_at))throw Error('Invalid reference timestamp');
@@ -25,7 +29,8 @@ export function validateLean(p){
  return p;
 }
 function leanSelectionKey(p){
- return JSON.stringify([p.sport,p.game_id,p.market,p.selection,String(p.line??'')]);
+ const line=['FULL_GAME_SPREAD','FULL_GAME_TOTAL'].includes(p.market)?String(Number(p.line)):String(p.line??'');
+ return JSON.stringify([p.sport,p.game_id,p.market,p.selection,line]);
 }
 
 export function validateLeanBatch(payloads){

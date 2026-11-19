@@ -120,3 +120,20 @@ test('missing rule attestation keeps older reviewed payloads conditional',()=>{
  assert.equal(leanState({...legacy,review_status:'invalidated'},now),'invalidated');
  assert.equal(leanState({...legacy,expires_at:'2026-10-20T13:59:30Z'},now),'expired');
 });
+
+test('spread and total cards require a finite explicit line',()=>{
+ for(const market of ['FULL_GAME_SPREAD','FULL_GAME_TOTAL']){
+  for(const line of [undefined,null,'',' ',true,{},[],NaN,Infinity,'Infinity','0x10']){
+   const p={...fixture(),market,line,review_status:'observed',offer_verified:true,availability_checked:true,rules_verified:true};
+   assert.throws(()=>validateLean(p),/contract line/);
+   assert.equal(leanState(p,now),'unavailable');
+  }
+  for(const line of [0,-3.5,210.5,'0','-3.50','210.50'])assert.doesNotThrow(()=>validateLean({...fixture(),market,line}));
+ }
+});
+test('equivalent decimal spellings cannot publish competing versions',()=>{
+ const p=fixture(), revised={...p,id:'revised',line:'210.50'};
+ assert.throws(()=>validateLeanBatch([p,revised]),/separate batches/);
+ const visible=visibleLeans([revised,p].map(payload=>({payload})),{sport:'nba',books:['draftkings'],now});
+ assert.equal(visible.length,1);assert.equal(visible[0].id,'revised');
+});
