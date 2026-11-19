@@ -92,3 +92,13 @@ spellings share one selection identity for batching and supersession. A
 zero spread remains a specified line, distinct from a missing line. This
 check identifies the contract; it does not verify settlement rules or
 expand supported market families.
+
+An observed card also needs `market_status: open`, an explicit publisher
+attestation about the offered contract at its preserved observation time.
+Missing status on legacy entries or `unknown` keeps the card conditional;
+a fresh timestamp alone does not establish an open market. Literal
+`suspended` and `closed` revisions withdraw that selection using the existing
+invalidated history state. Supersession occurs before book preferences,
+so a stopped revision at another book cannot expose the prior offer. If
+the contract reopens, review its actual offer and append a new ID and
+version. No market-status polling or inferred reopening is introduced.

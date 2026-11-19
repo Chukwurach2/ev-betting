@@ -16,6 +16,7 @@ export function validateLean(p){
   const line=p.line;
   if(!((typeof line==='number'||typeof line==='string'&&/^-?\d+(?:\.\d+)?$/.test(line))&&Number.isFinite(Number(line))))throw Error('Missing or invalid contract line');
  }
+ if(p.market_status!==undefined&&!['open','unknown','suspended','closed'].includes(p.market_status))throw Error('Invalid market status');
  if(p.rights!=='private_original_analysis')throw Error('Private original analysis required');
  for(const k of ['kickoff','observed_at','expires_at'])if(!sourceTime(p[k]))throw Error('Missing timestamp '+k);
  if(p.reference_at!==null&&!sourceTime(p.reference_at))throw Error('Invalid reference timestamp');
@@ -48,10 +49,10 @@ export function validateLeanBatch(payloads){
 
 export function leanState(p,now=Date.now()){
  try{validateLean(p);}catch{return 'unavailable';}
- if(p.review_status==='invalidated')return 'invalidated';
+ if(p.review_status==='invalidated'||['suspended','closed'].includes(p.market_status))return 'invalidated';
  if(Date.parse(p.observed_at)>now||Date.parse(p.reference_at)>now)return 'unavailable';
  if(Date.parse(p.expires_at)<=now||Date.parse(p.kickoff)<=now)return 'expired';
- if(p.reference_at===null||p.review_status==='conditional'||p.offer_verified!==true||p.availability_checked!==true||p.rules_verified!==true)return 'conditional';
+ if(p.market_status!=='open'||p.reference_at===null||p.review_status==='conditional'||p.offer_verified!==true||p.availability_checked!==true||p.rules_verified!==true)return 'conditional';
  return 'observed';
 }
 export function visibleLeans(rows,{sport,books,now=Date.now()}){
