@@ -145,3 +145,19 @@ The saved responses, reviewed schedule and replay report were retained
 privately. Recommendations again rendered a membership sign-in gate in
 the in-app browser. No manual provider odds request was dispatched.
 These are timestamped coverage observations, not continuous monitoring.
+
+## Latest scheduled NFL checkpoint: stored but expired at review
+
+[Scheduled run 44439689201](https://github.com/Chukwurach2/ev-betting/actions/runs/44439689201),
+job 135277139465, reported one captured checkpoint, zero failures, one
+request and two budgeted credits at 01:49 UTC on November 19. An independent
+read found the Colts–Texans T−24 checkpoint completed at 01:49:16.011 UTC
+with sixteen retained quotes and sixteen normalized rows. Their source
+times ranged from 01:47:10 to 01:49:12 UTC. All were already beyond the
+fifteen-minute quote lifetime at the 03:02 UTC phone review.
+
+The run's materialization summary reported zero newly attempted rows;
+that counter alone would not prove an empty or failed capture. The
+database read verified existing normalized rows separately. Remaining
+provider quota was not established. No fresh quote or earlier rendered
+phone card is inferred from this retrospective check.
