@@ -46,3 +46,20 @@ no provider odds credits and ran no new statistical experiment. Detailed
 observations remain in ignored local research storage. Recheck exact quotes,
 reference freshness, final injury status and contract terms before any later
 publication; expiry must not be extended to conceal the monitoring interval.
+
+## Expiration receipt
+
+A later actual-time review at 22:31:53 UTC verified that all four staged
+entries are expired under the existing display validator. Their original
+13:12:38.130 UTC hard cap and reference_at null were retained. No quote was
+refreshed, source time rewritten, price rechecked or payload republished.
+The prior private card is historical research only. A separate receipt
+preserves the staged-file hash and each expired state.
+
+Host delays exceeded the triggering check-in interval; the review was not
+backdated. Stored feeds generated at 22:16:33–34 UTC returned 17 NFL and nine
+NBA games with zero fresh entries. Recommended still required sign-in;
+NBA Main again reported an update failure without verified current rows.
+These are source-specific observations, not proof that no market exists or
+that either sport has no value. The upcoming NBA slate remains a coverage
+shortfall. No duplicate provider capture or production release was requested.
