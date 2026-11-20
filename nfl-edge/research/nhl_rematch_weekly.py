@@ -43,18 +43,18 @@ def interpolated_quantile(ordered, quantile):
     return ordered[lower] + (index - lower) * (ordered[upper] - ordered[lower])
 
 
-def bootstrap(weighted_weeks, attempts, seed):
+def bootstrap(weighted_weeks, attempts, seed, *, block_size=4):
     rng = Random(seed)
     count = len(weighted_weeks)
     blocks = [
-        tuple(weighted_weeks[(offset + step) % count] for step in range(4))
+        tuple(weighted_weeks[(offset + step) % count] for step in range(block_size))
         for offset in range(count)
     ]
     valid = []
     for _ in range(attempts):
         sample = []
-        for offset in range(0, count, 4):
-            sample.extend(blocks[rng.randrange(count)][:min(4, count - offset)])
+        for offset in range(0, count, block_size):
+            sample.extend(blocks[rng.randrange(count)][:min(block_size, count - offset)])
         weight = sum(weight for weight, _ in sample)
         if weight:
             valid.append(fsum(numerator for _, numerator in sample) / weight)
