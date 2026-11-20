@@ -30,7 +30,7 @@ export function validateLean(p){
  const expiry=Date.parse(p.expires_at);
  if(expiry>Math.min(offer,reference)+15*60000||expiry<=Math.max(offer,reference))throw Error('Invalid expiry');
  if(!Number.isInteger(p.american_odds)||Math.abs(p.american_odds)<100||!Number.isInteger(p.minimum_odds)||Math.abs(p.minimum_odds)<100)throw Error('Invalid odds');
- if(!(p.fair_probability>0&&p.fair_probability<1)||!['provider_derived','independent_estimate'].includes(p.fair_value_type))throw Error('Invalid fair value');
+ if(!(Number.isFinite(p.fair_probability)&&p.fair_probability>0&&p.fair_probability<1)||!['provider_derived','independent_estimate'].includes(p.fair_value_type))throw Error('Invalid fair value');
  if(!['conditional','observed','invalidated'].includes(p.review_status))throw Error('Invalid review status');
  return p;
 }

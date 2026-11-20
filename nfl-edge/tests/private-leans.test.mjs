@@ -178,3 +178,14 @@ test('identical event participants cannot establish a spread or total contract',
   assert.throws(()=>validateLean(p),/Ambiguous event/);
  }
 });
+
+
+test('probability is a finite numeric scalar, never a coerced string or array',()=>{
+ const reviewed={...fixture(),review_status:'observed',offer_verified:true,availability_checked:true,rules_verified:true};
+ for(const fair_probability of ['0.53',[0.53],{valueOf:()=>0.53},null,undefined,true,false,NaN,Infinity,-Infinity,0,1,-0.1,1.1]){
+  const p={...reviewed,fair_probability};
+  assert.throws(()=>validateLean(p),/fair value/);
+  assert.equal(leanState(p,now),'unavailable');
+ }
+ for(const fair_probability of [0.01,0.53,0.99])assert.equal(leanState({...reviewed,fair_probability},now),'observed');
+});
