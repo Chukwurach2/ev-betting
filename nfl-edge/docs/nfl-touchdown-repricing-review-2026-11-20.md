@@ -63,3 +63,20 @@ NBA Main again reported an update failure without verified current rows.
 These are source-specific observations, not proof that no market exists or
 that either sport has no value. The upcoming NBA slate remains a coverage
 shortfall. No duplicate provider capture or production release was requested.
+## Friday availability follow-up
+
+Official [Chiefs Friday report](https://www.chiefs.com/news/week-11-injury-report-cardinals-vs-chiefs-2026)
+and [Cardinals Friday report](https://www.azcardinals.com/news/injury-report-week-11-vs-chiefs)
+were reviewed after expiry. Arizona lists its starting quarterback questionable
+and says it is preparing the backup to start. Kansas City rules out its
+starting running back and two offensive linemen; the two previously reviewed
+receivers listed on its report completed full practice without a game
+designation shown. Practice status does not establish game-day participation.
+
+These developments require a new usage, quarterback and blocking review before
+reusing any touchdown estimate. They do not supply a numerical probability
+adjustment or make the expired prices executable. The original private payloads,
+expiry and hashes remain unchanged; the new factual review is a separate
+receipt. No reprice, replacement pick, private phone publication, paper grade or
+statistical experiment resulted. Exact offers, reference ages, final inactives
+and contract terms still require fresh verification.
