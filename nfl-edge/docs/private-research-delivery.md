@@ -102,3 +102,12 @@ invalidated history state. Supersession occurs before book preferences,
 so a stopped revision at another book cannot expose the prior offer. If
 the contract reopens, review its actual offer and append a new ID and
 version. No market-status polling or inferred reopening is introduced.
+
+Full-game spread selections must exactly equal one of the payload's two distinct
+participant identifiers; full-game totals use exactly `Over` or `Under`.
+Unrelated teams, free-form direction labels and identical participants are
+rejected before publication and display, even when review flags are true.
+Publishers must resolve aliases explicitly against the reviewed event rather
+than relying on fuzzy names. These structural checks do not authenticate the
+event ID, source quote, participant mapping or settlement contract. Other
+market families retain their separate review requirements.

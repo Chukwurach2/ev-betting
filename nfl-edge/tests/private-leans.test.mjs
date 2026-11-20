@@ -128,7 +128,7 @@ test('spread and total cards require a finite explicit line',()=>{
    assert.throws(()=>validateLean(p),/contract line/);
    assert.equal(leanState(p,now),'unavailable');
   }
-  for(const line of [0,-3.5,210.5,'0','-3.50','210.50'])assert.doesNotThrow(()=>validateLean({...fixture(),market,line}));
+  for(const line of [0,-3.5,210.5,'0','-3.50','210.50'])assert.doesNotThrow(()=>validateLean({...fixture(),market,line,selection:market==='FULL_GAME_SPREAD'?'A':'Over'}));
  }
 });
 test('equivalent decimal spellings cannot publish competing versions',()=>{
@@ -152,5 +152,29 @@ test('suspended or closed revisions withdraw a selection across book preferences
   assert.deepEqual(visibleLeans([stopped,prior].map(payload=>({payload})),{sport:'nba',books:['draftkings'],now}),[]);
   const history=visibleLeans([stopped,prior].map(payload=>({payload})),{sport:'nba',books:['draftkings','fanduel'],now});
   assert.equal(history.length,1);assert.equal(history[0].state,'invalidated');
+ }
+});
+
+
+test('review flags cannot promote a spread for a team outside the event',()=>{
+ for(const sport of ['nfl','nba']){
+  const p={...fixture(),sport,market:'FULL_GAME_SPREAD',line:3.5,selection:'C',review_status:'observed',offer_verified:true,availability_checked:true,rules_verified:true};
+  assert.throws(()=>validateLean(p),/event participant/);
+  assert.equal(leanState(p,now),'unavailable');
+  for(const selection of [p.home_team,p.away_team])assert.equal(leanState({...p,selection},now),'observed');
+ }
+});
+test('full-game totals require a canonical direction rather than a team or synonym',()=>{
+ const p=fixture();
+ for(const selection of ['A','Over 210.5','over','O','Under ']){
+  assert.throws(()=>validateLean({...p,selection}),/Over or Under/);
+  assert.equal(leanState({...p,selection},now),'unavailable');
+ }
+ for(const selection of ['Over','Under'])assert.doesNotThrow(()=>validateLean({...p,selection}));
+});
+test('identical event participants cannot establish a spread or total contract',()=>{
+ for(const market of ['FULL_GAME_SPREAD','FULL_GAME_TOTAL']){
+  const p={...fixture(),market,home_team:'A',selection:market==='FULL_GAME_SPREAD'?'A':'Over'};
+  assert.throws(()=>validateLean(p),/Ambiguous event/);
  }
 });

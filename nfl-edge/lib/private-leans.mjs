@@ -16,6 +16,11 @@ export function validateLean(p){
   const line=p.line;
   if(!((typeof line==='number'||typeof line==='string'&&/^-?\d+(?:\.\d+)?$/.test(line))&&Number.isFinite(Number(line))))throw Error('Missing or invalid contract line');
  }
+ if(['FULL_GAME_SPREAD','FULL_GAME_TOTAL'].includes(p.market)){
+  if(p.home_team===p.away_team)throw Error('Ambiguous event participants');
+  if(p.market==='FULL_GAME_SPREAD'&&![p.home_team,p.away_team].includes(p.selection))throw Error('Selection must identify an event participant');
+  if(p.market==='FULL_GAME_TOTAL'&&!['Over','Under'].includes(p.selection))throw Error('Selection must identify Over or Under');
+ }
  if(p.market_status!==undefined&&!['open','unknown','suspended','closed'].includes(p.market_status))throw Error('Invalid market status');
  if(p.rights!=='private_original_analysis')throw Error('Private original analysis required');
  for(const k of ['kickoff','observed_at','expires_at'])if(!sourceTime(p[k]))throw Error('Missing timestamp '+k);
