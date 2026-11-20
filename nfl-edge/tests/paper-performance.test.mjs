@@ -40,3 +40,27 @@ test('invalid postgame observations do not contaminate valid identity evidence',
 });
 
 test('copied rule with wrong book remains unresolved with null returns',()=>{const x=run([o],{results:[r],contracts:[{...c,book_key:'other'}]});assert.equal(x.overall.resolved,0);assert.equal(x.unresolved_reasons.exact_contract_evidence_required,1);assert.equal(x.rows[0].paper_profit_units,null);assert.equal(x.overall.hypothetical_net_units,null);});
+
+
+test('curated paper grades require literal offer and availability verification',()=>{
+ const reviewed={...o,schema:'curated-paper-v1',review_status:'observed',offer_verified:true,availability_checked:true,reference_at:o.observed_at};
+ assert.equal(run([reviewed]).overall.resolved,1);
+ for(const field of ['offer_verified','availability_checked']){
+  for(const value of [undefined,false,null,'false','true',1,{},[]]){
+   const x=run([{...reviewed,[field]:value}]);
+   assert.equal(x.overall.resolved,0);assert.equal(x.rows[0].result.reason,'curated_review_incomplete');
+   assert.equal(x.rows[0].paper_profit_units,null);assert.equal(x.overall.hypothetical_roi,null);
+  }
+ }
+ for(const review_status of ['conditional','invalidated',undefined])assert.equal(run([{...reviewed,review_status}]).overall.resolved,0);
+});
+test('curated paper reference time must be known and pregame without future evidence',()=>{
+ const reviewed={...o,schema:'curated-paper-v1',review_status:'observed',offer_verified:true,availability_checked:true,reference_at:o.observed_at};
+ for(const reference_at of [undefined,null,0,true,'','invalid',o.kickoff,'2026-10-22T00:00:00Z']){
+  const x=run([{...reviewed,reference_at}]);assert.equal(x.overall.resolved,0);
+  assert.equal(x.rows[0].result.reason,'curated_review_incomplete');assert.equal(x.overall.hypothetical_roi,null);
+ }
+ assert.equal(run([reviewed]).overall.resolved,1);
+ const earlyNow=Date.parse('2026-10-20T18:30:00Z');
+ assert.equal(run([{...reviewed,reference_at:'2026-10-20T19:00:00Z'}],undefined,{now:earlyNow}).rows[0].result.reason,'curated_review_incomplete');
+});
