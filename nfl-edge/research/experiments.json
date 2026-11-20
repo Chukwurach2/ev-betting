@@ -236,10 +236,12 @@
     {
       "id": "nba-cup-group-total-calibration-v1",
       "market_family": "nba_full_game_totals",
-      "status": "registered_pending_schedule_and_implementation",
+      "status": "registered_data_blocked",
       "registered_at": "2026-11-11T19:33:45Z",
       "protocol": "research/protocols/nba-cup-group-total-calibration-v1.json",
-      "outcome": "Pending authoritative schedule/rule verification and tested implementation. No subgroup evaluation."
+      "outcome": "No subgroup statistic computed. Preserve registered rule and disclosed development-season exposure; source availability does not establish data readiness.",
+      "source_audit": "docs/nba-cup-browser-source-review-2026-11-20.md",
+      "blocker": "Frozen before-outcome source/rule/crosswalk gate was not met: historical final scores rendered during source review before rules and exact publisher/start crosswalk were complete. No primary comparison run; gate not waived. Missing starts, applicable rules and regular-window coverage also remain unresolved."
     }
   ]
 }
