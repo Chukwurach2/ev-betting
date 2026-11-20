@@ -43,3 +43,71 @@ so a publisher can withdraw conditional research without fabricating timestamps.
 Newest-first supersession happens before applying sportsbook preferences. Hiding
 a newer observation at an unselected book must never resurrect an older quote.
 Regression cases cover withdrawals and newer expired observations across books.
+
+The phone requires literal boolean true for offer, availability and exact-rule
+verification before a reviewed entry can display as observed. Other values
+leave it conditional. Offer venue lookup accepts only the defined book keys.
+
+The publisher treats an existing observation ID as an idempotent retry only
+when both the owner and stored JSON payload match. A conflicting ID aborts the
+batch and rolls back new inserts. Assign a new ID to each revision.
+
+Expiry must also be strictly later than the newest known source timestamp.
+If the allowed freshness windows do not overlap, the publisher rejects the
+entry instead of accepting a card that can never be current. An unknown
+reference age remains conditional and uses the offered quote's clock.
+
+Use ISO 8601 timestamps with an explicit UTC `Z` or numeric offset for
+kickoff, offer observation, reference observation when known, and expiry.
+Zone-less times and date-only values cannot establish a source instant and
+are rejected. The publisher and phone therefore apply the same clock rules.
+
+Calendar dates and clock times must be valid as written. The validator rejects
+values that JavaScript would carry into another day or month, such as
+November 31 or hour 24. Valid leap days and explicit offsets are accepted.
+
+Publisher batches use one transaction. The schema's transaction timestamp
+can tie the publication times of two revisions in that batch, making
+newest-first withdrawal order ambiguous. The publisher rejects different
+observation IDs for the same sport, event, market, selection and line
+within one batch, before it connects to the database. Send the revisions
+in separate batches. Same-ID retries still require the existing exact
+owner and payload check. Selection identity uses structured fields for
+validation and display, including when a field contains a separator.
+
+Rule verification is a separate required attestation for observed status. Set
+`rules_verified: true` only after reviewing the exact offered operator and
+contract's period, overtime, push, void and eligibility conditions, and
+retain that evidence privately. A populated `rules` description alone does
+not establish that review. Missing, false or non-boolean values leave an
+otherwise reviewed observation conditional, including older payloads. This
+flag does not independently verify source permissions or book rules. Expired
+and invalidated observations retain their existing history states.
+
+Full-game spread and total observations require an explicit finite contract
+line. Missing/null/empty, nonnumeric and nonfinite values are unavailable
+and rejected before publication, even with all review flags set. Numeric
+lines and ordinary decimal strings are accepted; equivalent decimal
+spellings share one selection identity for batching and supersession. A
+zero spread remains a specified line, distinct from a missing line. This
+check identifies the contract; it does not verify settlement rules or
+expand supported market families.
+
+An observed card also needs `market_status: open`, an explicit publisher
+attestation about the offered contract at its preserved observation time.
+Missing status on legacy entries or `unknown` keeps the card conditional;
+a fresh timestamp alone does not establish an open market. Literal
+`suspended` and `closed` revisions withdraw that selection using the existing
+invalidated history state. Supersession occurs before book preferences,
+so a stopped revision at another book cannot expose the prior offer. If
+the contract reopens, review its actual offer and append a new ID and
+version. No market-status polling or inferred reopening is introduced.
+
+Full-game spread selections must exactly equal one of the payload's two distinct
+participant identifiers; full-game totals use exactly `Over` or `Under`.
+Unrelated teams, free-form direction labels and identical participants are
+rejected before publication and display, even when review flags are true.
+Publishers must resolve aliases explicitly against the reviewed event rather
+than relying on fuzzy names. These structural checks do not authenticate the
+event ID, source quote, participant mapping or settlement contract. Other
+market families retain their separate review requirements.
