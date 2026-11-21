@@ -31,8 +31,9 @@ independent settlement-rule equivalence, accepted limits or execution capacity.
 
 The separate novig-hqmm repository remains a research library. Its curated prop
 reports and licensed subscriber observations are NOT silently copied to a public
-frontend or used as a production model. A permission-aware authenticated publisher
-is still needed for those detailed prop cards to sync automatically to the phone.
+frontend or used as a production model. Private curated delivery now exists through owner-scoped research_leans; see
+docs/private-research-delivery.md. This accepts reviewed original analysis, not an
+automatic subscriber feed. Signed-in owner/phone verification remains pending.
 No old chat quote should be recast as a fresh app pick.
 
 Research diagnostics and the existing NFL/college boards remain under Research.
@@ -52,8 +53,8 @@ need a fuller outcome model before evaluating profitability.
 
 1. Verify the live route returns the current slate and stored quote coverage; fix
    underlying collector gaps rather than increasing the freshness limit.
-2. Add an authenticated original-analysis publisher for curated prop cards with
-   explicit data rights, injury/active status, source age and exact rule identity.
+2. Verify the existing private original-analysis publisher through an owner-scoped
+   phone read, retaining explicit rights, injury status, source age and rule identity.
 3. Persist immutable paper decisions and actual accepted prices separately from
    personal bets. Report unique events, CLV, net returns and drawdowns.
 4. Add paired-opportunity records with both NY venues, leg capacity, acceptance,
@@ -72,7 +73,8 @@ nba_edge_odds_quotes storage, never the NFL table or NFL model. Missing prices
 produce explicit pending cards. NBA begins with full-game half-point spreads
 and totals; player props and integer-line pushes remain unsupported.
 
-Apply migrations/020_nba_phone_quotes.sql before the NBA route is released.
+The NBA route and separate quote storage are already deployed (PR27).
+For a new environment, apply migrations/020_nba_phone_quotes.sql before enabling it.
 ops/collect-nba.mjs --confirm-quota-use performs one bounded provider odds
 request (normally two existing provider credits for spreads/totals) and stores
 only fresh paired quotes. It needs existing server-side THE_ODDS_API_KEY and
@@ -86,3 +88,76 @@ https://the-odds-api.com/liveapi/guides/v4/ (GET events, GET odds, basketball_nb
 NFL freshness diagnosis: latest stored quote was 2026-10-17T20:09:06Z at the
 2026-10-19 check; zero quotes met the existing 15-minute window. Checkpoint
 collection is not continuous phone coverage; do not widen freshness to mask it.
+
+## Operational status
+
+See research/AGENT.md, Verified delivery status (2026-10-21 UTC), for recovery and
+capture receipts. Earlier October 19 source times above are historical diagnostics,
+not evidence of current authentication, quote coverage or app freshness.
+
+## Checkpoint success versus phone freshness — 2026-10-22
+
+Inspected scheduled NFL run[39829963694](https://github.com/Chukwurach2/ev-betting/actions/runs/39829963694),
+job120003179817. Its actual collector summary at18:17:53Z was captured0,
+duplicate1, failed0, requests0, credits_budgeted0; materialized checkpoint0 and
+quote rows0. The successful status confirms the job completed, not that new
+quotes were fetched. Authentication failure is not supported by this receipt.
+
+A completed checkpoint is intentionally immutable/deduplicated. Re-dispatching
+the same collector does not refresh that recorded window; it may correctly do
+zero paid work. The hourly trigger and15-minute phone lifetime therefore leave
+coverage gaps by design. Do not delete checkpoints, widen quote age or relabel
+an old capture to manufacture a current card. A separate authorized bounded
+phone snapshot would need an explicit quota preflight, exact event mapping,
+source timestamps and private paper capture. At this October 22 receipt the NFL free-plan guard in PR39 was unmerged.
+That status is historical: PR39 merged on November 2 as
+[3cf60a2](https://github.com/Chukwurach2/ev-betting/commit/3cf60a23081b2bd07a8de6fb52877f8e8e89103b).
+Its deployed quota guard does not itself provide continuous phone freshness
+or a shared NFL/NBA monthly allocator.
+
+Independent public phone reads this iteration returned15 NFL games/0 entries and
+14 NBA games/0 entries after earlier snapshot expiry.29 coverage records were
+appended privately, with no new observations or provider odds request. Tonight's
+NFL and two NBA events were checked against official schedules. No ready or
+positive-edge shortlist is established. EVSharps Recommendations still displays
+the previously documented sign-in gate; owner-signed-in phone visibility also
+remains separate. Public methodology only is recorded here.
+
+## Next-slate coverage receipt — November 19, 03:02 UTC
+
+The dated [NBA schedule](https://www.nba.com/games?date=2026-11-19)
+listed four Thursday games, all within 24 hours at this review. The
+03:02:18.019 UTC public response contained one of those matchups, with
+a ten-minute provider-time shift; three were absent. The unchanged
+offline schedule audit reproduced one shifted, three missing and zero
+ambiguous matches. Schedule matching does not authorize quote association.
+
+The 03:02:17.330 UTC NFL response included the next Colts–Texans game
+inside 24 hours, consistent with the
+[official team schedule](https://www.nfl.com/schedules/2026/by-team/houston-texans).
+Both responses contained zero fresh research entries. Exact offered prices,
+lines and independent paired references are unavailable in these responses;
+no supported card can be formed or repriced from them. Full-game half-point
+spreads and totals remain the markets to review when fresh paired quotes
+appear. Neither no-edge nor four supported alternatives is established.
+
+The saved responses, reviewed schedule and replay report were retained
+privately. Recommendations again rendered a membership sign-in gate in
+the in-app browser. No manual provider odds request was dispatched.
+These are timestamped coverage observations, not continuous monitoring.
+
+## Latest scheduled NFL checkpoint: stored but expired at review
+
+[Scheduled run 44439689201](https://github.com/Chukwurach2/ev-betting/actions/runs/44439689201),
+job 135277139465, reported one captured checkpoint, zero failures, one
+request and two budgeted credits at 01:49 UTC on November 19. An independent
+read found the Colts–Texans T−24 checkpoint completed at 01:49:16.011 UTC
+with sixteen retained quotes and sixteen normalized rows. Their source
+times ranged from 01:47:10 to 01:49:12 UTC. All were already beyond the
+fifteen-minute quote lifetime at the 03:02 UTC phone review.
+
+The run's materialization summary reported zero newly attempted rows;
+that counter alone would not prove an empty or failed capture. The
+database read verified existing normalized rows separately. Remaining
+provider quota was not established. No fresh quote or earlier rendered
+phone card is inferred from this retrospective check.
