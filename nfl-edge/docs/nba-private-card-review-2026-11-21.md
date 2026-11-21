@@ -38,3 +38,19 @@ promotion or statistical experiment occurred.
 Public factual sources:
 - https://gaming.ny.gov/sports-wagering
 - https://ak-static.cms.nba.com/referee/injury/Injury-Report_2026-11-20_06_30PM.pdf
+
+## Expired-state receipt
+
+At actual review time 01:33:54 UTC, all four original payloads returned expired
+under the current PR56 validator. The 00:51:18 UTC cap, null reference times and
+original payload hash were preserved. A separate private receipt records each
+expired state without rewriting the earlier card. No quote was refreshed or
+repriced, and no new ID, private publication or paper grade was created.
+
+Stored public feeds generated at 01:33:25 UTC returned 17 NFL and eight upcoming
+NBA games, with zero fresh entries. Recommended rendered its sign-in gate after
+loading; a transient empty loading table was not treated as authenticated
+access. The earlier free three-pointer page observation does not establish
+current offers or subscriber access. No replacement card is verified. The
+conditional player-prop cohort remains outside prospective performance, with
+settlement pending. No provider odds capture or production release was requested.
