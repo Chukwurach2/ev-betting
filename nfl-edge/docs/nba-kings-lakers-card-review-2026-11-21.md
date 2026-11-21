@@ -37,3 +37,19 @@ Factual sources:
 - https://www.nba.com/game/0022600051
 - https://ak-static.cms.nba.com/referee/injury/Injury-Report_2026-11-20_09_00PM.pdf
 - https://gaming.ny.gov/sports-wagering
+
+## Expired-state receipt
+
+Actual review at 05:08:40 UTC verified all four original alternatives expired
+under the current PR56 validator. The 02:51:21 UTC cap, original prices, null
+reference times and payload hash were retained. A separate private receipt
+records expired states. No price recheck, timestamp reset, new ID, private
+publication, replacement card or paper grade was created.
+
+Host delays moved this review beyond the triggering check-in; the receipt was
+not backdated. Stored feeds generated at 05:08:27 UTC returned 17 NFL and six
+upcoming NBA games with zero fresh entries. Recommended still rendered the
+sign-in gate. These observations do not prove an absence of value in all
+markets. The earlier card is historical research only, and expiry does not
+settle the player props. Original ledger and performance cohort remain
+unchanged. No provider odds capture or production release was requested.
