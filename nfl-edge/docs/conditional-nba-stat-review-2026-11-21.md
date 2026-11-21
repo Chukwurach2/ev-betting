@@ -29,3 +29,26 @@ No provider odds capture, deployment, wager or statistical experiment occurred.
 
 Official factual source:
 https://www.nba.com/game/0022600049/box-score
+
+## Second conditional card: factual completion
+
+A later actual-time review retained the other staged game's official completed
+box score in the same Traditional / All Periods view. Four additional minimal
+player-stat records map one-to-one to original observations through explicit
+NBA player IDs. The displayed diacritic spelling of one player was retained
+alongside its original staged spelling and the exact official ID.
+
+All four had recorded minutes. One recorded made-three value exceeded its
+original half-point line and three did not. This completes factual statistics
+for both staged NBA cards: eight observations across two games. Exact offered-
+book rule applicability remains unresolved for all eight, with financial
+settlement/profit fields null. No later participation fact was recast as
+pregame availability, a fresh offer or prospective qualification.
+
+Validation checked unique player and observation IDs, nonnegative whole counts,
+exact threshold comparisons and unchanged original payload hash. The original
+paper ledger SHA remains unchanged. No W/L/ROI or full-cohort performance update,
+provider capture, model change or statistical experiment was produced.
+
+Second official factual source:
+https://www.nba.com/game/0022600051/box-score
