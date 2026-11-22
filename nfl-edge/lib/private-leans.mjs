@@ -38,6 +38,17 @@ function leanSelectionKey(p){
  const line=['FULL_GAME_SPREAD','FULL_GAME_TOTAL'].includes(p.market)?String(Number(p.line)):String(p.line??'');
  return JSON.stringify([p.sport,p.game_id,p.market,p.selection,line]);
 }
+function leanEventKey(p){return JSON.stringify([p.sport,p.game_id]);}
+function eventIdentityConflicts(payloads){
+ const identities=new Map(),conflicts=new Set();
+ for(const p of payloads){
+  try{validateLean(p);}catch{continue;}
+  const key=leanEventKey(p),identity=JSON.stringify([p.home_team,p.away_team,Date.parse(p.kickoff)]);
+  if(identities.has(key)&&identities.get(key)!==identity)conflicts.add(key);
+  identities.set(key,identity);
+ }
+ return conflicts;
+}
 
 export function validateLeanBatch(payloads){
  if(!Array.isArray(payloads)||payloads.length>100)throw Error('Expected at most 100 original research entries');
@@ -50,6 +61,7 @@ export function validateLeanBatch(payloads){
   }
   versions.set(key,p.id);
  }
+ if(eventIdentityConflicts(payloads).size)throw Error('Conflicting event identity requires reviewed mapping');
 }
 
 export function leanState(p,now=Date.now()){
@@ -61,9 +73,12 @@ export function leanState(p,now=Date.now()){
  return 'observed';
 }
 export function visibleLeans(rows,{sport,books,now=Date.now()}){
- const seen=new Set();
- return rows.map(r=>r.payload).filter(p=>{
+ const seen=new Set(),payloads=rows.map(r=>r.payload);
+ // Inspect every valid version before selection deduplication or book filtering.
+ const conflicts=eventIdentityConflicts(payloads);
+ return payloads.filter(p=>{
   const state=leanState(p,now);if(state==='unavailable'||p.sport!==sport)return false;
+  if(conflicts.has(leanEventKey(p)))return false;
   const key=leanSelectionKey(p);if(seen.has(key))return false;seen.add(key);return books.includes(p.book_key);
  }).map(p=>({...p,state:leanState(p,now)}));
 }

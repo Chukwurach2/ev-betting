@@ -189,3 +189,23 @@ test('probability is a finite numeric scalar, never a coerced string or array',(
  }
  for(const fair_probability of [0.01,0.53,0.99])assert.equal(leanState({...reviewed,fair_probability},now),'observed');
 });
+
+test('event identity conflicts cannot hide behind quote deduplication or book filters',()=>{
+ const prior=fixture(),unrelated={...fixture(),id:'other',game_id:'another-game'};
+ for(const patch of [{home_team:'C'},{away_team:'C'},{kickoff:'2026-10-20T20:00:00Z'}]){
+  const conflicting={...prior,...patch,id:'conflict',book_key:'fanduel',selection:'Under'};
+  assert.throws(()=>validateLeanBatch([prior,conflicting]),/event identity/);
+  for(const pair of [[prior,conflicting],[conflicting,prior]]){
+   const visible=visibleLeans([...pair,unrelated].map(payload=>({payload})),{sport:'nba',books:['draftkings'],now});
+   assert.deepEqual(visible.map(p=>p.id),['other']);
+  }
+  const sameSelection={...conflicting,selection:prior.selection};
+  assert.deepEqual(visibleLeans([sameSelection,prior].map(payload=>({payload})),{sport:'nba',books:['draftkings','fanduel'],now}),[]);
+ }
+});
+
+test('equivalent kickoff instants retain one event identity across market alternatives',()=>{
+ const first=fixture(),second={...first,id:'second',selection:'Under',kickoff:'2026-10-20T15:00:00-04:00'};
+ assert.doesNotThrow(()=>validateLeanBatch([first,second]));
+ assert.equal(visibleLeans([first,second].map(payload=>({payload})),{sport:'nba',books:['draftkings'],now}).length,2);
+});
