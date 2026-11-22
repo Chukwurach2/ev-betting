@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {validateLean,leanState,visibleLeans} from '../lib/private-leans.mjs';
+import {validateLean,validateLeanBatch,leanState,visibleLeans} from '../lib/private-leans.mjs';
 const now=Date.parse('2026-10-20T14:00:00Z');
-const fixture=()=>({id:'synthetic',game_id:'synthetic-nba',sport:'nba',away_team:'A',home_team:'B',kickoff:'2026-10-20T19:00:00Z',selection:'Over',market:'FULL_GAME_TOTAL',line:210.5,book_key:'draftkings',american_odds:-110,minimum_odds:-105,fair_probability:.53,fair_value_type:'provider_derived',observed_at:'2026-10-20T13:59:00Z',reference_at:'2026-10-20T13:58:00Z',expires_at:'2026-10-20T14:13:00Z',rights:'private_original_analysis',review_status:'conditional',source:'Synthetic fixture',method:'Synthetic estimate',rationale:'Test only',conditions:'Availability unknown',correlation:'Same game',fee_assumptions:'Zero direct fee; tax excluded',rules:'Full game including OT'});
+const fixture=()=>({id:'synthetic',game_id:'synthetic-nba',sport:'nba',away_team:'A',home_team:'B',kickoff:'2026-10-20T19:00:00Z',selection:'Over',market:'FULL_GAME_TOTAL',line:210.5,book_key:'draftkings',american_odds:-110,minimum_odds:-105,fair_probability:.53,fair_value_type:'provider_derived',observed_at:'2026-10-20T13:59:00Z',reference_at:'2026-10-20T13:58:00Z',expires_at:'2026-10-20T14:13:00Z',rights:'private_original_analysis',market_status:'open',review_status:'conditional',source:'Synthetic fixture',method:'Synthetic estimate',rationale:'Test only',conditions:'Availability unknown',correlation:'Same game',fee_assumptions:'Zero direct fee; tax excluded',rules:'Full game including OT'});
 test('conditional remains conditional without independent checks',()=>{assert.equal(leanState(fixture(),now),'conditional');assert.equal(leanState({...fixture(),review_status:'observed'},now),'conditional');});
 test('age, future times, expiry and kickoff fail closed',()=>{assert.equal(leanState(fixture(),now+14*60000),'expired');assert.equal(leanState({...fixture(),observed_at:'2026-10-20T14:01:00Z'},now),'unavailable');assert.equal(leanState({...fixture(),kickoff:'2026-10-20T13:00:00Z'},now),'expired');assert.throws(()=>validateLean({...fixture(),expires_at:'2026-10-20T14:14:00Z'}));});
 test('venue, sport, rights and provenance required',()=>{for(const patch of [{book_key:'betonline'},{sport:'ncaaf'},{rights:'public'},{reference_at:''},{conditions:''}])assert.throws(()=>validateLean({...fixture(),...patch}));});
@@ -22,6 +22,190 @@ test('book preference cannot resurrect a superseded quote',()=>{
  assert.deepEqual(visibleLeans([withdrawal,prior].map(payload=>({payload})),{sport:'nba',books:['draftkings'],now}),[]);
 });
 test('newer expired research cannot expose an older still-fresh quote',()=>{
- const prior=fixture(),latest={...prior,id:'expired',book_key:'fanduel',expires_at:'2026-10-20T13:59:00Z'};
+ const prior=fixture(),latest={...prior,id:'expired',book_key:'fanduel',observed_at:'2026-10-20T13:58:30Z',expires_at:'2026-10-20T13:59:00Z'};
  assert.deepEqual(visibleLeans([latest,prior].map(payload=>({payload})),{sport:'nba',books:['draftkings'],now}),[]);
+});
+
+test('observed state requires explicit boolean verification of offer, availability and rules',()=>{
+ const verified={...fixture(),review_status:'observed',offer_verified:true,availability_checked:true,rules_verified:true};
+ assert.equal(leanState(verified,now),'observed');
+ for(const field of ['offer_verified','availability_checked','rules_verified']){
+  for(const value of [undefined,false,'true','false',1,{},null]){
+   assert.equal(leanState({...verified,[field]:value},now),'conditional');
+  }
+ }
+});
+test('inherited object keys are not authorized offer venues',()=>{
+ for(const book_key of ['constructor','__proto__','toString']){
+  assert.throws(()=>validateLean({...fixture(),book_key}),/venue/);
+ }
+});
+
+test('publication only accepts an exact retry after an ID conflict',async()=>{
+ const {insertPrivateLean}=await import('../ops/private-lean-insert.mjs');
+ const payload=fixture();
+ for(const [insertCount,matchCount] of [[1,0],[0,1],[0,0]]){
+  const calls=[];
+  const db={query:async(sql,params)=>{
+   calls.push({sql,params});
+   return {rowCount:calls.length===1?insertCount:matchCount};
+  }};
+  const publish=insertPrivateLean(db,'synthetic-owner',payload);
+  if(!insertCount&&!matchCount)await assert.rejects(publish,/already in use/);
+  else await publish;
+  assert.equal(calls.length,insertCount?1:2);
+  if(!insertCount){
+   assert.match(calls[1].sql,/id=\$1 AND user_id=\$2 AND payload=\$3::jsonb/);
+   assert.deepEqual(calls[1].params,[payload.id,'synthetic-owner',JSON.stringify(payload)]);
+  }
+ }
+});
+
+test('expiry must leave an interval after both source observations',()=>{
+ const p=fixture();
+ assert.throws(()=>validateLean({...p,observed_at:'2026-10-20T14:13:00Z'}),/expiry/);
+ assert.throws(()=>validateLean({...p,observed_at:'2026-10-20T14:14:00Z'}),/expiry/);
+ assert.throws(()=>validateLean({...p,reference_at:'2026-10-20T14:13:00Z'}),/expiry/);
+ assert.throws(()=>validateLean({...p,reference_at:'2026-10-20T14:14:00Z'}),/expiry/);
+ assert.doesNotThrow(()=>validateLean({...p,reference_at:'2026-10-20T14:12:59Z'}));
+});
+
+test('source and kickoff times carry explicit timezone offsets',()=>{
+ const p=fixture();
+ for(const field of ['kickoff','observed_at','reference_at','expires_at']){
+  for(const value of [p[field].slice(0,-1),'2026-10-20',0]){
+   assert.throws(()=>validateLean({...p,[field]:value}),/timestamp/);
+  }
+ }
+ const withOffset={...p,observed_at:'2026-10-20T09:59:00-04:00'};
+ assert.equal(leanState(withOffset,now),'conditional');
+});
+
+test('invalid calendar dates cannot be normalized into valid source times',()=>{
+ const p=fixture();
+ assert.throws(()=>validateLean({...p,kickoff:'2026-11-31T19:00:00Z'}),/timestamp/);
+ assert.throws(()=>validateLean({...p,kickoff:'2026-10-20T24:00:00Z'}),/timestamp/);
+ const leap={...p,kickoff:'2028-02-29T20:00:00+02:00',observed_at:'2028-02-29T13:59:00Z',reference_at:'2028-02-29T13:58:00Z',expires_at:'2028-02-29T14:13:00Z'};
+ assert.doesNotThrow(()=>validateLean(leap));
+ for(const field of ['kickoff','observed_at','reference_at','expires_at']){
+  assert.throws(()=>validateLean({...leap,[field]:leap[field].replace('02-29','02-30')}),/timestamp/);
+ }
+});
+
+test('one batch cannot publish two versions of the same selection',()=>{
+ const prior=fixture();
+ const withdrawal={...prior,id:'withdrawn',book_key:'fanduel',
+  line:String(prior.line),review_status:'invalidated'};
+ for(const rows of [[prior,withdrawal],[withdrawal,prior]]){
+  assert.throws(()=>validateLeanBatch(rows),/separate batches/);
+ }
+ assert.doesNotThrow(()=>validateLeanBatch([prior,prior]));
+ assert.doesNotThrow(()=>validateLeanBatch([prior,{...withdrawal,line:211.5}]));
+});
+
+test('selection identity cannot collide at a field delimiter',()=>{
+ const first={...fixture(),market:'PLAYER|POINTS',selection:'Over'};
+ const second={...fixture(),id:'other',market:'PLAYER',selection:'POINTS|Over'};
+ assert.doesNotThrow(()=>validateLeanBatch([first,second]));
+ const visible=visibleLeans([first,second].map(payload=>({payload})),{
+  sport:'nba',books:['draftkings'],now,
+ });
+ assert.equal(visible.length,2);
+});
+
+test('missing rule attestation keeps older reviewed payloads conditional',()=>{
+ const legacy={...fixture(),review_status:'observed',offer_verified:true,availability_checked:true};
+ assert.equal(leanState(legacy,now),'conditional');
+ assert.equal(leanState({...legacy,rules_verified:true},now),'observed');
+ assert.equal(leanState({...legacy,review_status:'invalidated'},now),'invalidated');
+ assert.equal(leanState({...legacy,expires_at:'2026-10-20T13:59:30Z'},now),'expired');
+});
+
+test('spread and total cards require a finite explicit line',()=>{
+ for(const market of ['FULL_GAME_SPREAD','FULL_GAME_TOTAL']){
+  for(const line of [undefined,null,'',' ',true,{},[],NaN,Infinity,'Infinity','0x10']){
+   const p={...fixture(),market,line,review_status:'observed',offer_verified:true,availability_checked:true,rules_verified:true};
+   assert.throws(()=>validateLean(p),/contract line/);
+   assert.equal(leanState(p,now),'unavailable');
+  }
+  for(const line of [0,-3.5,210.5,'0','-3.50','210.50'])assert.doesNotThrow(()=>validateLean({...fixture(),market,line,selection:market==='FULL_GAME_SPREAD'?'A':'Over'}));
+ }
+});
+test('equivalent decimal spellings cannot publish competing versions',()=>{
+ const p=fixture(), revised={...p,id:'revised',line:'210.50'};
+ assert.throws(()=>validateLeanBatch([p,revised]),/separate batches/);
+ const visible=visibleLeans([revised,p].map(payload=>({payload})),{sport:'nba',books:['draftkings'],now});
+ assert.equal(visible.length,1);assert.equal(visible[0].id,'revised');
+});
+
+test('unknown market state cannot display as an observed offer',()=>{
+ const verified={...fixture(),review_status:'observed',offer_verified:true,availability_checked:true,rules_verified:true};
+ assert.equal(leanState(verified,now),'observed');
+ for(const market_status of [undefined,'unknown'])assert.equal(leanState({...verified,market_status},now),'conditional');
+ for(const market_status of [true,'OPEN','false',null])assert.throws(()=>validateLean({...verified,market_status}),/market status/);
+});
+test('suspended or closed revisions withdraw a selection across book preferences',()=>{
+ const prior={...fixture(),review_status:'observed',offer_verified:true,availability_checked:true,rules_verified:true};
+ for(const market_status of ['suspended','closed']){
+  const stopped={...prior,id:'stopped',book_key:'fanduel',market_status};
+  assert.equal(leanState(stopped,now),'invalidated');
+  assert.deepEqual(visibleLeans([stopped,prior].map(payload=>({payload})),{sport:'nba',books:['draftkings'],now}),[]);
+  const history=visibleLeans([stopped,prior].map(payload=>({payload})),{sport:'nba',books:['draftkings','fanduel'],now});
+  assert.equal(history.length,1);assert.equal(history[0].state,'invalidated');
+ }
+});
+
+
+test('review flags cannot promote a spread for a team outside the event',()=>{
+ for(const sport of ['nfl','nba']){
+  const p={...fixture(),sport,market:'FULL_GAME_SPREAD',line:3.5,selection:'C',review_status:'observed',offer_verified:true,availability_checked:true,rules_verified:true};
+  assert.throws(()=>validateLean(p),/event participant/);
+  assert.equal(leanState(p,now),'unavailable');
+  for(const selection of [p.home_team,p.away_team])assert.equal(leanState({...p,selection},now),'observed');
+ }
+});
+test('full-game totals require a canonical direction rather than a team or synonym',()=>{
+ const p=fixture();
+ for(const selection of ['A','Over 210.5','over','O','Under ']){
+  assert.throws(()=>validateLean({...p,selection}),/Over or Under/);
+  assert.equal(leanState({...p,selection},now),'unavailable');
+ }
+ for(const selection of ['Over','Under'])assert.doesNotThrow(()=>validateLean({...p,selection}));
+});
+test('identical event participants cannot establish a spread or total contract',()=>{
+ for(const market of ['FULL_GAME_SPREAD','FULL_GAME_TOTAL']){
+  const p={...fixture(),market,home_team:'A',selection:market==='FULL_GAME_SPREAD'?'A':'Over'};
+  assert.throws(()=>validateLean(p),/Ambiguous event/);
+ }
+});
+
+
+test('probability is a finite numeric scalar, never a coerced string or array',()=>{
+ const reviewed={...fixture(),review_status:'observed',offer_verified:true,availability_checked:true,rules_verified:true};
+ for(const fair_probability of ['0.53',[0.53],{valueOf:()=>0.53},null,undefined,true,false,NaN,Infinity,-Infinity,0,1,-0.1,1.1]){
+  const p={...reviewed,fair_probability};
+  assert.throws(()=>validateLean(p),/fair value/);
+  assert.equal(leanState(p,now),'unavailable');
+ }
+ for(const fair_probability of [0.01,0.53,0.99])assert.equal(leanState({...reviewed,fair_probability},now),'observed');
+});
+
+test('event identity conflicts cannot hide behind quote deduplication or book filters',()=>{
+ const prior=fixture(),unrelated={...fixture(),id:'other',game_id:'another-game'};
+ for(const patch of [{home_team:'C'},{away_team:'C'},{kickoff:'2026-10-20T20:00:00Z'}]){
+  const conflicting={...prior,...patch,id:'conflict',book_key:'fanduel',selection:'Under'};
+  assert.throws(()=>validateLeanBatch([prior,conflicting]),/event identity/);
+  for(const pair of [[prior,conflicting],[conflicting,prior]]){
+   const visible=visibleLeans([...pair,unrelated].map(payload=>({payload})),{sport:'nba',books:['draftkings'],now});
+   assert.deepEqual(visible.map(p=>p.id),['other']);
+  }
+  const sameSelection={...conflicting,selection:prior.selection};
+  assert.deepEqual(visibleLeans([sameSelection,prior].map(payload=>({payload})),{sport:'nba',books:['draftkings','fanduel'],now}),[]);
+ }
+});
+
+test('equivalent kickoff instants retain one event identity across market alternatives',()=>{
+ const first=fixture(),second={...first,id:'second',selection:'Under',kickoff:'2026-10-20T15:00:00-04:00'};
+ assert.doesNotThrow(()=>validateLeanBatch([first,second]));
+ assert.equal(visibleLeans([first,second].map(payload=>({payload})),{sport:'nba',books:['draftkings'],now}).length,2);
 });
