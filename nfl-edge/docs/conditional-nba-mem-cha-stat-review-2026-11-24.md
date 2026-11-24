@@ -1,0 +1,11 @@
+# Conditional Memphis–Charlotte outcome review
+
+The official NBA Traditional / All Periods box score rendered FINAL for game 0022600287 on November 23. Four retained conditional player made-threes observations were associated with exact original observation IDs, date/team/game identity and individual official player links. Three official statistic values were above the retained half-point lines and one was below. These are descriptive statistic relations, not certified financial wins/losses.
+
+Only the final rank-v2 original payload is linked; its earlier unpublished ordering version remains preserved and is not counted again. Original observations were expired research watches, outside the prospective trial. No post-result selection, line change, backdated source time or financial settlement assumption was introduced. Exact observation-specific applicable FanDuel overtime, participation, void and correction rules remain unresolved; profit stays null and zero financial grades were added.
+
+Minimal selected-player facts and source associations remain private in ignored runs/nba-mem-cha-2026-11-23T1400/official-stat-evidence-2026-11-24.json. Four unique associations, exact game/market/book identity, retained line relations and original-payload immutability checks passed. The original payload SHA256 is 88335ce08853b2fddbb79ecbfc8efa95191fc6762aa27c66d8572a2be42fcb5b. The paper ledger was not appended or modified; its SHA256 remains 7efe703a736afc2838eb5fa3b3d71b2369ae0bb8fec70ab1f353feeff4826930. Existing full-cohort performance is unchanged and was not recomputed or represented as a new result. This is neither strategy validation nor wager P&L.
+
+Both public feeds were checked at 03:41 UTC November 24: no fresh entries; the next NFL game is November 26 and the next NBA slate is November 24 Eastern. Recommended remained sign-in gated. No provider capture, quota use, phone publication, model promotion, deployment, wager or pending operational-metadata write retry occurred. Routine outcome review is separate from a new statistical experiment.
+
+Source: [official NBA box score](https://www.nba.com/game/0022600287/box-score), manually inspected in the rendered Traditional / All Periods view. Minimal facts only; no complete table redistribution.
