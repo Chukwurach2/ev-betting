@@ -1,0 +1,11 @@
+# Conditional Portland–Philadelphia outcome review
+
+The official NBA Traditional / All Periods view rendered FINAL for game 0022600288 on November 23. Four retained conditional player made-threes observations were associated with exact original observation IDs, game/date/home-away identity and individual official player links. One statistic was above its retained half-point line and three were below. These are descriptive statistic relations, not certified financial wins/losses.
+
+The original expired observations remain unchanged and outside the prospective trial. No post-result selection, price or line changes, backdated source times, or assumed book-rule transfer were introduced. Exact observation-specific FanDuel overtime, participation, void and correction terms remain unverified. Profit stays null; zero financial grades were added. The official view also establishes the previously conditional teammate availability outcome retrospectively; this does not rewrite pregame availability flags.
+
+Minimal selected facts remain private in ignored runs/nba-por-phi-2026-11-23T1457/official-stat-evidence-2026-11-25.json. Four unique associations and exact event/market/book/line checks passed. Original payload SHA256: 5891f0b8eabf9458b0fe87fa7732245793cf90f31029501cebe1a0d2d12633d0. Ledger SHA256 remains 7efe703a736afc2838eb5fa3b3d71b2369ae0bb8fec70ab1f353feeff4826930. No ledger append or performance recomputation occurred. This is not strategy validation or wager P&L.
+
+Current coverage could not be certified this iteration: both public schedule/card reads timed out, and the in-app Recommendations navigation failed with ERR_NETWORK_CHANGED. Authentication was therefore not re-established or reclassified. No fresh card is inferred from earlier quotes. The prior NFL card expired at 04:08:27 UTC November 25. The next task remains fresh NFL/NBA cards when source access recovers, alongside exact-contract rule review. No provider capture, quota-consuming request, phone publication, deployment, wager or pending metadata-write retry occurred.
+
+Source: [official NBA box score](https://www.nba.com/game/0022600288/box-score), manually inspected in the rendered Traditional / All Periods view. Original aggregate account only; no subscriber table or complete box-score redistribution.
