@@ -1,0 +1,13 @@
+# Chicago–Charlotte conditional card review
+
+Four distinct NBA made-threes alternatives were reviewed at 22:22:24 UTC November 25, expiring 22:37:24 UTC. Every exact offered eligible-book price had negative estimated EV against provider-derived fair value. This is a paper research shortlist, not positive-edge certification, a parlay or a blanket bet-all plan. No unavailable venue price was transferred.
+
+Official NBA0022600056, exact teams/date and FanDuel36354198 were matched. The provider/book displayed 00:10 UTC November 26 versus official 00:00 UTC; an observation-specific ten-minute manual schedule bridge retains the official start without changing global identity tolerance. Mkt Avg reference composition may include the offered book and is not independent corroboration. Underlying source/reference timestamps are unknown; all entries remain conditional with unquantified probability uncertainty. Zero additional direct fees are assumed; liquidity and accepted limits are unknown. Applicable overtime, participation, void and correction rules remain unreviewed.
+
+The official 5:00 p.m. ET report was checked: one selected player is probable with thigh soreness and must not be promoted as ready. A Chicago teammate previously questionable is now out; other absences change usage/minute conditions. Final participation and workload remain unverified. The preceding Miami–Philadelphia card expired at 21:40:22 UTC; a teammate availability update is retained separately without rewriting pregame records.
+
+Private original observations and detailed conditions remain in ignored runs/nba-chi-cha-2026-11-25T2222/. Payload SHA256: 88a8830feb840bd5c5ef0e592ca14b137c5a659100048c3405830aebe9f2a906. Exact PR56 validator accepted four payloads; conditional/expiry and descending-EV assertions passed. No subscriber table is reproduced here.
+
+At 22:21 UTC public feeds returned 16 upcoming NFL games and eight NBA games with zero fresh entries. The next NFL game remains 01:00 UTC November 26; this is the next upcoming NBA game. Recommended still rendered the Sharp sign-in gate. Detailed private phone publication remains unverified because confirmed owner configuration is unavailable. No provider capture/quota spend, ledger append, deployment, wager, model promotion or pending metadata-write retry occurred. Coverage of remaining games is still incomplete.
+
+Sources: [official event](https://www.nba.com/hornets/game/0022600056-bulls-vs-hornets-charlotte-nc-11-25-2026), [official injury report](https://ak-static.cms.nba.com/referee/injury/Injury-Report_2026-11-25_05_00PM.pdf). Next: verify final availability and exact contracts, recheck quotes, and extend supported cards across both sports.
