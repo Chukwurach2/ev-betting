@@ -1,0 +1,11 @@
+# Broncos–Steelers final availability association
+
+Review completed November 27, 2026, at approximately 19:53 UTC. The [official Steelers inactive announcement](https://www.steelers.com/news/steelers-inactives-for-week-12-vs-broncos) explicitly identifies Mason Rudolph as the starting quarterback and renders seven Pittsburgh and six Denver inactive entries. Cole Holcomb's earlier questionable designation resolves to inactive. These are official availability facts, not a numerical injury adjustment or a prediction.
+
+The separate [Denver transaction announcement](https://www.denverbroncos.com/news/broncos-activate-rb-tyler-badie-from-ir-promote-rb-cody-schrader-to-active-roster-ahead-of-week-12-game-vs-steelers) confirms Tyler Badie's activation from injured reserve. He is absent from the complete inactive list; his earlier activation prerequisite is resolved, but participation, touches and workload are not guaranteed. Practice reports, roster activation and game-day inactivity are distinct evidence states. The original coverage receipt remains immutable rather than being rewritten with later knowledge.
+
+The four prior full-game offers expired at 05:13:34 UTC. No fresh book offer or usable fair-value benchmark was reviewed, so probabilities/EV remain null and the supported-entry shortfall remains four. The one-minute book/official scheduled-start discrepancy stays explicit. No stale price is promoted by this availability update, and there is no phone delivery or prospective inclusion.
+
+Private evidence retains complete list counts, exact sources, association conditions and the original receipt fingerprint. Assertions checked seven/six entries, activation distinct from participation, unchanged original bytes and zero promoted valuations. No canonical ledger mutation, financial grade, provider odds request, deployment, wager or model promotion occurred.
+
+At approximately 19:14 UTC, independent public feeds returned 13 NFL and 11 NBA upcoming games, zero entries in both. This coverage snapshot predates delayed review completion and is not a fresh delivery claim. The prior browser approval-transport blocker was not retried or bypassed. Next: properly authorized fresh book/reference evidence for both sports; elapsed host time never resets quote freshness or changes pregame eligibility.
