@@ -14,7 +14,7 @@ Find and rigorously test potential edges across the entire NFL: full-game moneyl
 
 ## Current evidence, not assumed readiness
 
-The drive challenger failed to improve overall log loss. The direct Q1 challenger was evaluated on 816 games, with loss 0.615154 vs 0.615635 baseline; its 95% difference interval crosses zero. Neither is production validated. Reports and reproducible jobs are in `model/reports` and `.github/workflows/nfl-edge.yml`. The latter has a safe source bootstrap avoiding unrelated submodule resolution. No automatic inference publisher or frequent checkpoint process is active. `ops/collect_checkpoints.py` implements SHADOW quote collection only. Its runtime credential and scheduler still need activation. Vercel Hobby's cron cadence is insufficient for the narrow windows. Hourly assistant tasks do not fill that gap or imply continuous prices.
+The drive challenger failed to improve overall log loss. The direct Q1 challenger was evaluated on 816 games, with loss 0.615154 vs 0.615635 baseline; its 95% difference interval crosses zero. Neither is production validated. Reports and reproducible jobs are in `model/reports` and `.github/workflows/nfl-edge.yml`. The latter has a safe source bootstrap avoiding unrelated submodule resolution. No automatic inference publisher or frequent checkpoint process is active. `ops/collect_checkpoints.py` implements SHADOW quote collection only. A checkpoint workflow exists and authentication recovery has succeeded; this does not establish continuous fresh-price coverage. Vercel Hobby's cron cadence is insufficient for the narrow windows. Hourly assistant tasks do not fill that gap or imply continuous prices.
 
 ## One hourly research/watch iteration
 
@@ -44,3 +44,14 @@ When qualified: insert supported model and odds snapshots transactionally, verif
 ## Weekly improvement
 
 Resolve completed games and exact contracts; keep incomplete weeks provisional. Evaluate all frozen observations, not just selected wins/user bets. Report independent game counts, ROI/CLV definitions, coverage, calibration and clustered uncertainty by family/window. Preserve rejected experiments. Retrain only by running the real pipeline; retain champion until the full promotion policy passes. Update ordinary dashboard metrics in Neon without redeploying.
+
+## Verified delivery status (2026-10-21 UTC)
+
+- NFL authentication recovery succeeded: [run 39249776550, attempt 2](https://github.com/Chukwurach2/ev-betting/actions/runs/39249776550/attempts/2) captured one checkpoint with zero failures. The old HTTP 401 is historical. Verify source times and phone reads before claiming fresh coverage.
+- NBA uses separate storage and an opt-in manual workflow. [Run 39511851302](https://github.com/Chukwurach2/ev-betting/actions/runs/39511851302) processed 250 quote rows. Its temporary phone cards have expired; successful capture does not activate recurring collection.
+- Private curated delivery exists through owner-scoped research_leans (PR33, corrected by PR34). Read docs/private-research-delivery.md before publishing. Signed-in owner/phone end-to-end verification remains pending. Backend insertion alone does not prove phone visibility.
+- The provider plan is 500 credits/month. Check free-events authentication and current remaining-credit headers before a bounded capture. No continuous polling, purchases or prop sweeps.
+- [Paper evidence audit](https://github.com/Chukwurach2/novig-hqmm/pull/4): 208 observations across 16 event identifiers, zero verified accepted prices and zero settlements at the snapshot. Repeated captures are not independent bets.
+- Next: supported fresh game cards across NFL/NBA, owner-read verification, exact final/rule mapping with unresolved coverage, then prospective evaluation. Preserve the frozen model and private journal.
+
+These receipts supersede earlier activation/authentication diagnoses. Do not redeploy to refresh prices or widen freshness limits. Private original analysis is separate from automatic subscriber ingestion and validated-model publication.

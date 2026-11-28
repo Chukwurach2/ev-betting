@@ -1,0 +1,13 @@
+# Broncos–Steelers historical coverage and interrupted review
+
+The next NFL event was inspected through an explicit eligible-book page: exact Denver/Pittsburgh teams, November 27 date and event identity were retained privately, together with four distinct half-point spread/total offers. The book description displayed 3:01 PM Eastern versus the official 3:00 PM start; this one-minute discrepancy is explicit and no global matching tolerance was relaxed.
+
+The review started November 27 at 04:58:34 UTC. After delayed host/browser work the actual clock read 10:13:40 UTC. The conservative 15-minute window had expired at 05:13:34 UTC. Exact per-quote observation and underlying quote times are unestablished; these are historical coverage facts, not fresh prices. No fair probabilities, minimum prices or EV were inferred and the supported-value shortfall remains four.
+
+Recommended rendered the Sharp sign-in gate. The touchdown table was loading. Automatic browser approval review then failed with a transport disconnection before the EVSharps Game filter action executed; a later book-state read was also not executed. These are review-system failures, not determinations that the content is unsafe. No denied action was retried or reached through another browser surface, hidden endpoint or workaround. Future browser work requires the approval path to function normally.
+
+Unaffected primary-source research continued. The [Steelers report](https://www.steelers.com/news/week-12-injury-report-broncos-x3630) lists three out entries and one questionable; the [Broncos report](https://www.denverbroncos.com/news/injuryreport/injury-report-s-brandon-jones-not-assigned-game-status-3-broncos-ruled-out-for-week-12-game-vs-steelers) lists three out entries and a questionable return-from-IR player who also needs activation. Detailed associations remain private. Final inactives were not verified and no participant was promoted as ready. Official Denver reporting confirms 1 PM Mountain, equivalent to 3 PM Eastern.
+
+Both sport feeds were checked at approximately 04:59 UTC: 13 NFL and 11 NBA upcoming games, zero entries in each. These times are preserved rather than recast as 10:13 fresh delivery. No manual provider polling, paid requests, publication payload, canonical ledger mutation, financial grade, deployment, wager or model promotion occurred.
+
+Assertions checked four unique contracts, null unsupported valuations, expiration at actual-time retention and zero supported/published entries. Next: restored normal browser review, fresh exact offers and usable references, then final availability checks. Neither opposing sides nor missing prices are substitutes for four supported picks.

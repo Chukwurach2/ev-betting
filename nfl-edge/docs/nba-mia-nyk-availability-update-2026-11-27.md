@@ -1,0 +1,11 @@
+# Heat–Knicks official availability changes
+
+Reviewed November 27, 2026, approximately 20:00 UTC. The [official NBA injury index](https://www.nba.com/players/injury-report) linked the [2:45 PM Eastern report](https://ak-static.cms.nba.com/referee/injury/Injury-Report_2026-11-27_02_45PM.pdf). Text and rendered page one were inspected for the exact November 27 Miami-at-New York matchup.
+
+Compared with the retained November 26 11:15 PM report, six player statuses change: Andrew Wiggins becomes available; OG Anunoby, Jordan Clarkson, Andre Drummond and Miles McBride become out; Karl-Anthony Towns is newly listed questionable. Giannis Antetokounmpo remains probable. The retained private association includes exact reasons and source fingerprints. Probable and questionable do not establish final participation, starting role or minutes. This comparison describes successive reports, not the exact first announcement time for any change.
+
+These changes require a new team-context review before using any full-game valuation. No numerical adjustment is inferred from injury labels alone. All four old book offers remain expired, with unknown underlying quote/reference times and null probabilities/EV. No supported lean is created or private phone delivery claimed. The official report's 7:00 PM Eastern start still differs from the old book/provider 7:10 PM display; no global matching tolerance or certified join changed.
+
+Assertions checked nine unique associations, six status changes, preservation of prior coverage bytes and no unsupported valuation/promotion. New evidence appends a separate receipt; earlier reports and quotes are not rewritten. No canonical paper ledger grade or financial result changed.
+
+At approximately 19:59 UTC, both public feeds were checked: 13 NFL and 11 NBA upcoming games, zero entries in either. This is a feed snapshot, not real-time monitoring. Existing browser approval-transport and private owner-read blockers remain recorded; no denied action was retried or bypassed. No provider odds request, deployment, wager or model promotion occurred. Next: fresh authorized exact book offers, usable reference evidence and subsequent official availability updates; retain explicit per-game shortfalls until supported.
