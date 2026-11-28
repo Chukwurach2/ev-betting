@@ -1,0 +1,11 @@
+# Conditional Chicago–Charlotte outcome review
+
+The official NBA Traditional / All Periods box score rendered FINAL for game0022600056 on November25. All four retained made-threes alternatives were associated with their exact original observation IDs, event/date/home-away identity and individual official player links. Every selected statistic was below its original half-point line. These are descriptive statistic relations, not certified financial losses.
+
+The original prices, lines, source times and conditional availability flags remain unchanged, including the player previously probable with thigh soreness. Retrospective playing minutes do not establish what was known before the game. Exact observation-specific FanDuel overtime, participation, void and correction terms remain unresolved; profit stays null, zero financial grades were added and the records remain outside the prospective trial.
+
+Minimal selected facts remain private in ignored runs/nba-chi-cha-2026-11-25T2222/official-stat-evidence-2026-11-26.json. Four unique observation associations, exact game/market/book/line checks and original/ledger hash checks passed. Original payload SHA256:88a8830feb840bd5c5ef0e592ca14b137c5a659100048c3405830aebe9f2a906. Paper ledger SHA256 remains7efe703a736afc2838eb5fa3b3d71b2369ae0bb8fec70ab1f353feeff4826930. No ledger append or full-cohort performance recomputation occurred; no new ROI or financial denominator is inferred.
+
+The18:02UTC November26 public reads returned15upcomingNFL and11NBA games, both with0fresh entries. The next NFL game was Philadelphia–Dallas; no NBA game was within24hours. The previously documented unusable Philadelphia–Dallas benchmark remains a coverage shortfall rather than a qualifying opportunity. Recommended rendered the Sharp sign-in gate. No provider capture/quota spend, phone publication, deployment, new experiment, model promotion, wager or pending metadata-write retry occurred. Next: usable fresh Thanksgiving quotes and exact contract rules before financial settlement.
+
+Source: [official NBA box score](https://www.nba.com/game/0022600056/box-score), manually inspected in the rendered Traditional / All Periods view. Original aggregate account only; no complete table redistribution.

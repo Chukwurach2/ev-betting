@@ -53,3 +53,6 @@ jobs:
         run: node --test tests/report-health.test.mjs
       - name: Sunday board fail-closed verdict
         run: node --test tests/sunday-board.test.mjs
+
+      - name: Paper report CLI and performance regressions
+        run: node --test tests/paper-report-cli.test.mjs tests/paper-performance.test.mjs

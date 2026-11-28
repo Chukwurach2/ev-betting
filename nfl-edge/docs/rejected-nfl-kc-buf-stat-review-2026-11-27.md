@@ -1,0 +1,11 @@
+# Rejected Chiefs–Bills coverage: official touchdown facts
+
+Reviewed November 27, 2026. The [official Bills scoring summary](https://www.buffalobills.com/game-day/2026/reg-week12/chiefs-at-bills/scoring-summary) renders the November 26 fixture FINAL. Four quarters reconcile to Kansas City 10–Buffalo 13; its complete scoring summary has one touchdown for each team. Among all four original private coverage alternatives, one has one non-passing touchdown and three have zero: one statistical relation above the half-touchdown threshold, three below.
+
+All four alternatives were reviewed without result-based selection. Their sparse fair-value benchmark remains rejected, with unknown reference/source ages, null probabilities/EV and expired original prices. None was a qualified value pick, prospective strategy entry or claimed phone delivery. The later final inactive associations and current final do not backdate knowledge or repair the rejected benchmark.
+
+No exact historical touchdown action/void/special-override attestation was added, so certified profits remain null and no financial grade is inferred. The canonical full-game ledger remains unchanged. This is a statistics-only association review, not a replacement cohort performance report, strategy validation, new statistical experiment or wager accounting.
+
+Private evidence retains four complete associations, primary-source identity/date/final, quarter-sum reconciliation and the original receipt fingerprint. Assertions checked all four selections, final sums, unchanged original bytes and null unsupported valuation/profit. No gamebook dataset was ingested.
+
+Current roadmap, tracking issue, open PRs, main commits and CI were inspected. At approximately 21:07 UTC, public feeds returned 12 upcoming NFL and 11 NBA games with zero entries. Denver–Pittsburgh had passed its scheduled start and was absent from the upcoming feed; this is not a final/cancellation assertion. Prior browser approval and private owner-read blockers remain recorded and were not retried or bypassed. No provider odds request, deployment, publication payload, model promotion or wager occurred. Next: authorized fresh NBA coverage and permitted exact-contract settlement evidence; avoid repeating this completed final lookup.

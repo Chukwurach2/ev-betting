@@ -1,0 +1,9 @@
+# Conditional NFL final review — 2026-11-23
+
+The [official Vikings game center](https://www.vikings.com/game-day/2026/49ers-reg-week11/game-center) rendered Week 11, November 22, FINAL at Estadio Banorte. Quarter totals reconcile Minnesota 10 (7/3/0/0) and San Francisco 35 (7/21/0/7). This completes event-final evidence for the four existing expired conditional MIN–SF watches, using the retained season/week/team identity and official date/venue. No name-only cross-event match was introduced.
+
+The scoring-summary navigation was not executed: automatic approval review could not complete because its connection disconnected. This is a review failure, not an unsafe-action determination. No alternate blocked-action workaround was attempted. No selected-player TD totals are inferred from the team score, related headlines or prior roster knowledge. A discovered official gamebook also could not be read by the web tool. Complete selected-player evidence and exact applicable DraftKings contract rules remain unresolved; financial grades added are zero and profit remains null.
+
+Validation checked quarter-sum reconciliation, all four original observation IDs/game IDs, original payload SHA-256 and unchanged main-ledger SHA-256. Original expiry, conditional flags and later inactive-list receipt remain unchanged. No prospective inclusion, phone-publication claim, new experiment, provider collection or model promotion occurred. Detailed associations remain private in ignored runs/.
+
+The separate NFL/NBA feed checks were generated at 06:22 UTC with 17/10 upcoming games and zero fresh entries; these are historical coverage checks, not quotes verified at completion. Host delay advanced artifact completion to after 10:37 UTC. No freshness is backdated. Next: complete the official scoring review through normally approved access before considering exact-book financial settlement; prioritize fresh supported game cards.
