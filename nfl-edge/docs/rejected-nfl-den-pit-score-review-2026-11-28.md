@@ -1,0 +1,11 @@
+# Rejected Broncos–Steelers coverage: final-score relations
+
+Reviewed November 28, 2026, approximately 02:06 UTC. The [official Steelers home page](https://www.steelers.com/) marked the November 27 game FINAL; the [club recap](https://www.steelers.com/news/steelers-top-broncos-27-5-at-home) confirms Pittsburgh 27–Denver 5. These are two views in the same club ecosystem, not independent compiler validation. No restricted gamebook was ingested.
+
+The final has 32 combined points. All four original private full-game spread/total alternatives were retained: Pittsburgh's positive-spread and the under-total alternatives are above their recorded score thresholds; Denver's negative-spread and the over-total alternatives are below. Decimal margin calculations reconcile opposing sides. These are mathematical score relations, not certified wager outcomes or profits.
+
+The original offers were historical coverage only: rejected/missing usable references, unknown quote times, expired review window and null fair probabilities/EV. Exact historical own-book action/settlement/override evidence was not added. The one-minute official/book scheduled-start discrepancy remains explicit. No source fact repairs the missing pregame valuation or creates retrospective prospective eligibility.
+
+The private append-only receipt preserves all four selections, final identity/date, score relations and original coverage fingerprint. Assertions checked completeness, the 32-point total, opposite-side Decimal margins, immutable prior bytes and null valuations/profits. No canonical ledger row, financial grade, model result or current cohort return changed.
+
+At approximately 02:03 UTC, public feeds showed 12 upcoming NFL and nine NBA games with zero entries in both. Earlier started games disappearing from the upcoming feed does not establish their result. Current roadmap, tracking issue, open PRs, latest main commits and CI were inspected. Existing browser/owner-access blockers remain recorded without retry or bypass. No provider odds request, deployment, wager or model promotion occurred. Next: permitted exact contract evidence and supported fresh NBA coverage; avoid repeating this completed final lookup.
